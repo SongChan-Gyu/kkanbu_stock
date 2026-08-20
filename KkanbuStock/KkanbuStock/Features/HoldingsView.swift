@@ -7,6 +7,7 @@ struct HoldingsView: View {
     @State private var proposeStock: Stock?
     @State private var sellHolding: Holding?
     @State private var verifyHolding: Holding?
+    @State private var showPropose = false
 
     var body: some View {
         NavigationStack {
@@ -16,7 +17,13 @@ struct HoldingsView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         DisclaimerBanner()
                         summary
-                        ForEach(store.state.holdings.filter { $0.userId == store.state.currentUserId }) { holding in
+                        let mine = store.state.holdings.filter { $0.userId == store.state.currentUserId }
+                        if mine.isEmpty {
+                            EmptyStateView(emoji: "✨", title: "아직 주식이 없어요", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
+                            PillButton(title: "주식 추가") { showAdd = true }
+                            PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
+                        }
+                        ForEach(mine) { holding in
                             if let stock = store.state.stock(holding.stockId) {
                                 HoldingCardView(
                                     stock: stock,
@@ -27,7 +34,7 @@ struct HoldingsView: View {
                                     showsQuantity: store.state.currentUser.shareQuantity,
                                     isMine: true,
                                     onRecommend: { recommendHolding = holding },
-                                    onPropose: { proposeStock = stock },
+                                    onPropose: nil,
                                     onSell: holding.status == .holding ? { sellHolding = holding } : nil,
                                     onVerify: { verifyHolding = holding }
                                 )
@@ -39,6 +46,9 @@ struct HoldingsView: View {
             }
             .navigationTitle("내 주식")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("🤔 이거 어때?") { showPropose = true }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAdd = true
@@ -54,6 +64,7 @@ struct HoldingsView: View {
             .sheet(item: $proposeStock) { ProposalSheet(preselected: $0) }
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
+            .sheet(isPresented: $showPropose) { ProposalSheet() }
         }
     }
 

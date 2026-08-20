@@ -10,10 +10,11 @@ enum Trigger: Equatable {
     case proposalCreated(id: UUID)
     case coBuyPromised(id: UUID)
     case coBuyCompleted(id: UUID)
-    case nagged(proposalId: UUID, actorId: UUID, count: Int)
+    case nagged(proposalId: UUID, actorId: UUID, targetUserId: UUID?, count: Int)
     case suspected(holdingId: UUID, actorId: UUID)
     case verified(holdingId: UUID, matched: Bool)
     case priceEdited(holdingId: UUID)
+    case proposalDeclined(id: UUID)
 }
 
 struct EventContext {

@@ -209,6 +209,7 @@ struct EventRow: View {
             }
         }
         .padding(.vertical, 4)
+        .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
     }
 }
 

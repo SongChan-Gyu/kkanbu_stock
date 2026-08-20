@@ -303,4 +303,81 @@ final class AppStoreFlowTests: XCTestCase {
         store.nag(proposalId: store.state.proposals[0].id)
         XCTAssertNotNil(store.lastError)
     }
+
+    func testTwentyScenarioMVPLoop() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        let store = AppStore(
+            state: .empty(user: me, stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-20-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "우리 주식팟")
+        let group = store.state.groups[0]
+        XCTAssertFalse(group.inviteCode.isEmpty)
+
+        let younghee = User(nickname: "영희", avatarEmoji: "🐰")
+        store.state.users.append(younghee)
+        store.state.members.append(GroupMember(groupId: group.id, userId: younghee.id))
+
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        let ocr = store.analyzeText("NVDA\nNVIDIA\n평균매입가 $163.40")
+        XCTAssertEqual(ocr.matchedStock?.ticker, "NVDA")
+        store.addHolding(
+            stock: nvda,
+            averagePrice: ocr.recognizedPrice ?? 163.4,
+            quantity: nil,
+            purchaseDate: Date(),
+            method: .screenshot,
+            verification: .screenshotVerified
+        )
+        XCTAssertEqual(store.state.activeHoldings(of: me.id).first?.verificationState, .screenshotVerified)
+
+        let mine = store.state.activeHoldings(of: me.id)[0]
+        store.recommend(holding: mine, to: younghee.id, message: "너도 사 ㅋㅋ")
+        store.playAs(younghee.id)
+        store.resolveRecommendation(store.state.recommendations[0].id, accept: true, averagePrice: 168.2)
+        XCTAssertFalse(KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).isEmpty)
+        XCTAssertTrue(store.state.events.contains { $0.type == .newKkangbu || $0.type == .kkangbuRecruited })
+        XCTAssertFalse(store.state.relationships.isEmpty)
+
+        let tsla = StockCatalog.stock(ticker: "TSLA")!
+        store.playAs(me.id)
+        store.propose(stock: tsla, message: "이번에 같이 들어갈 사람?")
+        XCTAssertEqual(store.state.proposals.count, 1)
+        store.playAs(younghee.id)
+        store.promiseCoBuy(proposalId: store.state.proposals[0].id)
+        XCTAssertTrue(store.inboxItems(for: younghee.id).contains { $0.kind == .cobuyRegister })
+        store.addHolding(stock: tsla, averagePrice: 241, quantity: nil, purchaseDate: Date(), method: .chart, verification: .unverified)
+        store.playAs(me.id)
+        store.addHolding(stock: tsla, averagePrice: 240, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        XCTAssertTrue(store.state.events.contains { $0.type == .coBuyCompleted })
+        XCTAssertGreaterThanOrEqual(KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).count, 2)
+
+        store.playAs(younghee.id)
+        store.suspectHolding(mine.id)
+        store.playAs(me.id)
+        XCTAssertTrue(store.inboxItems(for: me.id).contains { $0.kind == .suspect })
+
+        store.sellHolding(id: mine.id, sellPrice: 200, sellDate: Date())
+        XCTAssertTrue(store.state.events.contains { $0.type == .soloEscape })
+
+        store.shock(stockId: nvda.id, percent: -0.2)
+        XCTAssertTrue(store.state.events.contains { $0.type == .foresight })
+
+        let board = RankingService.board(groupId: group.id, state: store.state, prices: store.currentPrices)
+        XCTAssertFalse(board.weeklyReturns.isEmpty)
+        XCTAssertFalse(store.state.events.filter { $0.groupId == group.id }.isEmpty)
+    }
+
+    func testGurapingMismatchDoesNotCallFraud() {
+        let store = AppStore(state: .empty(user: User(nickname: "준호"), stocks: StockCatalog.all), persistence: PersistenceStore(filename: "test-gura-\(UUID().uuidString).json"))
+        store.createGroup(name: "팟")
+        let tsla = StockCatalog.stock(ticker: "TSLA")!
+        store.addHolding(stock: tsla, averagePrice: 120, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        let holding = store.state.activeHoldings(of: store.state.currentUserId)[0]
+        let analysis = store.analyzeText("TSLA\nTesla\n평균매입가 $241.00")
+        store.applyScreenshotVerification(holdingId: holding.id, analysis: analysis)
+        XCTAssertEqual(store.state.holding(holding.id)?.verificationState, .mismatch)
+        XCTAssertTrue(store.state.events.contains { $0.type == .verificationMismatch })
+        XCTAssertFalse(store.state.events.contains { $0.message.contains("사기꾼") })
+    }
 }

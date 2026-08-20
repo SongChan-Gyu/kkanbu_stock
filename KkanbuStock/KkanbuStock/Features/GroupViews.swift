@@ -52,21 +52,29 @@ struct GroupHomeView: View {
     @Environment(AppStore.self) private var store
     var group: Group
     @State private var showRank = false
+    @State private var showAdd = false
+    @State private var showPropose = false
+    @State private var addPrefill: Stock?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                hero
                 members
+                kkangbuStrip
                 pending
+                friendsStocks
                 feed
             }
             .padding(16)
             .padding(.bottom, 24)
         }
-        .sheet(isPresented: $showRank) {
-            RankingsView(group: group)
-        }
+        .animation(.spring(duration: 0.45), value: store.state.events.first?.id)
+        .sheet(isPresented: $showRank) { RankingsView(group: group) }
+        .sheet(isPresented: $showAdd) { AddStockView() }
+        .sheet(isPresented: $showPropose) { ProposalSheet() }
+        .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
     }
 
     private var header: some View {
@@ -77,17 +85,36 @@ struct GroupHomeView: View {
                 Text("초대 코드 \(group.inviteCode)")
                     .font(.headline.monospaced())
                     .foregroundStyle(KkanbuTheme.coral)
-                Text("친구가 뭐 했는지가 주인공이에요. 숫자는 장난감입니다.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text("오늘 누가 튀었지?")
+                    .font(.title3.weight(.heavy))
                 HStack {
-                    PillButton(title: "칭호 랭킹", systemImage: "crown") { showRank = true }
+                    PillButton(title: "주식 추가", systemImage: "plus") { showAdd = true }
+                    PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
+                }
+                HStack {
+                    PillButton(title: "칭호 랭킹", systemImage: "crown", kind: .secondary) { showRank = true }
                     ShareLink(item: "주식 깐부 초대 코드: \(group.inviteCode)") {
                         Text("초대하기")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(Color.primary.opacity(0.08), in: Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    private var hero: some View {
+        let spicy = GroupSocial.spicyEvents(in: group.id, state: store.state)
+        return Group {
+            if let event = spicy.first {
+                KkanbuCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("지금 제일 핫한 일")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(KkanbuTheme.coral)
+                        EventRow(event: event, relative: MoneyFormat.relative(event.createdAt))
                     }
                 }
             }
@@ -103,9 +130,38 @@ struct GroupHomeView: View {
                     } label: {
                         VStack(spacing: 8) {
                             AvatarView(emoji: user.avatarEmoji, size: 58)
-                            Text(user.nickname)
+                            Text(user.id == store.state.currentUserId ? "나" : user.nickname)
                                 .font(.caption.bold())
                                 .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var kkangbuStrip: some View {
+        let pairs = KkangbuMath.pairSummaries(in: group.id, state: store.state, prices: store.currentPrices)
+        return Group {
+            if !pairs.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("지금 깐부")
+                        .font(.headline)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(pairs) { pair in
+                                KkanbuCard(padding: 14) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("\(pair.grade.emoji) \(pair.grade.title)")
+                                            .font(.headline)
+                                        Text("\(store.state.nickname(pair.userA)) × \(store.state.nickname(pair.userB))")
+                                        Text("\(pair.sharedCount)종목 · \(MoneyFormat.percent(pair.averageReturn))")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(width: 200, alignment: .leading)
+                                }
+                            }
                         }
                     }
                 }
@@ -121,7 +177,44 @@ struct GroupHomeView: View {
                     Text("같이 사기 진행 중")
                         .font(.headline)
                     ForEach(open) { proposal in
-                        ProposalCard(proposal: proposal)
+                        ProposalCard(proposal: proposal, onRegister: { stock in
+                            addPrefill = stock
+                        })
+                    }
+                }
+            }
+        }
+    }
+
+    private var friendsStocks: some View {
+        let rows = GroupSocial.memberHoldings(in: group.id, state: store.state)
+            .filter { $0.1.status == .holding && $0.0.id != store.state.currentUserId }
+        return Group {
+            if !rows.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("친구들 주식")
+                        .font(.headline)
+                    ForEach(rows.prefix(8), id: \.1.id) { user, holding in
+                        if let stock = store.state.stock(holding.stockId) {
+                            NavigationLink {
+                                FriendDetailView(user: user, group: group)
+                            } label: {
+                                HStack {
+                                    Text(user.avatarEmoji)
+                                    VStack(alignment: .leading) {
+                                        Text("\(user.nickname) · \(stock.name)")
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+                                        Text(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))
+                                            .foregroundStyle(holding.returnRate(currentPrice: store.price(for: stock.id)) >= 0 ? Color.kkanbuUp : Color.kkanbuDown)
+                                    }
+                                    Spacer()
+                                    VerificationBadge(state: holding.verificationState)
+                                }
+                                .padding(12)
+                                .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            }
+                        }
                     }
                 }
             }
@@ -149,25 +242,32 @@ struct GroupHomeView: View {
 struct ProposalCard: View {
     @Environment(AppStore.self) private var store
     var proposal: StockProposal
+    var onRegister: ((Stock) -> Void)? = nil
 
     var body: some View {
         let stock = store.state.stock(proposal.stockId)
         let promised = store.state.coBuys.filter { $0.proposalId == proposal.id && $0.status != .declined }
         let mine = promised.contains { $0.userId == store.state.currentUserId }
+        let alreadyHolding = stock.map { item in
+            store.state.activeHoldings(of: store.state.currentUserId).contains(where: { $0.stockId == item.id })
+        } ?? false
         KkanbuCard(padding: 14) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("🤔 \(store.state.nickname(proposal.proposerId)) · \(stock?.name ?? "")")
                     .font(.headline)
                 Text(proposal.message)
                     .foregroundStyle(.secondary)
-                Text("같이 사기 \(promised.count)명")
+                Text("같이 사기 \(promised.count)명 · \(promised.compactMap { store.state.nickname($0.userId) }.joined(separator: ", "))")
                     .font(.subheadline.bold())
                 HStack {
                     if mine {
                         if proposal.proposerId == store.state.currentUserId {
                             PillButton(title: "조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
-                        } else {
-                            Text("약속함")
+                        }
+                        if !alreadyHolding, let stock {
+                            PillButton(title: "지금 등록") { onRegister?(stock) }
+                        } else if alreadyHolding {
+                            Text("등록됨")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

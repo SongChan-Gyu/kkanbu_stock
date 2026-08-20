@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ActivityView: View {
     @Environment(AppStore.self) private var store
+    @State private var verifyHolding: Holding?
+    @State private var addPrefill: Stock?
 
     var body: some View {
         NavigationStack {
@@ -31,6 +33,8 @@ struct ActivityView: View {
                 }
             }
             .navigationTitle("활동")
+            .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
+            .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
         }
     }
 
@@ -78,6 +82,28 @@ struct ActivityView: View {
                         Text("낙인 찍는 기능이 아니라, 장난스러운 인증 요청이에요.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        PillButton(title: "📸 캡처로 인증하기") { verifyHolding = holding }
+                    }
+                }
+            case .nag:
+                if let proposal = item.proposal {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("😂 같이 사자고 또 찔렀어요")
+                            .font(.headline)
+                        Text(proposal.message)
+                        HStack {
+                            PillButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
+                            PillButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
+                        }
+                    }
+                }
+            case .cobuyRegister:
+                if let proposal = item.proposal, let stock = store.state.stock(proposal.stockId) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("🤝 약속만 하고 아직 등록 안 했어요")
+                            .font(.headline)
+                        Text("\(stock.name) · 같이 사기는 실제 보유를 넣어야 깐부가 됩니다.")
+                        PillButton(title: "지금 등록하기") { addPrefill = stock }
                     }
                 }
             }
@@ -178,6 +204,16 @@ struct ProfileView: View {
                     }
                 }
                 PillButton(title: "데모 파티 리셋", kind: .ghost) { store.resetDemo() }
+                if let groupId = store.state.selectedGroupId {
+                    Text("친구로 플레이 (테스트용)")
+                        .font(.subheadline.bold())
+                        .padding(.top, 6)
+                    ForEach(store.state.memberUsers(of: groupId)) { user in
+                        Button("\(user.avatarEmoji) \(user.nickname)로 보기") {
+                            store.playAs(user.id)
+                        }
+                    }
+                }
             }
         }
     }
@@ -255,6 +291,7 @@ struct FriendDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     shared
+                    historySections
                     holdings
                     history
                 }
@@ -305,6 +342,54 @@ struct FriendDetailView: View {
                     if let stock = store.state.stock(bond.stockId) {
                         Text("\(stock.name) \(MoneyFormat.percent(bond.sharedReturn))")
                             .font(.title3.bold())
+                    }
+                }
+            }
+        }
+    }
+
+    private var historySections: some View {
+        let records = SocialHistory.records(
+            between: store.state.currentUserId,
+            friend: user.id,
+            groupId: group.id,
+            state: store.state,
+            prices: store.currentPrices
+        )
+        return VStack(alignment: .leading, spacing: 14) {
+            historyBlock("📣 내가 추천한 종목", records.recommendedByMe)
+            historyBlock("🤔 \(user.nickname)가 제안한 종목", records.proposedByFriend)
+            historyBlock("🤝 같이 사기로 한 종목", records.coBuys)
+            historyBlock("🏃 \(user.nickname)가 튄 기록", records.escapes)
+            historyBlock("🧠 \(user.nickname)의 선견지명", records.foresights)
+            historyBlock("🤡 너무 일찍 튄 기록", records.soldTooEarly)
+        }
+    }
+
+    @ViewBuilder
+    private func historyBlock(_ title: String, _ items: [HistoryRecord]) -> some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.headline)
+                ForEach(items) { item in
+                    KkanbuCard(padding: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(item.emoji) \(item.title)")
+                                .font(.headline)
+                            Text(item.detail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            HStack {
+                                Text(item.result)
+                                    .font(.subheadline.bold())
+                                if let value = item.currentReturn {
+                                    Spacer()
+                                    Text("현재 \(MoneyFormat.percent(value))")
+                                        .foregroundStyle(value >= 0 ? Color.kkanbuUp : Color.kkanbuDown)
+                                }
+                            }
+                        }
                     }
                 }
             }

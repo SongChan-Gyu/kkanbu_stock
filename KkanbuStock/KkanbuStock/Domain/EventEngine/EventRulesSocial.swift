@@ -57,18 +57,35 @@ struct ProposalRule: EventRule {
     let ruleId = "ProposalRule"
 
     func evaluate(context: EventContext) -> [FeedEvent] {
-        guard case let .proposalCreated(id) = context.trigger,
-              let proposal = context.after.proposals.first(where: { $0.id == id }) else { return [] }
-        return [
-            FeedEvent(
-                groupId: proposal.groupId,
-                type: .proposalCreated,
-                actorId: proposal.proposerId,
-                stockId: proposal.stockId,
-                title: "🤔 이거 어때?",
-                message: "\(context.after.nickname(proposal.proposerId))가 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
-            )
-        ]
+        switch context.trigger {
+        case let .proposalCreated(id):
+            guard let proposal = context.after.proposals.first(where: { $0.id == id }) else { return [] }
+            return [
+                FeedEvent(
+                    groupId: proposal.groupId,
+                    type: .proposalCreated,
+                    actorId: proposal.proposerId,
+                    stockId: proposal.stockId,
+                    title: "🤔 이거 어때?",
+                    message: "\(context.after.nickname(proposal.proposerId))가 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
+                )
+            ]
+        case let .proposalDeclined(id):
+            guard let proposal = context.after.proposals.first(where: { $0.id == id }) else { return [] }
+            return [
+                FeedEvent(
+                    groupId: proposal.groupId,
+                    type: .recommendRejected,
+                    actorId: context.after.currentUserId,
+                    targetUserId: proposal.proposerId,
+                    stockId: proposal.stockId,
+                    title: "📭 제안 거절",
+                    message: "\(context.after.nickname(context.after.currentUserId))가 \(context.stockName(proposal.stockId)) 같이 사기를 일단 패스했습니다."
+                )
+            ]
+        default:
+            return []
+        }
     }
 }
 
@@ -112,16 +129,24 @@ struct NagRule: EventRule {
     let ruleId = "NagRule"
 
     func evaluate(context: EventContext) -> [FeedEvent] {
-        guard case let .nagged(proposalId, actorId, count) = context.trigger,
+        guard case let .nagged(proposalId, actorId, targetUserId, count) = context.trigger,
               let proposal = context.after.proposals.first(where: { $0.id == proposalId }) else { return [] }
+        let targetName = targetUserId.map { context.after.nickname($0) }
+        let message: String
+        if let targetName {
+            message = "\(context.after.nickname(actorId))가 \(targetName)에게 \(context.stockName(proposal.stockId))를 \(count)번째로 같이 사자고 조르고 있습니다."
+        } else {
+            message = "\(context.after.nickname(actorId))가 \(context.stockName(proposal.stockId))를 \(count)번째로 같이 사자고 조르고 있습니다."
+        }
         return [
             FeedEvent(
                 groupId: proposal.groupId,
                 type: .persistentNagging,
                 actorId: actorId,
+                targetUserId: targetUserId,
                 stockId: proposal.stockId,
                 title: "😂 같이 사자고 조르기",
-                message: "\(context.after.nickname(actorId))가 \(context.stockName(proposal.stockId))를 \(count)번째로 같이 사자고 조르고 있습니다."
+                message: message
             )
         ]
     }

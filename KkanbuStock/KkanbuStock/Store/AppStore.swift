@@ -239,6 +239,7 @@ final class AppStore {
 
     func declineProposal(_ proposalId: UUID) {
         guard let proposal = state.proposals.first(where: { $0.id == proposalId }) else { return }
+        let before = state
         if let index = state.coBuys.firstIndex(where: { $0.proposalId == proposalId && $0.userId == state.currentUserId }) {
             state.coBuys[index].status = .declined
         } else {
@@ -252,7 +253,7 @@ final class AppStore {
                 )
             )
         }
-        persist()
+        emit(.proposalDeclined(id: proposalId), before: before)
         toast = "나중에로 미뤘어요"
     }
 
@@ -274,7 +275,10 @@ final class AppStore {
             state.coBuys[index].nagCount = count
             state.coBuys[index].lastNagAt = Date()
         }
-        emit(.nagged(proposalId: proposalId, actorId: state.currentUserId, count: count), before: before)
+        let responded = Set(state.coBuys.filter { $0.proposalId == proposalId }.map(\.userId))
+        let holdouts = state.members(of: proposal.groupId).map(\.userId).filter { !responded.contains($0) && $0 != state.currentUserId }
+        let targets = holdouts.isEmpty ? [nil] : holdouts.map(Optional.some)
+        emit(targets.map { .nagged(proposalId: proposalId, actorId: state.currentUserId, targetUserId: $0, count: count) }, before: before)
         toast = "같이 사자고 한 번 더 찔렀어요"
     }
 
@@ -364,25 +368,44 @@ final class AppStore {
         parser.analyze(text: text, catalog: state.stocks, now: Date())
     }
 
+    func playAs(_ userId: UUID) {
+        guard state.users.contains(where: { $0.id == userId }) else { return }
+        state.currentUserId = userId
+        persist()
+        toast = "\(state.nickname(userId))로 플레이 중. 친구 테스트용이에요."
+    }
+
+    func updateThresholds(_ thresholds: EventThresholds) {
+        state.thresholds = thresholds
+        persist()
+    }
+
     func inboxItems(for userId: UUID) -> [InboxItem] {
         let recs = state.recommendations.filter { $0.receiverId == userId && $0.status == .pending }.map {
             InboxItem(id: $0.id, kind: .recommend, date: $0.createdAt, recommendation: $0, proposal: nil, holding: nil)
         }
         let proposals = state.proposals.filter { proposal in
             proposal.proposerId != userId &&
+            proposal.status == .open &&
             !state.coBuys.contains { $0.proposalId == proposal.id && $0.userId == userId }
         }.map {
             InboxItem(id: $0.id, kind: .proposal, date: $0.createdAt, recommendation: nil, proposal: $0, holding: nil)
         }
         let nags = state.events.filter {
-            $0.type == .persistentNagging && $0.targetUserId == userId ||
-            ($0.type == .persistentNagging && $0.actorId != userId && state.selectedGroupId == $0.groupId)
+            $0.type == .persistentNagging && $0.targetUserId == userId
+        }.prefix(8).map { event in
+            let proposal = state.proposals.first { $0.stockId == event.stockId && $0.groupId == event.groupId && $0.status == .open }
+            return InboxItem(id: event.id, kind: .nag, date: event.createdAt, recommendation: nil, proposal: proposal, holding: nil)
         }
-        _ = nags
-        let suspects = state.holdings.filter { $0.userId == userId && $0.verificationState == .suspected }.map {
+        let suspects = state.holdings.filter { $0.userId == userId && ($0.verificationState == .suspected || $0.verificationState == .mismatch) }.map {
             InboxItem(id: $0.id, kind: .suspect, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
         }
-        return (recs + proposals + suspects).sorted { $0.date > $1.date }
+        let cobuyRegister = state.coBuys.filter { $0.userId == userId && $0.status == .promised }.compactMap { cobuy -> InboxItem? in
+            guard state.activeHoldings(of: userId).contains(where: { $0.stockId == cobuy.stockId }) == false,
+                  let proposal = state.proposals.first(where: { $0.id == cobuy.proposalId }) else { return nil }
+            return InboxItem(id: cobuy.id, kind: .cobuyRegister, date: cobuy.createdAt, recommendation: nil, proposal: proposal, holding: nil)
+        }
+        return (recs + proposals + Array(nags) + suspects + cobuyRegister).sorted { $0.date > $1.date }
     }
 
     private func completeCoBuysIfNeeded(userId: UUID, stockId: UUID) -> [Trigger] {
@@ -439,7 +462,38 @@ final class AppStore {
                 notifications.deliver(PushPayload(title: event.title, body: event.message, eventType: event.type, groupId: event.groupId))
             }
         }
+        syncRelationships()
         persist()
+    }
+
+    private func syncRelationships() {
+        let prices = currentPrices
+        for group in state.groups {
+            let pairs = KkangbuMath.pairSummaries(in: group.id, state: state, prices: prices)
+            for pair in pairs {
+                let a = min(pair.userA.uuidString, pair.userB.uuidString)
+                let b = max(pair.userA.uuidString, pair.userB.uuidString)
+                if let index = state.relationships.firstIndex(where: {
+                    $0.groupId == group.id &&
+                    min($0.userId.uuidString, $0.friendUserId.uuidString) == a &&
+                    max($0.userId.uuidString, $0.friendUserId.uuidString) == b
+                }) {
+                    state.relationships[index].gradeRaw = pair.grade.id
+                    state.relationships[index].score = pair.averageReturn
+                    state.relationships[index].updatedAt = Date()
+                } else {
+                    state.relationships.append(
+                        FriendRelationship(
+                            groupId: group.id,
+                            userId: pair.userA,
+                            friendUserId: pair.userB,
+                            gradeRaw: pair.grade.id,
+                            score: pair.averageReturn
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private func stampFiredKeys(_ event: FeedEvent) {
@@ -491,7 +545,7 @@ final class AppStore {
 }
 
 struct InboxItem: Identifiable {
-    enum Kind { case recommend, proposal, suspect }
+    enum Kind { case recommend, proposal, suspect, nag, cobuyRegister }
     var id: UUID
     var kind: Kind
     var date: Date

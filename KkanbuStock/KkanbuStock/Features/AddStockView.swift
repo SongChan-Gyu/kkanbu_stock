@@ -8,6 +8,7 @@ import UIKit
 struct AddStockView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    var prefill: Stock? = nil
     @State private var query = ""
     @State private var selected: Stock?
     @State private var priceText = ""
@@ -88,6 +89,13 @@ struct AddStockView: View {
                     if let recognizedDate { date = recognizedDate }
                     method = .screenshot
                     if verified { save(verification: .screenshotVerified) }
+                }
+            }
+            .onAppear {
+                if let prefill {
+                    selected = prefill
+                    query = prefill.name
+                    priceText = defaultPrice(prefill)
                 }
             }
         }

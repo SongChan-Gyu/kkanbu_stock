@@ -33,6 +33,7 @@ struct RootView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(duration: 0.4), value: store.toast)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
                             store.toast = nil
@@ -66,13 +67,14 @@ struct MainTabView: View {
     @Environment(AppStore.self) private var store
 
     var body: some View {
-        TabView {
+                TabView {
             GroupHomeContainer()
                 .tabItem { Label("그룹", systemImage: "person.3.fill") }
             HoldingsView()
                 .tabItem { Label("내 주식", systemImage: "sparkles") }
             ActivityView()
                 .tabItem { Label("활동", systemImage: "bolt.heart.fill") }
+                .badge(store.inboxItems(for: store.state.currentUserId).count)
             ProfileView()
                 .tabItem { Label("프로필", systemImage: "face.smiling") }
         }
