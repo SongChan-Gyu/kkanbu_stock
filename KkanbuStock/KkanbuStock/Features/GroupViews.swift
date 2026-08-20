@@ -94,8 +94,8 @@ struct GroupHomeView: View {
                     .foregroundStyle(KkanbuTheme.ink)
             }
             HStack(spacing: 8) {
-                QuietButton(title: "주식 추가") { showAdd = true }
-                QuietButton(title: "같이 사기", kind: .secondary) { showPropose = true }
+                QuietButton(title: "내 주식 등록") { showAdd = true }
+                QuietButton(title: "같이 살 종목 제안", kind: .secondary) { showPropose = true }
             }
             Button("칭호 랭킹") { showRank = true }
                 .font(.caption.weight(.medium))
@@ -112,7 +112,7 @@ struct GroupHomeView: View {
                     Text("내 차례")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    Text("추천과 제안이 여기에 모입니다.")
+                    Text("이미 산 종목 추천과, 아직 안 산 종목 제안")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in
@@ -299,7 +299,7 @@ struct ProposalCard: View {
                                 .foregroundStyle(KkanbuTheme.muted)
                         }
                     } else {
-                        QuietButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
+                        QuietButton(title: "같이 살게요") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
                     }
                 }

@@ -22,8 +22,8 @@ struct HoldingsView: View {
                         let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
                             EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
-                            QuietButton(title: "주식 추가") { showAdd = true }
-                            QuietButton(title: "같이 사기", kind: .secondary) { showPropose = true }
+                            QuietButton(title: "내 주식 등록") { showAdd = true }
+                            QuietButton(title: "같이 살 종목 제안", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")

@@ -106,6 +106,30 @@ body {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.verified {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3897f0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.kind {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
 }
 .ticker {
   font-size: 12px;

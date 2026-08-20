@@ -131,17 +131,13 @@ struct VerificationBadge: View {
     var state: VerificationState
 
     var body: some View {
-        Text(label)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(KkanbuTheme.faint)
-    }
-
-    private var label: String {
-        switch state {
-        case .unverified: "직접 입력"
-        case .screenshotVerified: "인증됨"
-        case .suspected: "의심 중"
-        case .mismatch: "불일치"
+        if state == .screenshotVerified {
+            Text("✓")
+                .font(.system(size: 9, weight: .heavy))
+                .foregroundStyle(.white)
+                .frame(width: 14, height: 14)
+                .background(Color(red: 0.22, green: 0.592, blue: 0.941), in: Circle())
+                .accessibilityLabel("캡처 인증")
         }
     }
 }
@@ -220,17 +216,17 @@ struct HoldingCardView: View {
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
                     }
-                    Text(stock.name)
-                        .font(.body.weight(.semibold))
+                    HStack(spacing: 5) {
+                        Text(stock.name)
+                            .font(.body.weight(.semibold))
+                        VerificationBadge(state: holding.verificationState)
+                    }
                     Text(stock.ticker)
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    ReturnText(value: holding.returnRate(currentPrice: currentPrice), size: 16)
-                    VerificationBadge(state: holding.verificationState)
-                }
+                ReturnText(value: holding.returnRate(currentPrice: currentPrice), size: 16)
             }
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
@@ -256,14 +252,14 @@ struct HoldingCardView: View {
             }
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
-                    small("추천", action: onRecommend)
-                    small("같이 사기", action: onPropose)
+                    small("친구에게 추천", action: onRecommend)
+                    small("같이 사자고 제안", action: onPropose)
                     small("매도", action: onSell)
                 } else if !isMine, holding.status == .holding {
-                    small("구라핑 의심", action: onSuspect)
+                    small("매수가 의심", action: onSuspect)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {
-                    small("인증", action: onVerify)
+                    small("캡처 인증", action: onVerify)
                 }
             }
         }

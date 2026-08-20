@@ -118,6 +118,30 @@ body {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.verified {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3897f0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.kind {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
 }
 .ticker {
   font-size: 12px;
@@ -836,8 +860,9 @@ function sm(label, action) {
   return `<button class="btn sm" data-act="${esc(action)}">${label}</button>`;
 }
 
-function verifyLabel(v) {
-  return { unverified: "직접 입력", screenshot: "인증됨", suspected: "의심 중", mismatch: "불일치" }[v] || "";
+function verifyMark(v) {
+  if (v === "screenshot") return `<span class="verified" title="캡처 인증">✓</span>`;
+  return "";
 }
 
 function holdingRow(h, isMine) {
@@ -849,28 +874,29 @@ function holdingRow(h, isMine) {
   const owner = user(h.userId);
   let actions = "";
   if (isMine && h.status === "holding") {
-    actions = sm("추천", `open-rec:${h.id}`) + sm("같이 사기", `open-prop:${h.stockId}`) + sm("매도", `sell:${h.id}`);
-    if (h.verification !== "screenshot") actions += sm("인증", `verify:${h.id}`);
+    actions = sm("친구에게 추천", `open-rec:${h.id}`) + sm("같이 사자고 제안", `open-prop:${h.stockId}`) + sm("매도", `sell:${h.id}`);
+    if (h.verification !== "screenshot") actions += sm("캡처 인증", `verify:${h.id}`);
   } else if (!isMine && h.status === "holding") {
-    actions = sm("구라핑 의심", `suspect:${h.id}`);
+    actions = sm("매수가 의심", `suspect:${h.id}`);
   }
   const partnerLine = partners.length
     ? `${esc(partners.join(" · "))}와 ${esc(g.title)}`
     : "";
+  const suspect = h.verification === "suspected" ? `<div class="caption">매수가 의심 중</div>` : "";
   return `
     <div class="row">
       <div class="grow">
         ${!isMine ? `<div class="caption">${esc(owner.nickname)}</div>` : ""}
-        <div class="stock-name">${esc(s.name)}</div>
+        <div class="stock-name">${esc(s.name)}${verifyMark(h.verification)}</div>
         <div class="ticker">${esc(s.ticker)}</div>
         <div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · 현재가 ${formatPrice(priceOf(s), s.market)}</div>
         ${partnerLine ? `<div class="caption">${partnerLine}</div>` : ""}
         ${h.status === "sold" ? `<div class="caption">매도 · ${formatPct(ret(h.averagePrice, h.sellPrice))}</div>` : ""}
+        ${suspect}
         <div class="actions">${actions}</div>
       </div>
       <div class="right">
         <div class="pct ${r >= 0 ? "up" : "down"}">${formatPct(r)}</div>
-        <div class="status">${verifyLabel(h.verification)}</div>
       </div>
     </div>`;
 }
@@ -880,39 +906,47 @@ function inboxBlock(item) {
     const rec = item.rec;
     const s = stock(rec.stockId);
     const h = state.holdings.find((x) => x.id === rec.holdingId);
+    const r = h ? ret(h.averagePrice, priceOf(s)) : null;
     return `<div class="action-block">
-      <h4>${esc(nickname(rec.senderId))} · ${esc(s.name)} 추천</h4>
-      ${h ? `<p>${esc(nickname(rec.senderId))} 평단 ${formatPrice(h.averagePrice, s.market)} · ${formatPct(ret(h.averagePrice, priceOf(s)))}</p>` : ""}
-      <p>${esc(rec.message)}</p>
-      <div class="split">${btn("나도 추가", "primary", `accept:${rec.id}`)}${btn("나중에", "secondary", `reject:${rec.id}`)}</div>
+      <div class="kind">친구가 이미 보유한 종목</div>
+      <div class="stock-name">${esc(s.name)}${h ? verifyMark(h.verification) : ""}</div>
+      <div class="ticker">${esc(s.ticker)} · ${esc(nickname(rec.senderId))}</div>
+      ${h ? `<div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · ${formatPct(r)}</div>` : ""}
+      <p class="caption">같은 종목을 내 보유로 등록하면 ${esc(nickname(rec.senderId))}와 깐부가 됩니다.</p>
+      <div class="split">${btn("같은 종목 등록", "primary", `accept:${rec.id}`)}${btn("나중에", "secondary", `reject:${rec.id}`)}</div>
     </div>`;
   }
   if (item.kind === "proposal" || item.kind === "nag") {
     const p = item.proposal;
-    const title = item.kind === "nag"
-      ? `${esc(nickname(p.proposerId))} · 같이 사자고 조르는 중`
-      : `${esc(nickname(p.proposerId))} · 같이 사기 제안`;
+    const s = stock(p.stockId);
+    const kind = item.kind === "nag" ? "같이 사자고 다시 요청" : "아직 안 산 종목을 같이 사자는 제안";
     return `<div class="action-block">
-      <h4>${title}</h4>
-      <p>${esc(p.message)}</p>
-      <div class="split">${btn("같이 사기", "primary", `promise:${p.id}`)}${btn("나중에", "secondary", `later:${p.id}`)}</div>
+      <div class="kind">${kind}</div>
+      <div class="stock-name">${esc(s.name)}</div>
+      <div class="ticker">${esc(s.ticker)} · ${esc(nickname(p.proposerId))}</div>
+      <p class="caption">지금은 참여 약속만 합니다. 이후 실제로 등록해야 깐부가 됩니다.</p>
+      <div class="split">${btn("같이 살게요", "primary", `promise:${p.id}`)}${btn("나중에", "secondary", `later:${p.id}`)}</div>
     </div>`;
   }
   if (item.kind === "cobuyRegister") {
     const p = item.proposal;
     const s = stock(p.stockId);
     return `<div class="action-block">
-      <h4>약속만 하고 아직 미등록</h4>
-      <p>${esc(s.name)}를 등록해야 깐부가 됩니다.</p>
-      ${btn("지금 등록", "primary", `register:${s.id}`)}
+      <div class="kind">약속 완료 · 보유 등록 전</div>
+      <div class="stock-name">${esc(s.name)}</div>
+      <div class="ticker">${esc(s.ticker)}</div>
+      <p class="caption">약속만으로는 깐부가 되지 않습니다. ${esc(s.name)}를 내 보유로 등록하세요.</p>
+      ${btn(s.name + " 등록", "primary", `register:${s.id}`)}
     </div>`;
   }
   if (item.kind === "suspect") {
     const h = item.holding;
     const s = stock(h.stockId);
     return `<div class="action-block">
-      <h4>${esc(s.name)} 매수가 의심</h4>
-      <p>${formatPrice(h.averagePrice, s.market)}에 산 기록이 맞는지 확인해 주세요. 사기라고 단정하지 않습니다.</p>
+      <div class="kind">매수가 확인 요청</div>
+      <div class="stock-name">${esc(s.name)}</div>
+      <div class="ticker">${esc(s.ticker)}</div>
+      <p class="caption">${formatPrice(h.averagePrice, s.market)}에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.</p>
       ${btn("캡처로 인증", "primary", `verify:${h.id}`)}
     </div>`;
   }
@@ -965,8 +999,8 @@ function renderGroup() {
         <button class="btn text" data-act="copy">코드 복사</button>
       </div>
       <div class="split">
-        ${btn("주식 추가", "primary", "open-add")}
-        ${btn("같이 사기", "secondary", "open-prop:")}
+        ${btn("내 주식 등록", "primary", "open-add")}
+        ${btn("같이 살 종목 제안", "secondary", "open-prop:")}
       </div>
 
       ${items.length ? `<div class="section"><div class="section-title">내 차례</div><div class="row-list">${items.map(inboxBlock).join("")}</div></div>` : ""}
@@ -1011,7 +1045,7 @@ function renderHoldings() {
     <div class="page-title">내 주식</div>
     <div class="pct ${avg >= 0 ? "up" : "down"}" style="font-size:28px;margin:8px 0 4px">${active.length ? formatPct(avg) : "—"}</div>
     <p class="page-sub">보유 ${active.length}종목</p>
-    ${btn("주식 추가", "primary", "open-add")}
+    ${btn("내 주식 등록", "primary", "open-add")}
     ${active.length ? `<div class="section"><div class="section-title">보유 중</div><div class="row-list">${active.map((h) => holdingRow(h, true)).join("")}</div></div>` : `<p class="empty">아직 등록한 주식이 없습니다.</p>`}
     ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다.</p>
@@ -1024,7 +1058,7 @@ function renderActivity() {
   const recStatus = { pending: "대기", accepted: "수락", rejected: "거절" };
   return `<div class="screen">
     <div class="page-title">활동</div>
-    <p class="page-sub">나를 향한 추천과 제안</p>
+    <p class="page-sub">이미 산 종목 추천과, 아직 안 산 종목 제안</p>
     ${mine.length ? `<div class="row-list">${mine.map(inboxBlock).join("")}</div>` : `<p class="empty">대기 중인 일이 없습니다.</p>`}
     <div class="section">
       <div class="section-title">추천 기록</div>
@@ -1069,8 +1103,8 @@ function sheetHTML() {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>주식 추가</h2>
-      <p class="note">같이 사기 약속만으로는 깐부가 되지 않습니다.</p>
+      <h2>내 주식 등록</h2>
+      <p class="note">내가 보유한 종목을 기록합니다. 친구가 같은 종목을 들고 있으면 깐부가 됩니다.</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       <label>매수가</label>
@@ -1084,8 +1118,8 @@ function sheetHTML() {
     const hid = state.sheet.split(":")[1];
     const others = memberUsers().filter((u) => u.id !== state.me.id);
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>추천하기</h2>
-      <p class="note">선택한 친구에게 이 종목을 추천합니다.</p>
+      <h2>친구에게 추천</h2>
+      <p class="note">이미 내가 보유한 종목을 친구에게 알립니다. 친구가 같은 종목을 등록하면 깐부가 됩니다.</p>
       ${others.map((u) => `<div style="margin-bottom:8px">${btn(u.nickname + "에게", "secondary full", `send-rec:${hid}:${u.id}`)}</div>`).join("")}
       ${btn("닫기", "ghost full", "close")}
     </div></div>`;
@@ -1094,7 +1128,8 @@ function sheetHTML() {
     const pre = state.sheet.split(":")[1] || "AMD";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name}</option>`).join("");
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>같이 사기 제안</h2>
+      <h2>같이 살 종목 제안</h2>
+      <p class="note">아직 안 산 종목을 그룹에 제안합니다. 참여 약속과 실제 등록은 다릅니다.</p>
       <label>종목</label>
       <select id="prop-ticker">${options}</select>
       <label>메시지</label>
