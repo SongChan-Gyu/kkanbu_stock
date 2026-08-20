@@ -18,7 +18,7 @@ struct ActivityView: View {
                             EmptyStateView(emoji: "💤", title: "지금은 조용해요", message: "누가 너도 사! 하거나 같이 사자고 하면 여기에 쌓여요.")
                         }
                         ForEach(items) { item in
-                            inboxCard(item)
+                            InboxActionCard(item: item, onVerify: { verifyHolding = $0 }, onRegister: { addPrefill = $0 })
                         }
                         Text("최근 알림")
                             .font(.title2.bold())
@@ -35,78 +35,6 @@ struct ActivityView: View {
             .navigationTitle("활동")
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
-        }
-    }
-
-    @ViewBuilder
-    private func inboxCard(_ item: InboxItem) -> some View {
-        KkanbuCard {
-            switch item.kind {
-            case .recommend:
-                if let rec = item.recommendation, let stock = store.state.stock(rec.stockId) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("📣 \(store.state.nickname(rec.senderId))가 \(stock.name)를 추천했어요")
-                            .font(.headline)
-                        if let holding = store.state.holding(rec.holdingId) {
-                            Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
-                        }
-                        Text("“\(rec.message)”")
-                        HStack {
-                            PillButton(title: "나도 추가하기") {
-                                store.resolveRecommendation(rec.id, accept: true)
-                            }
-                            PillButton(title: "나중에", kind: .secondary) {
-                                store.resolveRecommendation(rec.id, accept: false)
-                            }
-                        }
-                    }
-                }
-            case .proposal:
-                if let proposal = item.proposal {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("🤔 \(store.state.nickname(proposal.proposerId))가 같이 사자고 해요")
-                            .font(.headline)
-                        Text(proposal.message)
-                        HStack {
-                            PillButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
-                            PillButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
-                        }
-                    }
-                }
-            case .suspect:
-                if let holding = item.holding, let stock = store.state.stock(holding.stockId) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("😂 친구들이 네 \(stock.name) 매수가를 의심하고 있습니다")
-                            .font(.headline)
-                        Text("진짜 \(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 거 맞아?")
-                        Text("낙인 찍는 기능이 아니라, 장난스러운 인증 요청이에요.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        PillButton(title: "📸 캡처로 인증하기") { verifyHolding = holding }
-                    }
-                }
-            case .nag:
-                if let proposal = item.proposal {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("😂 같이 사자고 또 찔렀어요")
-                            .font(.headline)
-                        Text(proposal.message)
-                        HStack {
-                            PillButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
-                            PillButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
-                        }
-                    }
-                }
-            case .cobuyRegister:
-                if let proposal = item.proposal, let stock = store.state.stock(proposal.stockId) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("🤝 약속만 하고 아직 등록 안 했어요")
-                            .font(.headline)
-                        Text("\(stock.name) · 같이 사기는 실제 보유를 넣어야 깐부가 됩니다.")
-                        PillButton(title: "지금 등록하기") { addPrefill = stock }
-                    }
-                }
-            }
         }
     }
 }
@@ -191,6 +119,36 @@ struct ProfileView: View {
                 Text("시세 API는 StockPriceService 뒤에 숨어 있어요. 지금은 데모 시세입니다.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                Text("사건 기준")
+                    .font(.subheadline.bold())
+                HStack {
+                    Text("선견지명 \(Int(store.state.thresholds.foresightDrop * 100))%")
+                    Spacer()
+                    Button("-") {
+                        var t = store.state.thresholds
+                        t.foresightDrop = max(0.05, t.foresightDrop - 0.05)
+                        store.updateThresholds(t)
+                    }
+                    Button("+") {
+                        var t = store.state.thresholds
+                        t.foresightDrop = min(0.4, t.foresightDrop + 0.05)
+                        store.updateThresholds(t)
+                    }
+                }
+                HStack {
+                    Text("너무 일찍 튐 \(Int(store.state.thresholds.soldTooEarlyRise * 100))%")
+                    Spacer()
+                    Button("-") {
+                        var t = store.state.thresholds
+                        t.soldTooEarlyRise = max(0.05, t.soldTooEarlyRise - 0.05)
+                        store.updateThresholds(t)
+                    }
+                    Button("+") {
+                        var t = store.state.thresholds
+                        t.soldTooEarlyRise = min(0.4, t.soldTooEarlyRise + 0.05)
+                        store.updateThresholds(t)
+                    }
+                }
                 if let nvda = StockCatalog.stock(ticker: "NVDA") {
                     HStack {
                         PillButton(title: "NVDA +15%") { store.shock(stockId: nvda.id, percent: 0.15) }

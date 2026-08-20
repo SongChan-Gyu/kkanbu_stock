@@ -106,15 +106,15 @@ struct StockTextParser: StockScreenshotAnalyzing {
     private func extractDate(from text: String, now: Date) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        let formats = ["yyyy.MM.dd", "yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy", "yy.MM.dd"]
-        for format in formats {
+        let pairs: [(String, String)] = [
+            ("yyyy.MM.dd", #"\d{4}\.\d{2}\.\d{2}"#),
+            ("yyyy-MM-dd", #"\d{4}-\d{2}-\d{2}"#),
+            ("yyyy/MM/dd", #"\d{4}/\d{2}/\d{2}"#),
+            ("MM/dd/yyyy", #"\d{2}/\d{2}/\d{4}"#),
+            ("yy.MM.dd", #"\d{2}\.\d{2}\.\d{2}"#)
+        ]
+        for (format, pattern) in pairs {
             formatter.dateFormat = format
-            let pattern = format
-                .replacingOccurrences(of: "yyyy", with: "\\\\d{4}")
-                .replacingOccurrences(of: "yy", with: "\\\\d{2}")
-                .replacingOccurrences(of: "MM", with: "\\\\d{2}")
-                .replacingOccurrences(of: "dd", with: "\\\\d{2}")
-                .replacingOccurrences(of: ".", with: "\\\\.")
             if let raw = firstMatch(in: text, pattern: pattern), let date = formatter.date(from: raw) {
                 return date
             }

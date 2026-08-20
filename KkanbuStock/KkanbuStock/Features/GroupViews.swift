@@ -55,11 +55,13 @@ struct GroupHomeView: View {
     @State private var showAdd = false
     @State private var showPropose = false
     @State private var addPrefill: Stock?
+    @State private var verifyHolding: Holding?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                myTurn
                 hero
                 members
                 kkangbuStrip
@@ -75,6 +77,7 @@ struct GroupHomeView: View {
         .sheet(isPresented: $showAdd) { AddStockView() }
         .sheet(isPresented: $showPropose) { ProposalSheet() }
         .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
+        .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
     }
 
     private var header: some View {
@@ -88,17 +91,36 @@ struct GroupHomeView: View {
                 Text("오늘 누가 튀었지?")
                     .font(.title3.weight(.heavy))
                 HStack {
-                    PillButton(title: "주식 추가", systemImage: "plus") { showAdd = true }
-                    PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
-                }
-                HStack {
-                    PillButton(title: "칭호 랭킹", systemImage: "crown", kind: .secondary) { showRank = true }
+                    PillButton(title: "코드 복사") { store.copyInviteCode(group.inviteCode) }
                     ShareLink(item: "주식 깐부 초대 코드: \(group.inviteCode)") {
                         Text("초대하기")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(Color.primary.opacity(0.08), in: Capsule())
+                    }
+                }
+                HStack {
+                    PillButton(title: "주식 추가", systemImage: "plus") { showAdd = true }
+                    PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
+                }
+                PillButton(title: "칭호 랭킹", systemImage: "crown", kind: .secondary) { showRank = true }
+            }
+        }
+    }
+
+    private var myTurn: some View {
+        let items = store.inboxItems(for: store.state.currentUserId)
+        return Group {
+            if !items.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("나한테 온 일")
+                        .font(.title3.bold())
+                    Text("앱을 연 이유. 숫자 확인이 아니라 이거.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    ForEach(items) { item in
+                        InboxActionCard(item: item, onVerify: { verifyHolding = $0 }, onRegister: { addPrefill = $0 })
                     }
                 }
             }

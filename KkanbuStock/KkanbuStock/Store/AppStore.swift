@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 @Observable
@@ -74,8 +77,10 @@ final class AppStore {
         state.disclaimerAcknowledged = true
         if useDemo {
             DemoSeeder.seed(into: &state, currentUser: me)
+            refreshDerived()
         }
         persist()
+        LocalPush.requestPermission()
     }
 
     func acknowledgeDisclaimer() {
@@ -353,6 +358,7 @@ final class AppStore {
         state.hasCompletedOnboarding = true
         state.disclaimerAcknowledged = true
         DemoSeeder.seed(into: &state, currentUser: me)
+        refreshDerived()
         persist()
     }
 
@@ -366,6 +372,39 @@ final class AppStore {
 
     func analyzeText(_ text: String) -> ScreenshotAnalysisResult {
         parser.analyze(text: text, catalog: state.stocks, now: Date())
+    }
+
+    func recommendToGroup(holding: Holding, message: String) {
+        guard let groupId = state.selectedGroupId else { return }
+        let friends = state.members(of: groupId).map(\.userId).filter { $0 != state.currentUserId }
+        let before = state
+        var triggers: [Trigger] = []
+        for friend in friends {
+            let rec = StockRecommendation(
+                groupId: groupId,
+                senderId: state.currentUserId,
+                receiverId: friend,
+                stockId: holding.stockId,
+                holdingId: holding.id,
+                message: message
+            )
+            state.recommendations.append(rec)
+            triggers.append(.recommendationSent(id: rec.id))
+        }
+        emit(triggers, before: before)
+        toast = "그룹에 너도 사! 를 보냈어요"
+    }
+
+    func copyInviteCode(_ code: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = code
+        #endif
+        toast = "초대 코드 \(code) 복사됨"
+    }
+
+    func refreshDerived() {
+        syncRelationships()
+        persist()
     }
 
     func playAs(_ userId: UUID) {
@@ -387,7 +426,8 @@ final class AppStore {
         let proposals = state.proposals.filter { proposal in
             proposal.proposerId != userId &&
             proposal.status == .open &&
-            !state.coBuys.contains { $0.proposalId == proposal.id && $0.userId == userId }
+            !state.coBuys.contains { $0.proposalId == proposal.id && $0.userId == userId } &&
+            !state.events.contains { $0.type == .persistentNagging && $0.targetUserId == userId && $0.stockId == proposal.stockId }
         }.map {
             InboxItem(id: $0.id, kind: .proposal, date: $0.createdAt, recommendation: nil, proposal: $0, holding: nil)
         }
@@ -460,6 +500,7 @@ final class AppStore {
                 stampFiredKeys(event)
                 maybeAwardBadge(event)
                 notifications.deliver(PushPayload(title: event.title, body: event.message, eventType: event.type, groupId: event.groupId))
+                LocalPush.post(PushPayload(title: event.title, body: event.message, eventType: event.type, groupId: event.groupId))
             }
         }
         syncRelationships()

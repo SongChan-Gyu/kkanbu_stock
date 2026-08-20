@@ -6,181 +6,184 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CC1FA70874A343E781555AFE /* KkanbuStockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679A21B7B1F34D5BA47F48D6 /* KkanbuStockApp.swift */; };
-		5FB225CF1DFC451C8CA42CA7 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7871C65919364D1EAA995EA3 /* Theme.swift */; };
-		D2C6507DFFED4F448A28FBD5 /* EventEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 024448F06EDE42609F338B76 /* EventEngine.swift */; };
-		BBB73333542B426A989F4117 /* EventRulesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213249BCBBC34B55A3503CEF /* EventRulesCore.swift */; };
-		E2EABD5374FD48BBB2F114DC /* EventRulesSocial.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC3D10C4A554A3EA50B27A5 /* EventRulesSocial.swift */; };
-		212AC537E5E64126A47919DB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9753FC951744466EA90B83BF /* AppState.swift */; };
-		73A851F693834EB68D0E72AB /* CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46960124A04146E592478F34 /* CoreModels.swift */; };
-		CEF7C6C10A864C67A7196FB7 /* EventModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9C217B1F8E46D3BF4BD5C7 /* EventModels.swift */; };
-		270F135752E442A6806C1E11 /* SocialModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDB4A7F56914102A8FF1230 /* SocialModels.swift */; };
-		450F25D03CB041BDB7F7E7F1 /* KkangbuMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F47013C2AF443C395329468 /* KkangbuMath.swift */; };
-		36F43BDA94BE4E50BBB82E68 /* MoneyFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C7E4B37489C4AC580E6D3AD /* MoneyFormat.swift */; };
-		88478336031949F5BF88DCB9 /* PersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BF58FAFBBFB41BB97558EE1 /* PersistenceStore.swift */; };
-		2729F187DBAB434A93977568 /* RankingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBF06CD2CC64E86A33A5DD9 /* RankingService.swift */; };
-		D25C52DBFF844CF5BBC3CAA6 /* SocialHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1593BB913B4B4E0B91B62A7C /* SocialHistory.swift */; };
-		C3C6FC077768477EB8E87AC9 /* StockPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8EB9CF53444B65850CAD77 /* StockPriceService.swift */; };
-		321C1DAEECBE4F95AF84B1C9 /* StockScreenshotAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D72F1CC7794D6286C2A622 /* StockScreenshotAnalyzer.swift */; };
-		3D8B10CC459444249348514A /* VerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D781C42690D7492481EBF6D5 /* VerificationService.swift */; };
-		229E1351BF434767879AA42B /* AddStockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25AF9A48C7A94D03A98B3AF7 /* AddStockView.swift */; };
-		F91884FB31D541809E660A42 /* GroupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85970C7CBC424F0D8A522A76 /* GroupViews.swift */; };
-		B0F7443F397C49EDAC1CA8C3 /* HoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC7DFE194374FA7A8E17459 /* HoldingsView.swift */; };
-		5B26B7D66C3446299F335638 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980A7DDDA6FD49B69D44BCCB /* OnboardingView.swift */; };
-		FB7E7DBE90894C1E96A136F0 /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 547AE41FD15543029C29D9F0 /* PeopleViews.swift */; };
-		ABE7C177B8594FB295053BFD /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E169C6A0674268A6BA7F4C /* AppStore.swift */; };
-		154DC199C8C1467ABA4A7686 /* DemoSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30B11914CC942C69AD5D46E /* DemoSeeder.swift */; };
-		A5E492EC29FA45E1A057341F /* KkanbuCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90068A9BC2E8416D92F6122D /* KkanbuCoreTests.swift */; };
-		02546519786C4171900C60AA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5A0A83CCF7354296B48EA01C /* Assets.xcassets */; };
+		3C884E4611A448E08B9DC451 /* KkanbuStockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB56E4F9E4947DE97BBDE3B /* KkanbuStockApp.swift */; };
+		7DBE5A161D5F4285B48B8341 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A925E5FB6F294EF2AF468B27 /* Theme.swift */; };
+		DDF56FA1A5F84BD98EE0557D /* EventEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58CDF4AD8B549A4A4841C7C /* EventEngine.swift */; };
+		E9E313268A9F435EA9495EEB /* EventRulesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575E9AE0EB2B45E4B19F1AA6 /* EventRulesCore.swift */; };
+		509F227F69814FCA8A0BC5CF /* EventRulesSocial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4754AB1DCE0341AEB78C099F /* EventRulesSocial.swift */; };
+		294748A666134DA7B0C434A1 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0764A96148A440590A8C399 /* AppState.swift */; };
+		2DA5C1D393DC4BFBBC166055 /* CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D1B24531E348A7A87E9DBA /* CoreModels.swift */; };
+		C52EF5FDAAAF4E64977919BE /* EventModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D5D6CCF8EC94DEFB236CCD9 /* EventModels.swift */; };
+		FDEED31F7B754CBFBDFB5A3E /* SocialModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD605655AA3041168091DC30 /* SocialModels.swift */; };
+		2873AA328B9E465EAC0A8799 /* KkangbuMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF434E5F1D84C4989BC16F1 /* KkangbuMath.swift */; };
+		13F868D37F1D497DBA2A4E22 /* MoneyFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7B6F7702A7C4F1A93E53339 /* MoneyFormat.swift */; };
+		495E4994E15A48FF9DAC28D4 /* PersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 946B97A585DE48799506E692 /* PersistenceStore.swift */; };
+		E0EBA57E349D4F9BAA2E5536 /* RankingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC56117B09C64DA492797033 /* RankingService.swift */; };
+		0C9E7D5BB96447BCB7A6AEEB /* SocialHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE37B8291DC4AABA0D81E36 /* SocialHistory.swift */; };
+		5DB510E7F8D44CE6BFDF1879 /* StockPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3742A08655C45D0B21ACB13 /* StockPriceService.swift */; };
+		62506AC200B245D78BBCC64F /* StockScreenshotAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D588F41CBC8044AFB96ADF50 /* StockScreenshotAnalyzer.swift */; };
+		51A33AACEE0247D68C0F6016 /* VerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED79A1C00694B489A842369 /* VerificationService.swift */; };
+		8D5536FCBC0246D185647F36 /* AddStockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A975705228474AD786143D2A /* AddStockView.swift */; };
+		0556448BB47844F98D223D54 /* GroupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EFB23FA7A8495FAE479721 /* GroupViews.swift */; };
+		950D57A2128A479B8F85DC04 /* HoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 506683F302C74108A2D3C0A9 /* HoldingsView.swift */; };
+		6DED46486576438D8C6D9B32 /* InboxViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2BEA4BF0A1B4F1A8F7BE490 /* InboxViews.swift */; };
+		C67DD15176B14CD0B177D2D9 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8285E5855B34D30B6D6963C /* OnboardingView.swift */; };
+		E837AE5405BB4AF2B237BB1F /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC078FF997F416583BBFEC1 /* PeopleViews.swift */; };
+		698701C8662E421F87489D62 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438D1E0C84F44561A2A6F7A2 /* AppStore.swift */; };
+		0CC9A89A810243D6977C8BCB /* DemoSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0CCD73EE404A3987A0761B /* DemoSeeder.swift */; };
+		A90BDA9C8B4442A4BD7C8A59 /* KkanbuCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86AFA83401494C2792F5EB83 /* KkanbuCoreTests.swift */; };
+		52FEE3D3A4FE4E9AB4DDBE4B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C6DB54B1FC71410998B96DB9 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		7EA51FE5A1D9417D9B36B5BB /* KkanbuStock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KkanbuStock.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		5BD369B3A4804393A208A3C2 /* KkanbuStockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KkanbuStockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		5A0A83CCF7354296B48EA01C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		679A21B7B1F34D5BA47F48D6 /* KkanbuStockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuStockApp.swift; sourceTree = "<group>"; };
-		7871C65919364D1EAA995EA3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		024448F06EDE42609F338B76 /* EventEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEngine.swift; sourceTree = "<group>"; };
-		213249BCBBC34B55A3503CEF /* EventRulesCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesCore.swift; sourceTree = "<group>"; };
-		FAC3D10C4A554A3EA50B27A5 /* EventRulesSocial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesSocial.swift; sourceTree = "<group>"; };
-		9753FC951744466EA90B83BF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		46960124A04146E592478F34 /* CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreModels.swift; sourceTree = "<group>"; };
-		2F9C217B1F8E46D3BF4BD5C7 /* EventModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventModels.swift; sourceTree = "<group>"; };
-		DDDB4A7F56914102A8FF1230 /* SocialModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialModels.swift; sourceTree = "<group>"; };
-		9F47013C2AF443C395329468 /* KkangbuMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkangbuMath.swift; sourceTree = "<group>"; };
-		7C7E4B37489C4AC580E6D3AD /* MoneyFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyFormat.swift; sourceTree = "<group>"; };
-		4BF58FAFBBFB41BB97558EE1 /* PersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceStore.swift; sourceTree = "<group>"; };
-		EFBF06CD2CC64E86A33A5DD9 /* RankingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingService.swift; sourceTree = "<group>"; };
-		1593BB913B4B4E0B91B62A7C /* SocialHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialHistory.swift; sourceTree = "<group>"; };
-		AF8EB9CF53444B65850CAD77 /* StockPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPriceService.swift; sourceTree = "<group>"; };
-		A7D72F1CC7794D6286C2A622 /* StockScreenshotAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockScreenshotAnalyzer.swift; sourceTree = "<group>"; };
-		D781C42690D7492481EBF6D5 /* VerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationService.swift; sourceTree = "<group>"; };
-		25AF9A48C7A94D03A98B3AF7 /* AddStockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStockView.swift; sourceTree = "<group>"; };
-		85970C7CBC424F0D8A522A76 /* GroupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupViews.swift; sourceTree = "<group>"; };
-		6BC7DFE194374FA7A8E17459 /* HoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingsView.swift; sourceTree = "<group>"; };
-		980A7DDDA6FD49B69D44BCCB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		547AE41FD15543029C29D9F0 /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
-		94E169C6A0674268A6BA7F4C /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
-		E30B11914CC942C69AD5D46E /* DemoSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSeeder.swift; sourceTree = "<group>"; };
-		90068A9BC2E8416D92F6122D /* KkanbuCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuCoreTests.swift; sourceTree = "<group>"; };
+		B0C481916B6747F68CFD7D18 /* KkanbuStock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KkanbuStock.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B5053E6A22447A98406FF27 /* KkanbuStockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KkanbuStockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6DB54B1FC71410998B96DB9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		4DB56E4F9E4947DE97BBDE3B /* KkanbuStockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuStockApp.swift; sourceTree = "<group>"; };
+		A925E5FB6F294EF2AF468B27 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		E58CDF4AD8B549A4A4841C7C /* EventEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEngine.swift; sourceTree = "<group>"; };
+		575E9AE0EB2B45E4B19F1AA6 /* EventRulesCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesCore.swift; sourceTree = "<group>"; };
+		4754AB1DCE0341AEB78C099F /* EventRulesSocial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesSocial.swift; sourceTree = "<group>"; };
+		B0764A96148A440590A8C399 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		32D1B24531E348A7A87E9DBA /* CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreModels.swift; sourceTree = "<group>"; };
+		2D5D6CCF8EC94DEFB236CCD9 /* EventModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventModels.swift; sourceTree = "<group>"; };
+		BD605655AA3041168091DC30 /* SocialModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialModels.swift; sourceTree = "<group>"; };
+		BDF434E5F1D84C4989BC16F1 /* KkangbuMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkangbuMath.swift; sourceTree = "<group>"; };
+		B7B6F7702A7C4F1A93E53339 /* MoneyFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyFormat.swift; sourceTree = "<group>"; };
+		946B97A585DE48799506E692 /* PersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceStore.swift; sourceTree = "<group>"; };
+		BC56117B09C64DA492797033 /* RankingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingService.swift; sourceTree = "<group>"; };
+		EBE37B8291DC4AABA0D81E36 /* SocialHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialHistory.swift; sourceTree = "<group>"; };
+		F3742A08655C45D0B21ACB13 /* StockPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPriceService.swift; sourceTree = "<group>"; };
+		D588F41CBC8044AFB96ADF50 /* StockScreenshotAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockScreenshotAnalyzer.swift; sourceTree = "<group>"; };
+		9ED79A1C00694B489A842369 /* VerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationService.swift; sourceTree = "<group>"; };
+		A975705228474AD786143D2A /* AddStockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStockView.swift; sourceTree = "<group>"; };
+		84EFB23FA7A8495FAE479721 /* GroupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupViews.swift; sourceTree = "<group>"; };
+		506683F302C74108A2D3C0A9 /* HoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingsView.swift; sourceTree = "<group>"; };
+		C2BEA4BF0A1B4F1A8F7BE490 /* InboxViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViews.swift; sourceTree = "<group>"; };
+		C8285E5855B34D30B6D6963C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		FCC078FF997F416583BBFEC1 /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
+		438D1E0C84F44561A2A6F7A2 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		4A0CCD73EE404A3987A0761B /* DemoSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSeeder.swift; sourceTree = "<group>"; };
+		86AFA83401494C2792F5EB83 /* KkanbuCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuCoreTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		C0AE3D1F925B45329826ABCC = {
+		64E79C90B3624475BF581A73 = {
 			isa = PBXGroup;
 			children = (
-				C27FC0FFDE6443D8A06EE801 /* KkanbuStock */,
-				2506926E9B1B4FF4A6143D72 /* KkanbuStockTests */,
-				16F00C2D9EF14CF4A2DDD485 /* Products */,
+				B210168A772F478C9ADE6E6D /* KkanbuStock */,
+				09E7965B7FBB4ED4ABDF2FBF /* KkanbuStockTests */,
+				58433A3BD21045EE88B32947 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		16F00C2D9EF14CF4A2DDD485 /* Products */ = {
+		58433A3BD21045EE88B32947 /* Products */ = {
 			isa = PBXGroup;
-			children = (7EA51FE5A1D9417D9B36B5BB /* KkanbuStock.app */, 5BD369B3A4804393A208A3C2 /* KkanbuStockTests.xctest */,);
+			children = (B0C481916B6747F68CFD7D18 /* KkanbuStock.app */, 5B5053E6A22447A98406FF27 /* KkanbuStockTests.xctest */,);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		C27FC0FFDE6443D8A06EE801 /* KkanbuStock */ = {
+		B210168A772F478C9ADE6E6D /* KkanbuStock */ = {
 			isa = PBXGroup;
 			children = (
-				D54C1AACFCFB4345A7C994D3 /* App */,
-				F66C1258E121435F9B193B26 /* DesignSystem */,
-				D83F3D70E9D44A30A2E9759D /* Domain */,
-				05CF8C32D4544A44B3AA3F96 /* Features */,
-				D15D8EF7AFCB4AE4B3DB73F0 /* Store */,
-				5A0A83CCF7354296B48EA01C /* Assets.xcassets */,
+				BB905AEDABAD48ADB5D945E0 /* App */,
+				411CF4A47A7E420497715B04 /* DesignSystem */,
+				59330B17C1A0419CA14809A0 /* Domain */,
+				5A992F7388DF4C31A2986BCE /* Features */,
+				AE64234BD51144448295D204 /* Store */,
+				C6DB54B1FC71410998B96DB9 /* Assets.xcassets */,
 			);
 			path = KkanbuStock;
 			sourceTree = "<group>";
 		};
-		D54C1AACFCFB4345A7C994D3 /* App */ = {
+		BB905AEDABAD48ADB5D945E0 /* App */ = {
 			isa = PBXGroup;
 			children = (
-				679A21B7B1F34D5BA47F48D6 /* KkanbuStockApp.swift */,
+				4DB56E4F9E4947DE97BBDE3B /* KkanbuStockApp.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
 		};
-		F66C1258E121435F9B193B26 /* DesignSystem */ = {
+		411CF4A47A7E420497715B04 /* DesignSystem */ = {
 			isa = PBXGroup;
 			children = (
-				7871C65919364D1EAA995EA3 /* Theme.swift */,
+				A925E5FB6F294EF2AF468B27 /* Theme.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
 		};
-		D83F3D70E9D44A30A2E9759D /* Domain */ = {
+		59330B17C1A0419CA14809A0 /* Domain */ = {
 			isa = PBXGroup;
 			children = (
-				EA3FF99CBC154BF8BFE2C254 /* EventEngine */,
-				DEC7DBDE94F8435BA870923D /* Models */,
-				F7DE60C76E4E4E2FBFF14996 /* Services */,
+				14ACA8AAEA684BC49057E59B /* EventEngine */,
+				7260D551385F45E0BCB05931 /* Models */,
+				A16E8C14A70742B99F6F74CC /* Services */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
 		};
-		EA3FF99CBC154BF8BFE2C254 /* EventEngine */ = {
+		14ACA8AAEA684BC49057E59B /* EventEngine */ = {
 			isa = PBXGroup;
 			children = (
-				024448F06EDE42609F338B76 /* EventEngine.swift */,
-				213249BCBBC34B55A3503CEF /* EventRulesCore.swift */,
-				FAC3D10C4A554A3EA50B27A5 /* EventRulesSocial.swift */,
+				E58CDF4AD8B549A4A4841C7C /* EventEngine.swift */,
+				575E9AE0EB2B45E4B19F1AA6 /* EventRulesCore.swift */,
+				4754AB1DCE0341AEB78C099F /* EventRulesSocial.swift */,
 			);
 			path = EventEngine;
 			sourceTree = "<group>";
 		};
-		DEC7DBDE94F8435BA870923D /* Models */ = {
+		7260D551385F45E0BCB05931 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				9753FC951744466EA90B83BF /* AppState.swift */,
-				46960124A04146E592478F34 /* CoreModels.swift */,
-				2F9C217B1F8E46D3BF4BD5C7 /* EventModels.swift */,
-				DDDB4A7F56914102A8FF1230 /* SocialModels.swift */,
+				B0764A96148A440590A8C399 /* AppState.swift */,
+				32D1B24531E348A7A87E9DBA /* CoreModels.swift */,
+				2D5D6CCF8EC94DEFB236CCD9 /* EventModels.swift */,
+				BD605655AA3041168091DC30 /* SocialModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
 		};
-		F7DE60C76E4E4E2FBFF14996 /* Services */ = {
+		A16E8C14A70742B99F6F74CC /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				9F47013C2AF443C395329468 /* KkangbuMath.swift */,
-				7C7E4B37489C4AC580E6D3AD /* MoneyFormat.swift */,
-				4BF58FAFBBFB41BB97558EE1 /* PersistenceStore.swift */,
-				EFBF06CD2CC64E86A33A5DD9 /* RankingService.swift */,
-				1593BB913B4B4E0B91B62A7C /* SocialHistory.swift */,
-				AF8EB9CF53444B65850CAD77 /* StockPriceService.swift */,
-				A7D72F1CC7794D6286C2A622 /* StockScreenshotAnalyzer.swift */,
-				D781C42690D7492481EBF6D5 /* VerificationService.swift */,
+				BDF434E5F1D84C4989BC16F1 /* KkangbuMath.swift */,
+				B7B6F7702A7C4F1A93E53339 /* MoneyFormat.swift */,
+				946B97A585DE48799506E692 /* PersistenceStore.swift */,
+				BC56117B09C64DA492797033 /* RankingService.swift */,
+				EBE37B8291DC4AABA0D81E36 /* SocialHistory.swift */,
+				F3742A08655C45D0B21ACB13 /* StockPriceService.swift */,
+				D588F41CBC8044AFB96ADF50 /* StockScreenshotAnalyzer.swift */,
+				9ED79A1C00694B489A842369 /* VerificationService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
 		};
-		05CF8C32D4544A44B3AA3F96 /* Features */ = {
+		5A992F7388DF4C31A2986BCE /* Features */ = {
 			isa = PBXGroup;
 			children = (
-				25AF9A48C7A94D03A98B3AF7 /* AddStockView.swift */,
-				85970C7CBC424F0D8A522A76 /* GroupViews.swift */,
-				6BC7DFE194374FA7A8E17459 /* HoldingsView.swift */,
-				980A7DDDA6FD49B69D44BCCB /* OnboardingView.swift */,
-				547AE41FD15543029C29D9F0 /* PeopleViews.swift */,
+				A975705228474AD786143D2A /* AddStockView.swift */,
+				84EFB23FA7A8495FAE479721 /* GroupViews.swift */,
+				506683F302C74108A2D3C0A9 /* HoldingsView.swift */,
+				C2BEA4BF0A1B4F1A8F7BE490 /* InboxViews.swift */,
+				C8285E5855B34D30B6D6963C /* OnboardingView.swift */,
+				FCC078FF997F416583BBFEC1 /* PeopleViews.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
 		};
-		D15D8EF7AFCB4AE4B3DB73F0 /* Store */ = {
+		AE64234BD51144448295D204 /* Store */ = {
 			isa = PBXGroup;
 			children = (
-				94E169C6A0674268A6BA7F4C /* AppStore.swift */,
-				E30B11914CC942C69AD5D46E /* DemoSeeder.swift */,
+				438D1E0C84F44561A2A6F7A2 /* AppStore.swift */,
+				4A0CCD73EE404A3987A0761B /* DemoSeeder.swift */,
 			);
 			path = Store;
 			sourceTree = "<group>";
 		};
-		2506926E9B1B4FF4A6143D72 /* KkanbuStockTests */ = {
+		09E7965B7FBB4ED4ABDF2FBF /* KkanbuStockTests */ = {
 			isa = PBXGroup;
 			children = (
-				90068A9BC2E8416D92F6122D /* KkanbuCoreTests.swift */,
+				86AFA83401494C2792F5EB83 /* KkanbuCoreTests.swift */,
 			);
 			path = KkanbuStockTests;
 			sourceTree = "<group>";
@@ -188,107 +191,108 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CBD6F9EA436E4136A3A590F9 /* KkanbuStock */ = {
+		E66F76474ADE4D098D2D0655 /* KkanbuStock */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 9FFE8386E2434D38996B01EB /* Build configuration list for PBXNativeTarget "KkanbuStock" */;
+			buildConfigurationList = DF8AC27C69D744268D1CA014 /* Build configuration list for PBXNativeTarget "KkanbuStock" */;
 			buildPhases = (
-				1C083DA3B3FF4A78B9C02741 /* Sources */,
-				45BB39FBB88F491BA56F4C3E /* Frameworks */,
-				E95F4E0A18A44582A97FB6F4 /* Resources */,
+				30F50AC2EECB4BDF84C3AFFE /* Sources */,
+				4C6D18914DA147309A734060 /* Frameworks */,
+				47C45DDDABA946CCBC67BEF9 /* Resources */,
 			);
 			buildRules = ();
 			dependencies = ();
 			name = KkanbuStock;
 			productName = KkanbuStock;
-			productReference = 7EA51FE5A1D9417D9B36B5BB /* KkanbuStock.app */;
+			productReference = B0C481916B6747F68CFD7D18 /* KkanbuStock.app */;
 			productType = "com.apple.product-type.application";
 		};
-		66F1D491C35745C5AB159A85 /* KkanbuStockTests */ = {
+		5A91BFA9ACE149F389A3780F /* KkanbuStockTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 332FDA2FB7DE44C18343A71F /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */;
+			buildConfigurationList = 7CE4A319910C4D7EBC34748B /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */;
 			buildPhases = (
-				0388A60A531844B28707B79B /* Sources */,
-				BA9D9C6681DB47E09D3BA6EA /* Frameworks */,
+				135FC87179264E45B991A18F /* Sources */,
+				06260EBE9B25449AABE7E8EF /* Frameworks */,
 			);
 			buildRules = ();
-			dependencies = (4F7201A4C5BF4D1DAC437FB9 /* PBXTargetDependency */,);
+			dependencies = (4D65B2629E95485F9B2AE7F2 /* PBXTargetDependency */,);
 			name = KkanbuStockTests;
 			productName = KkanbuStockTests;
-			productReference = 5BD369B3A4804393A208A3C2 /* KkanbuStockTests.xctest */;
+			productReference = 5B5053E6A22447A98406FF27 /* KkanbuStockTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXContainerItemProxy section */
-		6735C3A5993C4FAF94309F0A /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 73811BA83C2B4C6D95A7A78A /* Project object */; proxyType = 1; remoteGlobalIDString = CBD6F9EA436E4136A3A590F9; remoteInfo = KkanbuStock; };
+		77A83669DC72459982423CEC /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 5FE3C9C5D1234C2A81BDFBF3 /* Project object */; proxyType = 1; remoteGlobalIDString = E66F76474ADE4D098D2D0655; remoteInfo = KkanbuStock; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXTargetDependency section */
-		4F7201A4C5BF4D1DAC437FB9 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = CBD6F9EA436E4136A3A590F9 /* KkanbuStock */; targetProxy = 6735C3A5993C4FAF94309F0A /* PBXContainerItemProxy */; };
+		4D65B2629E95485F9B2AE7F2 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = E66F76474ADE4D098D2D0655 /* KkanbuStock */; targetProxy = 77A83669DC72459982423CEC /* PBXContainerItemProxy */; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
-		73811BA83C2B4C6D95A7A78A /* Project object */ = {
+		5FE3C9C5D1234C2A81BDFBF3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {
-				CBD6F9EA436E4136A3A590F9 = {CreatedOnToolsVersion = 16.0; };
-				66F1D491C35745C5AB159A85 = {CreatedOnToolsVersion = 16.0; TestTargetID = CBD6F9EA436E4136A3A590F9; };
+				E66F76474ADE4D098D2D0655 = {CreatedOnToolsVersion = 16.0; };
+				5A91BFA9ACE149F389A3780F = {CreatedOnToolsVersion = 16.0; TestTargetID = E66F76474ADE4D098D2D0655; };
 			}; };
-			buildConfigurationList = 100E290EE5FE472D9CC266B1 /* Build configuration list for PBXProject "KkanbuStock" */;
+			buildConfigurationList = D6098FEE1DA9445AA5053B12 /* Build configuration list for PBXProject "KkanbuStock" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (en, ko, Base,);
-			mainGroup = C0AE3D1F925B45329826ABCC;
-			productRefGroup = 16F00C2D9EF14CF4A2DDD485 /* Products */;
+			mainGroup = 64E79C90B3624475BF581A73;
+			productRefGroup = 58433A3BD21045EE88B32947 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (CBD6F9EA436E4136A3A590F9 /* KkanbuStock */, 66F1D491C35745C5AB159A85 /* KkanbuStockTests */,);
+			targets = (E66F76474ADE4D098D2D0655 /* KkanbuStock */, 5A91BFA9ACE149F389A3780F /* KkanbuStockTests */,);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		E95F4E0A18A44582A97FB6F4 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (02546519786C4171900C60AA /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		47C45DDDABA946CCBC67BEF9 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (52FEE3D3A4FE4E9AB4DDBE4B /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		45BB39FBB88F491BA56F4C3E /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		BA9D9C6681DB47E09D3BA6EA /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		4C6D18914DA147309A734060 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		06260EBE9B25449AABE7E8EF /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1C083DA3B3FF4A78B9C02741 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
-			CC1FA70874A343E781555AFE /* KkanbuStockApp.swift in Sources */,
-			5FB225CF1DFC451C8CA42CA7 /* Theme.swift in Sources */,
-			D2C6507DFFED4F448A28FBD5 /* EventEngine.swift in Sources */,
-			BBB73333542B426A989F4117 /* EventRulesCore.swift in Sources */,
-			E2EABD5374FD48BBB2F114DC /* EventRulesSocial.swift in Sources */,
-			212AC537E5E64126A47919DB /* AppState.swift in Sources */,
-			73A851F693834EB68D0E72AB /* CoreModels.swift in Sources */,
-			CEF7C6C10A864C67A7196FB7 /* EventModels.swift in Sources */,
-			270F135752E442A6806C1E11 /* SocialModels.swift in Sources */,
-			450F25D03CB041BDB7F7E7F1 /* KkangbuMath.swift in Sources */,
-			36F43BDA94BE4E50BBB82E68 /* MoneyFormat.swift in Sources */,
-			88478336031949F5BF88DCB9 /* PersistenceStore.swift in Sources */,
-			2729F187DBAB434A93977568 /* RankingService.swift in Sources */,
-			D25C52DBFF844CF5BBC3CAA6 /* SocialHistory.swift in Sources */,
-			C3C6FC077768477EB8E87AC9 /* StockPriceService.swift in Sources */,
-			321C1DAEECBE4F95AF84B1C9 /* StockScreenshotAnalyzer.swift in Sources */,
-			3D8B10CC459444249348514A /* VerificationService.swift in Sources */,
-			229E1351BF434767879AA42B /* AddStockView.swift in Sources */,
-			F91884FB31D541809E660A42 /* GroupViews.swift in Sources */,
-			B0F7443F397C49EDAC1CA8C3 /* HoldingsView.swift in Sources */,
-			5B26B7D66C3446299F335638 /* OnboardingView.swift in Sources */,
-			FB7E7DBE90894C1E96A136F0 /* PeopleViews.swift in Sources */,
-			ABE7C177B8594FB295053BFD /* AppStore.swift in Sources */,
-			154DC199C8C1467ABA4A7686 /* DemoSeeder.swift in Sources */,
+		30F50AC2EECB4BDF84C3AFFE /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+			3C884E4611A448E08B9DC451 /* KkanbuStockApp.swift in Sources */,
+			7DBE5A161D5F4285B48B8341 /* Theme.swift in Sources */,
+			DDF56FA1A5F84BD98EE0557D /* EventEngine.swift in Sources */,
+			E9E313268A9F435EA9495EEB /* EventRulesCore.swift in Sources */,
+			509F227F69814FCA8A0BC5CF /* EventRulesSocial.swift in Sources */,
+			294748A666134DA7B0C434A1 /* AppState.swift in Sources */,
+			2DA5C1D393DC4BFBBC166055 /* CoreModels.swift in Sources */,
+			C52EF5FDAAAF4E64977919BE /* EventModels.swift in Sources */,
+			FDEED31F7B754CBFBDFB5A3E /* SocialModels.swift in Sources */,
+			2873AA328B9E465EAC0A8799 /* KkangbuMath.swift in Sources */,
+			13F868D37F1D497DBA2A4E22 /* MoneyFormat.swift in Sources */,
+			495E4994E15A48FF9DAC28D4 /* PersistenceStore.swift in Sources */,
+			E0EBA57E349D4F9BAA2E5536 /* RankingService.swift in Sources */,
+			0C9E7D5BB96447BCB7A6AEEB /* SocialHistory.swift in Sources */,
+			5DB510E7F8D44CE6BFDF1879 /* StockPriceService.swift in Sources */,
+			62506AC200B245D78BBCC64F /* StockScreenshotAnalyzer.swift in Sources */,
+			51A33AACEE0247D68C0F6016 /* VerificationService.swift in Sources */,
+			8D5536FCBC0246D185647F36 /* AddStockView.swift in Sources */,
+			0556448BB47844F98D223D54 /* GroupViews.swift in Sources */,
+			950D57A2128A479B8F85DC04 /* HoldingsView.swift in Sources */,
+			6DED46486576438D8C6D9B32 /* InboxViews.swift in Sources */,
+			C67DD15176B14CD0B177D2D9 /* OnboardingView.swift in Sources */,
+			E837AE5405BB4AF2B237BB1F /* PeopleViews.swift in Sources */,
+			698701C8662E421F87489D62 /* AppStore.swift in Sources */,
+			0CC9A89A810243D6977C8BCB /* DemoSeeder.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
-		0388A60A531844B28707B79B /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
-			A5E492EC29FA45E1A057341F /* KkanbuCoreTests.swift in Sources */,
+		135FC87179264E45B991A18F /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+			A90BDA9C8B4442A4BD7C8A59 /* KkanbuCoreTests.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
-		DFFAEB645DBE4612AD5E07E5 /* Debug */ = {
+		CDB98BD9266F4D29A74207F7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -311,7 +315,7 @@
 			};
 			name = Debug;
 		};
-		70BF753476954C108D6E9095 /* Release */ = {
+		4B2E3186E0C9405D876AA7F5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -333,7 +337,7 @@
 			};
 			name = Release;
 		};
-		40FD78270D444079B7DBFA7C /* Debug */ = {
+		7E20DDF89ABB4FFB96AF1534 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -366,7 +370,7 @@
 			};
 			name = Debug;
 		};
-		90C9707075F646C9BF215B14 /* Release */ = {
+		E4DB468DC61E4190B8548FFF /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -399,7 +403,7 @@
 			};
 			name = Release;
 		};
-		7A4E2D8311514867AC18518A /* Debug */ = {
+		BE562DB1EE984BB096C0AEBF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -418,7 +422,7 @@
 			};
 			name = Debug;
 		};
-		CED4CCD64CF34FB0A1FBBB4B /* Release */ = {
+		54AC42EA81AB453F87BD060D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 
@@ -438,10 +442,10 @@
 			name = Release;
 		};
 /* Begin XCConfigurationList section */
-		100E290EE5FE472D9CC266B1 /* Build configuration list for PBXProject "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (DFFAEB645DBE4612AD5E07E5 /* Debug */, 70BF753476954C108D6E9095 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		9FFE8386E2434D38996B01EB /* Build configuration list for PBXNativeTarget "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (40FD78270D444079B7DBFA7C /* Debug */, 90C9707075F646C9BF215B14 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		332FDA2FB7DE44C18343A71F /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */ = {isa = XCConfigurationList; buildConfigurations = (7A4E2D8311514867AC18518A /* Debug */, CED4CCD64CF34FB0A1FBBB4B /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		D6098FEE1DA9445AA5053B12 /* Build configuration list for PBXProject "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (CDB98BD9266F4D29A74207F7 /* Debug */, 4B2E3186E0C9405D876AA7F5 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		DF8AC27C69D744268D1CA014 /* Build configuration list for PBXNativeTarget "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (7E20DDF89ABB4FFB96AF1534 /* Debug */, E4DB468DC61E4190B8548FFF /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		7CE4A319910C4D7EBC34748B /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */ = {isa = XCConfigurationList; buildConfigurations = (BE562DB1EE984BB096C0AEBF /* Debug */, 54AC42EA81AB453F87BD060D /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
-	rootObject = 73811BA83C2B4C6D95A7A78A /* Project object */;
+	rootObject = 5FE3C9C5D1234C2A81BDFBF3 /* Project object */;
 }

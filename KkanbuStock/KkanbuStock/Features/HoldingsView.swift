@@ -18,26 +18,25 @@ struct HoldingsView: View {
                         DisclaimerBanner()
                         summary
                         let mine = store.state.holdings.filter { $0.userId == store.state.currentUserId }
+                        let active = mine.filter { $0.status == .holding }
+                        let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
                             EmptyStateView(emoji: "✨", title: "아직 주식이 없어요", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
                             PillButton(title: "주식 추가") { showAdd = true }
                             PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
                         }
-                        ForEach(mine) { holding in
-                            if let stock = store.state.stock(holding.stockId) {
-                                HoldingCardView(
-                                    stock: stock,
-                                    holding: holding,
-                                    currentPrice: store.price(for: stock.id),
-                                    partners: partners(for: holding),
-                                    grade: grade(for: holding),
-                                    showsQuantity: store.state.currentUser.shareQuantity,
-                                    isMine: true,
-                                    onRecommend: { recommendHolding = holding },
-                                    onPropose: nil,
-                                    onSell: holding.status == .holding ? { sellHolding = holding } : nil,
-                                    onVerify: { verifyHolding = holding }
-                                )
+                        if !active.isEmpty {
+                            Text("보유 중")
+                                .font(.headline)
+                            ForEach(active) { holding in
+                                holdingBlock(holding)
+                            }
+                        }
+                        if !sold.isEmpty {
+                            Text("매도 기록")
+                                .font(.headline)
+                            ForEach(sold) { holding in
+                                holdingBlock(holding)
                             }
                         }
                     }
@@ -65,6 +64,25 @@ struct HoldingsView: View {
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(isPresented: $showPropose) { ProposalSheet() }
+        }
+    }
+
+    @ViewBuilder
+    private func holdingBlock(_ holding: Holding) -> some View {
+        if let stock = store.state.stock(holding.stockId) {
+            HoldingCardView(
+                stock: stock,
+                holding: holding,
+                currentPrice: store.price(for: stock.id),
+                partners: partners(for: holding),
+                grade: grade(for: holding),
+                showsQuantity: store.state.currentUser.shareQuantity,
+                isMine: true,
+                onRecommend: { recommendHolding = holding },
+                onPropose: nil,
+                onSell: holding.status == .holding ? { sellHolding = holding } : nil,
+                onVerify: { verifyHolding = holding }
+            )
         }
     }
 
@@ -153,6 +171,10 @@ struct RecommendSheet: View {
                     }
                 }
                 Section("누구한테") {
+                    Button("그룹 전체에게") {
+                        store.recommendToGroup(holding: holding, message: message)
+                        dismiss()
+                    }
                     ForEach(friends, id: \.id) { user in
                         Button {
                             selected = user.id

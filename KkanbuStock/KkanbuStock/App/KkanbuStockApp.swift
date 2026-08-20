@@ -67,7 +67,7 @@ struct MainTabView: View {
     @Environment(AppStore.self) private var store
 
     var body: some View {
-                TabView {
+        TabView {
             GroupHomeContainer()
                 .tabItem { Label("그룹", systemImage: "person.3.fill") }
             HoldingsView()

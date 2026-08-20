@@ -43,6 +43,15 @@ final class StockTextParserTests: XCTestCase {
         XCTAssertNil(result.matchedStock)
         XCTAssertTrue(result.tooLow)
     }
+
+    func testDateExtraction() {
+        let result = parser.analyze(
+            text: "NVDA\n평균매입가 $163.40\n2026.07.14",
+            catalog: catalog,
+            now: Date()
+        )
+        XCTAssertNotNil(result.recognizedDate)
+    }
 }
 
 final class VerificationServiceTests: XCTestCase {
@@ -379,5 +388,16 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.state.holding(holding.id)?.verificationState, .mismatch)
         XCTAssertTrue(store.state.events.contains { $0.type == .verificationMismatch })
         XCTAssertFalse(store.state.events.contains { $0.message.contains("사기꾼") })
+    }
+
+    func testDemoPutsCurrentUserInTheLoop() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(state: state, persistence: PersistenceStore(filename: "test-demo-\(UUID().uuidString).json"))
+        store.refreshDerived()
+        XCTAssertFalse(store.inboxItems(for: me.id).isEmpty)
+        XCTAssertFalse(store.state.activeHoldings(of: me.id).isEmpty)
+        XCTAssertFalse(KkangbuMath.bonds(in: store.state.groups[0].id, state: store.state, prices: store.currentPrices).isEmpty)
     }
 }

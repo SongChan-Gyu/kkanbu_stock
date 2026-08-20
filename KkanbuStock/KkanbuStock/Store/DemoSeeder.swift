@@ -112,10 +112,18 @@ enum DemoSeeder {
             averagePrice: 142.00,
             purchaseDate: Date().addingTimeInterval(-86400 * 22)
         )
+        let meAAPL = Holding(
+            userId: currentUser.id,
+            stockId: aapl.id,
+            averagePrice: 205.00,
+            purchaseDate: Date().addingTimeInterval(-86400 * 14),
+            inputMethod: .chart,
+            verificationState: .unverified
+        )
 
         state.holdings.append(contentsOf: [
             cheolsuNVDA, youngheeNVDA, cheolsuAAPL, youngheeAAPL,
-            minsuTSLA, junhoTSLA, sujinSamsung, minsuHynix, youngheeAMD
+            minsuTSLA, junhoTSLA, sujinSamsung, minsuHynix, youngheeAMD, meAAPL
         ])
 
         state.suspicions.append(
@@ -156,7 +164,8 @@ enum DemoSeeder {
             FeedEvent(groupId: group.id, type: .memberJoined, actorId: currentUser.id, title: "👋 새 멤버", message: "\(currentUser.nickname)님이 우리 주식팟에 들어왔습니다.", createdAt: Date().addingTimeInterval(-120)),
             FeedEvent(groupId: group.id, type: .recommendStock, actorId: younghee.id, targetUserId: currentUser.id, stockId: nvda.id, title: "📣 너도 사!", message: "영희가 \(currentUser.nickname)에게 NVIDIA를 추천했습니다.\n“나 이거 샀으니까 너도 사 ㅋㅋ”", createdAt: Date().addingTimeInterval(-3600 * 3)),
             FeedEvent(groupId: group.id, type: .proposalCreated, actorId: minsu.id, stockId: amd.id, title: "🤔 이거 어때?", message: "민수가 AMD 같이 사자고 제안했습니다.\n“이번에 같이 들어갈 사람?”", createdAt: Date().addingTimeInterval(-3600 * 8)),
-            FeedEvent(groupId: group.id, type: .persistentNagging, actorId: minsu.id, stockId: amd.id, title: "😂 같이 사자고 조르기", message: "민수가 AMD를 두 번째로 같이 사자고 조르고 있습니다.", createdAt: Date().addingTimeInterval(-3600)),
+            FeedEvent(groupId: group.id, type: .persistentNagging, actorId: minsu.id, targetUserId: currentUser.id, stockId: amd.id, title: "😂 같이 사자고 조르기", message: "민수가 \(currentUser.nickname)에게 AMD를 두 번째로 같이 사자고 조르고 있습니다.", createdAt: Date().addingTimeInterval(-3600)),
+            FeedEvent(groupId: group.id, type: .newKkangbu, actorId: currentUser.id, targetUserId: cheolsu.id, stockId: aapl.id, title: "🤝 새로운 주식 깐부", message: "\(currentUser.nickname) × 철수\nApple 깐부가 탄생했습니다.", createdAt: Date().addingTimeInterval(-86400 * 14)),
             FeedEvent(groupId: group.id, type: .newKkangbu, actorId: cheolsu.id, targetUserId: younghee.id, stockId: nvda.id, title: "🤝 새로운 주식 깐부", message: "철수 × 영희\nNVIDIA 깐부가 탄생했습니다.", createdAt: Date().addingTimeInterval(-86400 * 32)),
             FeedEvent(groupId: group.id, type: .goldenKkangbu, actorId: cheolsu.id, targetUserId: younghee.id, stockId: nvda.id, title: "🔥 황금 깐부", message: "철수와 영희가 NVIDIA 황금 깐부가 되었습니다.", createdAt: Date().addingTimeInterval(-86400 * 4)),
             FeedEvent(groupId: group.id, type: .soloEscape, actorId: minsu.id, stockId: tsla.id, title: "🏃 혼자 튐", message: "민수가 Tesla를 팔고 혼자 튀었습니다.\n준호는 아직 남아 있습니다.", createdAt: Date().addingTimeInterval(-86400 * 2)),
