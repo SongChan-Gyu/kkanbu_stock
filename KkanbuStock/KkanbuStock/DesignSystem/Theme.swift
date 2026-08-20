@@ -204,7 +204,6 @@ struct HoldingCardView: View {
     var onRecommend: (() -> Void)?
     var onPropose: (() -> Void)?
     var onSell: (() -> Void)?
-    var onSuspect: (() -> Void)?
     var onVerify: (() -> Void)?
 
     var body: some View {
@@ -255,8 +254,6 @@ struct HoldingCardView: View {
                     small("친구에게 추천", action: onRecommend)
                     small("같이 사자고 제안", action: onPropose)
                     small("매도", action: onSell)
-                } else if !isMine, holding.status == .holding {
-                    small("매수가 의심", action: onSuspect)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {
                     small("캡처 인증", action: onVerify)

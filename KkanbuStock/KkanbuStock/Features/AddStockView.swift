@@ -22,7 +22,9 @@ struct AddStockView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다.")
+                    Text(prefill == nil
+                         ? "내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다."
+                         : "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Button {

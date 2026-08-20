@@ -36,30 +36,23 @@ struct InboxActionCard: View {
         switch item.kind {
         case .recommend:
             if let rec = item.recommendation, let stock = store.state.stock(rec.stockId) {
-                let holding = store.state.holding(rec.holdingId)
+                let sender = store.state.nickname(rec.senderId)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("친구가 이미 보유한 종목")
+                    Text("추천")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
-                    HStack(spacing: 5) {
-                        Text(stock.name)
-                            .font(.body.weight(.semibold))
-                        if let holding {
-                            VerificationBadge(state: holding.verificationState)
-                        }
-                    }
-                    Text("\(stock.ticker) · \(store.state.nickname(rec.senderId))")
+                    Text("\(sender)가 \(stock.name)를 추천함")
+                        .font(.body.weight(.semibold))
+                    Text(stock.ticker)
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    if let holding {
-                        Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
-                            .font(.footnote)
-                            .foregroundStyle(KkanbuTheme.muted)
-                    }
-                    Text("\(store.state.nickname(rec.senderId))가 이 종목을 들고 있습니다. 내가 같은 종목을 사면 내 주식에서 따로 기록합니다.")
+                    Text("샀으면 매수가를 적고, 안 사면 마음 바뀜을 남깁니다. 버튼을 눌러도 주문이 나가지 않습니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "확인", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                    VStack(spacing: 8) {
+                        QuietButton(title: "샀어요 · 매수가 적기") { onRegister(stock) }
+                        QuietButton(title: "안 살게", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                    }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }

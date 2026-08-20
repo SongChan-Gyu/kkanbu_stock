@@ -112,7 +112,7 @@ struct GroupHomeView: View {
                     Text("내 차례")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    Text("친구가 산 종목 알림")
+                    Text("추천과 제안")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in

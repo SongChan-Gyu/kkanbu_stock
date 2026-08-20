@@ -390,6 +390,42 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertFalse(store.state.events.contains { $0.message.contains("사기꾼") })
     }
 
+    func testRecommendationBuyRecordsEnteredPriceAndChangedMindDoesNotBuy() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "영희"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-rec-buy-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "나", avatarEmoji: "🐣")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(stock: nvda, averagePrice: 163.4, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(holding: store.state.activeHoldings(of: store.state.currentUserId)[0], to: friend.id, message: "사봐")
+
+        store.playAs(friend.id)
+        let recId = store.state.recommendations[0].id
+        let quote = store.price(for: nvda.id)
+
+        store.resolveRecommendation(recId, accept: true)
+        XCTAssertEqual(store.state.recommendations[0].status, .pending)
+        XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
+
+        store.resolveRecommendation(recId, accept: false)
+        XCTAssertEqual(store.state.recommendations[0].status, .rejected)
+        XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendRejected })
+
+        store.state.recommendations[0].status = .pending
+        store.state.recommendations[0].resolvedAt = nil
+        store.addHolding(stock: nvda, averagePrice: 99.01, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        XCTAssertEqual(store.state.recommendations[0].status, .accepted)
+        XCTAssertEqual(store.state.activeHoldings(of: friend.id).first?.averagePrice, 99.01)
+        XCTAssertNotEqual(99.01, quote)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendAccepted })
+    }
+
     func testDemoPutsCurrentUserInTheLoop() {
         let me = User(nickname: "나", avatarEmoji: "🐣")
         var state = AppState.empty(user: me, stocks: StockCatalog.all)

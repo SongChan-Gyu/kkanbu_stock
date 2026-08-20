@@ -29,7 +29,7 @@ struct RecommendRule: EventRule {
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
                         title: "추천 수락",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 수락했습니다."
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId))를 사서 기록했습니다."
                     )
                 ]
             }
@@ -41,8 +41,8 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "제안 거절",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 미뤘습니다."
+                        title: "마음 바뀜",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 거절했습니다. 안 사기로 마음 바꿨습니다."
                     )
                 ]
             }

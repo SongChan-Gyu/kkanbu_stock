@@ -142,6 +142,7 @@ final class AppStore {
         )
         let before = state
         state.holdings.append(holding)
+        var acceptedRecIds: [UUID] = []
         for index in state.recommendations.indices where
             state.recommendations[index].receiverId == state.currentUserId &&
             state.recommendations[index].stockId == stock.id &&
@@ -149,15 +150,17 @@ final class AppStore {
         {
             state.recommendations[index].status = .accepted
             state.recommendations[index].resolvedAt = Date()
+            acceptedRecIds.append(state.recommendations[index].id)
         }
         let cobuyTriggers = completeCoBuysIfNeeded(userId: state.currentUserId, stockId: stock.id)
         var triggers: [Trigger] = [.holdingAdded(holdingId: holding.id)]
+        triggers.append(contentsOf: acceptedRecIds.map { .recommendationResolved(id: $0) })
         if verification == .screenshotVerified {
             triggers.append(.verified(holdingId: holding.id, matched: true))
         }
         triggers.append(contentsOf: cobuyTriggers)
         emit(triggers, before: before)
-        toast = "\(stock.name) 등록 완료"
+        toast = acceptedRecIds.isEmpty ? "\(stock.name) 등록 완료" : "\(stock.name)를 사서 기록했습니다"
     }
 
     func sellHolding(id: UUID, sellPrice: Double, sellDate: Date) {
@@ -200,17 +203,18 @@ final class AppStore {
 
     func resolveRecommendation(_ id: UUID, accept: Bool, averagePrice: Double? = nil, purchaseDate: Date? = nil) {
         guard let index = state.recommendations.firstIndex(where: { $0.id == id }) else { return }
+        if accept, averagePrice == nil { return }
         let rec = state.recommendations[index]
         let before = state
         state.recommendations[index].status = accept ? .accepted : .rejected
         state.recommendations[index].resolvedAt = Date()
         var triggers: [Trigger] = [.recommendationResolved(id: rec.id)]
-        if accept, let stock = state.stock(rec.stockId) {
+        if accept, let averagePrice, let stock = state.stock(rec.stockId) {
             if state.activeHoldings(of: state.currentUserId).contains(where: { $0.stockId == stock.id }) == false {
                 let holding = Holding(
                     userId: state.currentUserId,
                     stockId: stock.id,
-                    averagePrice: averagePrice ?? price(for: rec.stockId),
+                    averagePrice: averagePrice,
                     purchaseDate: purchaseDate ?? Date(),
                     inputMethod: .manual,
                     verificationState: .unverified
@@ -221,6 +225,7 @@ final class AppStore {
             }
         }
         emit(triggers, before: before)
+        toast = accept ? "사서 기록했습니다" : "안 사기로 했습니다"
     }
 
     func propose(stock: Stock, message: String) {

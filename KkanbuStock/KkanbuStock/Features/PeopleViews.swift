@@ -377,8 +377,7 @@ struct FriendDetailView: View {
                         partners: partners(holding),
                         grade: nil,
                         showsQuantity: user.shareQuantity,
-                        isMine: false,
-                        onSuspect: { store.suspectHolding(holding.id) }
+                        isMine: false
                     )
                 }
             }

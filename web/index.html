@@ -709,10 +709,17 @@ function addHolding(ticker, avg, method = "manual") {
   state.cobuys.filter((c) => c.userId === state.me.id && c.stockId === ticker && c.status === "promised").forEach((c) => {
     c.status = "registered";
   });
+  let fromRec = false;
   state.recs.filter((r) => r.receiverId === state.me.id && r.stockId === ticker && r.status === "pending").forEach((r) => {
     r.status = "accepted";
+    fromRec = true;
   });
-  toast(`${s.name} 기록됨`);
+  if (fromRec) {
+    pushEvent("추천 수락", `${s.name}를 사서 기록했습니다.`, "rec");
+    toast(`${s.name}를 사서 기록했습니다`);
+  } else {
+    toast(`${s.name} 기록됨`);
+  }
   state.sheet = null;
   render();
 }
@@ -740,9 +747,15 @@ function sellHolding(id) {
 function acceptRec(id, accept) {
   const rec = state.recs.find((r) => r.id === id);
   if (!rec) return;
-  rec.status = accept ? "accepted" : "rejected";
-  if (accept) addHolding(rec.stockId, priceOf(stock(rec.stockId)));
-  else { toast("나중에로 미뤘습니다"); render(); }
+  if (accept) {
+    state.sheet = "register:" + rec.stockId;
+    render();
+    return;
+  }
+  rec.status = "rejected";
+  pushEvent("마음 바뀜", `${stock(rec.stockId).name} 추천을 거절했습니다. 안 사기로 마음 바꿨습니다.`, "rec");
+  toast("안 사기로 했습니다");
+  render();
 }
 
 function declineProposal(proposalId) {
@@ -877,8 +890,6 @@ function holdingRow(h, isMine) {
   if (isMine && h.status === "holding") {
     actions = sm("친구에게 추천", `open-rec:${h.id}`) + sm("같이 사자고 제안", `open-prop:${h.stockId}`) + sm("매도", `sell:${h.id}`);
     if (h.verification !== "screenshot") actions += sm("캡처 인증", `verify:${h.id}`);
-  } else if (!isMine && h.status === "holding") {
-    actions = sm("매수가 의심", `suspect:${h.id}`);
   }
   const partnerLine = partners.length
     ? `${esc(partners.join(" · "))}와 ${esc(g.title)}`
@@ -894,7 +905,7 @@ function holdingRow(h, isMine) {
         ${partnerLine ? `<div class="caption">${partnerLine}</div>` : ""}
         ${h.status === "sold" ? `<div class="caption">매도 · ${formatPct(ret(h.averagePrice, h.sellPrice))}</div>` : ""}
         ${suspect}
-        <div class="actions">${actions}</div>
+        ${actions ? `<div class="actions">${actions}</div>` : ""}
       </div>
       <div class="right">
         <div class="pct ${r >= 0 ? "up" : "down"}">${formatPct(r)}</div>
@@ -906,15 +917,14 @@ function inboxBlock(item) {
   if (item.kind === "recommend") {
     const rec = item.rec;
     const s = stock(rec.stockId);
-    const h = state.holdings.find((x) => x.id === rec.holdingId);
-    const r = h ? ret(h.averagePrice, priceOf(s)) : null;
     return `<div class="action-block">
-      <div class="kind">친구가 이미 보유한 종목</div>
-      <div class="stock-name">${esc(s.name)}${h ? verifyMark(h.verification) : ""}</div>
-      <div class="ticker">${esc(s.ticker)} · ${esc(nickname(rec.senderId))}</div>
-      ${h ? `<div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · ${formatPct(r)}</div>` : ""}
-      <p class="caption">${esc(nickname(rec.senderId))}가 이 종목을 들고 있습니다. 내가 같은 종목을 사면 내 주식에서 따로 기록합니다.</p>
-      ${btn("확인", "secondary", `reject:${rec.id}`)}
+      <div class="kind">추천</div>
+      <div class="stock-name">${esc(nickname(rec.senderId))}가 ${esc(s.name)}를 추천함</div>
+      <div class="ticker">${esc(s.ticker)}</div>
+      <p class="caption">샀으면 매수가를 적고, 안 사면 마음 바뀜을 남깁니다. 버튼을 눌러도 주문이 나가지 않습니다.</p>
+      ${btn("샀어요 · 매수가 적기", "primary", `bought:${rec.id}`)}
+      <div style="height:8px"></div>
+      ${btn("안 살게", "secondary", `reject:${rec.id}`)}
     </div>`;
   }
   if (item.kind === "proposal" || item.kind === "nag") {
@@ -1045,7 +1055,7 @@ function renderHoldings() {
 function renderActivity() {
   const mine = inbox();
   const recs = state.recs.filter((r) => r.senderId === state.me.id || r.receiverId === state.me.id);
-  const recStatus = { pending: "대기", accepted: "수락", rejected: "거절" };
+  const recStatus = { pending: "대기", accepted: "사서 기록", rejected: "마음 바뀜" };
   return `<div class="screen">
     <div class="page-title">활동</div>
     <p class="page-sub">이미 산 종목 추천과, 아직 안 산 종목 제안</p>
@@ -1094,7 +1104,7 @@ function sheetHTML() {
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
       <h2>주식 추가</h2>
-      <p class="note">내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다.</p>
+      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다."}</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       <label>매수가</label>
@@ -1186,6 +1196,13 @@ function handle(act) {
       return;
     }
     addHolding(ticker, price);
+    return;
+  }
+  if (act.startsWith("bought:")) {
+    const rec = state.recs.find((r) => r.id === act.split(":")[1]);
+    if (!rec) return;
+    state.sheet = "register:" + rec.stockId;
+    render();
     return;
   }
   if (act.startsWith("accept:")) return acceptRec(act.split(":")[1], true);
