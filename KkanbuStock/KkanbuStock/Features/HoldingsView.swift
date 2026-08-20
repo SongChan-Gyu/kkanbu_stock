@@ -4,7 +4,6 @@ struct HoldingsView: View {
     @Environment(AppStore.self) private var store
     @State private var showAdd = false
     @State private var recommendHolding: Holding?
-    @State private var proposeStock: Stock?
     @State private var sellHolding: Holding?
     @State private var verifyHolding: Holding?
     @State private var showPropose = false
@@ -23,7 +22,7 @@ struct HoldingsView: View {
                         if mine.isEmpty {
                             EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
                             QuietButton(title: "내 주식 등록") { showAdd = true }
-                            QuietButton(title: "같이 살 종목 제안", kind: .secondary) { showPropose = true }
+                            QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")
@@ -46,7 +45,7 @@ struct HoldingsView: View {
             .navigationTitle("내 주식")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("종목 제안") { showPropose = true }
+                    Button("그룹에 제안") { showPropose = true }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -60,7 +59,6 @@ struct HoldingsView: View {
             }
             .sheet(isPresented: $showAdd) { AddStockView() }
             .sheet(item: $recommendHolding) { RecommendSheet(holding: $0) }
-            .sheet(item: $proposeStock) { ProposalSheet(preselected: $0) }
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(isPresented: $showPropose) { ProposalSheet() }
@@ -79,7 +77,6 @@ struct HoldingsView: View {
                 showsQuantity: store.state.currentUser.shareQuantity,
                 isMine: true,
                 onRecommend: { recommendHolding = holding },
-                onPropose: nil,
                 onSell: holding.status == .holding ? { sellHolding = holding } : nil,
                 onVerify: { verifyHolding = holding }
             )
@@ -237,12 +234,12 @@ struct ProposalSheet: View {
                 }
                 Section("메시지") {
                     TextField("제안", text: $message, axis: .vertical)
-                    Text("추천은 이미 보유한 종목, 같이 사기는 아직 안 산 종목을 제안합니다.")
+                    Text("추천은 내가 산 종목을 친구에게, 같이 사기는 아직 안 산 종목을 그룹 전체에 제안합니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("같이 살 종목 제안")
+            .navigationTitle("그룹에 같이 사자")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

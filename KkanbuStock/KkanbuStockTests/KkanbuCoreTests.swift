@@ -409,15 +409,16 @@ final class AppStoreFlowTests: XCTestCase {
         let quote = store.price(for: nvda.id)
 
         store.resolveRecommendation(recId, accept: true)
-        XCTAssertEqual(store.state.recommendations[0].status, .pending)
+        XCTAssertEqual(store.state.recommendations[0].status, .willBuy)
         XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendWillBuy })
 
         store.resolveRecommendation(recId, accept: false)
         XCTAssertEqual(store.state.recommendations[0].status, .rejected)
         XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
         XCTAssertTrue(store.state.events.contains { $0.type == .recommendRejected })
 
-        store.state.recommendations[0].status = .pending
+        store.state.recommendations[0].status = .willBuy
         store.state.recommendations[0].resolvedAt = nil
         store.addHolding(stock: nvda, averagePrice: 99.01, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
         XCTAssertEqual(store.state.recommendations[0].status, .accepted)
@@ -434,6 +435,9 @@ final class AppStoreFlowTests: XCTestCase {
         store.refreshDerived()
         XCTAssertFalse(store.inboxItems(for: me.id).isEmpty)
         XCTAssertFalse(store.state.activeHoldings(of: me.id).isEmpty)
-        XCTAssertFalse(KkangbuMath.bonds(in: store.state.groups[0].id, state: store.state, prices: store.currentPrices).isEmpty)
+        let bonds = KkangbuMath.bonds(in: store.state.groups[0].id, state: store.state, prices: store.currentPrices)
+        XCTAssertFalse(bonds.isEmpty)
+        XCTAssertTrue(bonds.contains { $0.grade.isGlory })
+        XCTAssertTrue(bonds.contains { $0.grade.isRoast })
     }
 }

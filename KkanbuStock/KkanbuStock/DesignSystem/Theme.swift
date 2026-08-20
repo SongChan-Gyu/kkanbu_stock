@@ -180,6 +180,9 @@ struct EventRow: View {
                 InitialsAvatar(name: actorName, size: 32)
             }
             VStack(alignment: .leading, spacing: 4) {
+                Text(event.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(kickColor(for: event.type))
                 Text(event.message)
                     .font(.subheadline)
                     .foregroundStyle(KkanbuTheme.ink)
@@ -189,6 +192,34 @@ struct EventRow: View {
             }
         }
         .padding(.vertical, 10)
+    }
+
+    private func kickColor(for type: EventType) -> Color {
+        switch type {
+        case .goldenKkangbu, .godsMovePartners, .destinyPartners, .moonTogether, .recommendAccepted:
+            Color.kkanbuUp
+        case .worstPartner, .graveyardPartners, .soloEscape, .soldTooEarly, .recommendRejected:
+            Color.kkanbuDown
+        default:
+            KkanbuTheme.muted
+        }
+    }
+}
+
+struct GradeTitle: View {
+    var grade: KkangbuGrade
+    var size: CGFloat = 13
+
+    var body: some View {
+        Text(grade.title)
+            .font(.system(size: size, weight: .semibold))
+            .foregroundStyle(color)
+    }
+
+    private var color: Color {
+        if grade.isRoast { return Color.kkanbuDown }
+        if grade.isGlory { return Color.kkanbuUp }
+        return KkanbuTheme.muted
     }
 }
 
@@ -202,7 +233,6 @@ struct HoldingCardView: View {
     var isMine: Bool
     var ownerName: String? = nil
     var onRecommend: (() -> Void)?
-    var onPropose: (() -> Void)?
     var onSell: (() -> Void)?
     var onVerify: (() -> Void)?
 
@@ -236,9 +266,12 @@ struct HoldingCardView: View {
                     .foregroundStyle(KkanbuTheme.faint)
             }
             if let grade, !partners.isEmpty {
-                Text("\(partners.joined(separator: " · "))와 \(grade.title)")
-                    .font(.caption)
-                    .foregroundStyle(KkanbuTheme.muted)
+                HStack(spacing: 4) {
+                    Text("\(partners.joined(separator: " · "))와")
+                        .font(.caption)
+                        .foregroundStyle(KkanbuTheme.muted)
+                    GradeTitle(grade: grade, size: 12)
+                }
             } else if !partners.isEmpty {
                 Text("\(partners.joined(separator: " · "))와 깐부")
                     .font(.caption)
@@ -252,7 +285,6 @@ struct HoldingCardView: View {
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
                     small("친구에게 추천", action: onRecommend)
-                    small("같이 사자고 제안", action: onPropose)
                     small("매도", action: onSell)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {

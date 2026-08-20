@@ -31,8 +31,9 @@ enum SocialHistory {
                 let result: String
                 switch rec.status {
                 case .pending: result = "아직 대답 없음"
-                case .accepted: result = "참여함"
-                case .later, .rejected: result = "거절/나중에"
+                case .willBuy: result = "살게라고 함"
+                case .accepted: result = "사서 기록"
+                case .later, .rejected: result = "마음 바뀜"
                 }
                 return HistoryRecord(
                     id: rec.id,
@@ -133,6 +134,7 @@ enum GroupSocial {
     static func spicyEvents(in groupId: UUID, state: AppState) -> [FeedEvent] {
         let spicy: Set<EventType> = [
             .soloEscape, .foresight, .soldTooEarly, .newKkangbu, .goldenKkangbu,
+            .worstPartner, .graveyardPartners, .godsMovePartners, .destinyPartners,
             .buriedTogether, .moonTogether, .persistentNagging, .verificationRequested,
             .coBuyCompleted, .kkangbuRecruited, .diamondHands
         ]

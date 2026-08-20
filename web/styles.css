@@ -317,6 +317,20 @@ button {
   color: var(--text-2);
   margin-top: 2px;
 }
+.grade {
+  font-size: 13px;
+  font-weight: 650;
+  margin-top: 2px;
+}
+.grade.glory, .kind.glory, .mood.glory { color: var(--up); }
+.grade.roast, .kind.roast, .mood.roast { color: var(--down); }
+.grade.plain { color: var(--text-2); }
+.mood {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
 
 .header-meta {
   display: flex;

@@ -37,41 +37,66 @@ struct InboxActionCard: View {
         case .recommend:
             if let rec = item.recommendation, let stock = store.state.stock(rec.stockId) {
                 let sender = store.state.nickname(rec.senderId)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("추천")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.faint)
-                    Text("\(sender)가 \(stock.name)를 추천함")
-                        .font(.body.weight(.semibold))
-                    Text(stock.ticker)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(KkanbuTheme.faint)
-                    Text("샀으면 매수가를 적고, 안 사면 마음 바뀜을 남깁니다. 버튼을 눌러도 주문이 나가지 않습니다.")
-                        .font(.caption)
-                        .foregroundStyle(KkanbuTheme.faint)
-                    VStack(spacing: 8) {
-                        QuietButton(title: "샀어요 · 매수가 적기") { onRegister(stock) }
-                        QuietButton(title: "안 살게", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                if rec.status == .willBuy {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("살게요 · 아직 안 삼")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(KkanbuTheme.faint)
+                        Text("\(sender)가 추천한 \(stock.name)")
+                            .font(.body.weight(.semibold))
+                        Text(stock.ticker)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(KkanbuTheme.faint)
+                        Text("사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                        VStack(spacing: 8) {
+                            QuietButton(title: "샀어요 · 매수가 적기") { onRegister(stock) }
+                            QuietButton(title: "마음 바뀜", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                        }
                     }
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("추천")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(KkanbuTheme.faint)
+                        Text("\(sender)가 \(stock.name)를 추천함")
+                            .font(.body.weight(.semibold))
+                        Text(stock.ticker)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(KkanbuTheme.faint)
+                        Text("살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                        VStack(spacing: 8) {
+                            QuietButton(title: "살게요") { store.resolveRecommendation(rec.id, accept: true) }
+                            QuietButton(title: "안 살게", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                        }
+                    }
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
                 }
-                .padding(.vertical, 12)
-                .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
             }
         case .proposal, .nag:
             if let proposal = item.proposal, let stock = store.state.stock(proposal.stockId) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(item.kind == .nag ? "같이 사자고 다시 요청" : "아직 안 산 종목을 같이 사자는 제안")
+                    Text(item.kind == .nag ? "그룹이 다시 조름" : "그룹 제안")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text(stock.name)
+                    Text("\(store.state.nickname(proposal.proposerId))가 그룹에 \(stock.name) 같이 사자고 함")
                         .font(.body.weight(.semibold))
-                    Text("\(stock.ticker) · \(store.state.nickname(proposal.proposerId))")
+                    Text(stock.ticker)
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("\(store.state.nickname(proposal.proposerId))가 \(stock.name)를 같이 보자고 합니다. 매수가 아닙니다.")
+                    Text("친구 한 명 추천이 아닙니다. 그룹 전체에 아직 안 산 종목을 제안한 겁니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "확인", kind: .secondary) { store.declineProposal(proposal.id) }
+                    VStack(spacing: 8) {
+                        QuietButton(title: "관심 있음") { store.promiseCoBuy(proposalId: proposal.id) }
+                        QuietButton(title: "패스", kind: .secondary) { store.declineProposal(proposal.id) }
+                    }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }

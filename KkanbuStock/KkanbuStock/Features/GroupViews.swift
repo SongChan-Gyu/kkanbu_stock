@@ -95,7 +95,7 @@ struct GroupHomeView: View {
             }
             HStack(spacing: 8) {
                 QuietButton(title: "내 주식 등록") { showAdd = true }
-                QuietButton(title: "같이 살 종목 제안", kind: .secondary) { showPropose = true }
+                QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
             }
             Button("칭호 랭킹") { showRank = true }
                 .font(.caption.weight(.medium))
@@ -112,7 +112,7 @@ struct GroupHomeView: View {
                     Text("내 차례")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    Text("추천과 제안")
+                    Text("친구 추천 / 그룹 제안")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in
@@ -163,29 +163,37 @@ struct GroupHomeView: View {
     }
 
     private var kkangbuStrip: some View {
-        let pairs = KkangbuMath.pairSummaries(in: group.id, state: store.state, prices: store.currentPrices)
+        let bonds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices)
         return Group {
-            if !pairs.isEmpty {
+            if !bonds.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("깐부")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    ForEach(pairs) { pair in
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(store.state.nickname(pair.userA)) · \(store.state.nickname(pair.userB))")
-                                    .font(.subheadline.weight(.semibold))
-                                Text("\(pair.sharedCount)종목 · \(pair.grade.title)")
-                                    .font(.caption)
-                                    .foregroundStyle(KkanbuTheme.muted)
+                    if let mood = bonds.first(where: { $0.grade.isRoast }) ?? bonds.first(where: { $0.grade.isGlory }) {
+                        Text("지금 분위기 · \(store.state.nickname(mood.userA)) · \(store.state.nickname(mood.userB)), \(mood.grade.title)")
+                            .font(.caption)
+                            .foregroundStyle(mood.grade.isRoast ? Color.kkanbuDown : Color.kkanbuUp)
+                    }
+                    ForEach(bonds) { bond in
+                        if let stock = store.state.stock(bond.stockId) {
+                            HStack(alignment: .firstTextBaseline) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(store.state.nickname(bond.userA)) · \(store.state.nickname(bond.userB))")
+                                        .font(.subheadline.weight(.semibold))
+                                    GradeTitle(grade: bond.grade)
+                                    Text(stock.name)
+                                        .font(.caption)
+                                        .foregroundStyle(KkanbuTheme.faint)
+                                }
+                                Spacer()
+                                Text(MoneyFormat.percent(bond.sharedReturn))
+                                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(bond.sharedReturn >= 0 ? Color.kkanbuUp : Color.kkanbuDown)
                             }
-                            Spacer()
-                            Text(MoneyFormat.percent(pair.averageReturn))
-                                .font(.subheadline.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(pair.averageReturn >= 0 ? Color.kkanbuUp : Color.kkanbuDown)
+                            .padding(.vertical, 10)
+                            .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
                         }
-                        .padding(.vertical, 10)
-                        .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
                     }
                 }
             }
@@ -197,7 +205,7 @@ struct GroupHomeView: View {
         return Group {
             if !open.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("같이 살 종목")
+                    Text("그룹 제안")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
                     ForEach(open) { proposal in
@@ -275,19 +283,23 @@ struct ProposalCard: View {
         let mine = promised.contains { $0.userId == store.state.currentUserId }
         KkanbuCard(padding: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(store.state.nickname(proposal.proposerId)) · \(stock?.name ?? "")")
+                Text("그룹 제안 · \(store.state.nickname(proposal.proposerId))")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text(stock?.name ?? "")
                     .font(.subheadline.weight(.semibold))
                 Text(proposal.message)
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.muted)
-                Text("같이 사기 \(promised.count)명 · \(promised.compactMap { store.state.nickname($0.userId) }.joined(separator: ", "))")
+                Text("관심 \(promised.count)명 · \(promised.compactMap { store.state.nickname($0.userId) }.joined(separator: ", "))")
                     .font(.caption)
                     .foregroundStyle(KkanbuTheme.faint)
-                HStack {
+                VStack(spacing: 8) {
                     if mine, proposal.proposerId == store.state.currentUserId {
-                        QuietButton(title: "조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
+                        QuietButton(title: "그룹에 조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
                     } else if !mine {
-                        QuietButton(title: "확인", kind: .secondary) { store.declineProposal(proposal.id) }
+                        QuietButton(title: "관심 있음") { store.promiseCoBuy(proposalId: proposal.id) }
+                        QuietButton(title: "패스", kind: .secondary) { store.declineProposal(proposal.id) }
                     }
                 }
             }

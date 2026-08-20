@@ -1,5 +1,14 @@
 import Foundation
 
+extension KkangbuGrade {
+    var isRoast: Bool { id == KkangbuGradeBook.worst.id || id == KkangbuGradeBook.graveyard.id }
+    var isGlory: Bool {
+        id == KkangbuGradeBook.golden.id
+            || id == KkangbuGradeBook.destiny.id
+            || id == KkangbuGradeBook.godsMove.id
+    }
+}
+
 enum KkangbuGradeBook {
     static let kkangbu = KkangbuGrade(id: "KKANGBU", emoji: "🤝", title: "주식 깐부", priority: 10)
     static let golden = KkangbuGrade(id: "GOLDEN", emoji: "🔥", title: "황금 깐부", priority: 40)

@@ -20,6 +20,19 @@ struct RecommendRule: EventRule {
             ]
         case let .recommendationResolved(id):
             guard let rec = context.after.recommendations.first(where: { $0.id == id }) else { return [] }
+            if rec.status == .willBuy {
+                return [
+                    FeedEvent(
+                        groupId: rec.groupId,
+                        type: .recommendWillBuy,
+                        actorId: rec.receiverId,
+                        targetUserId: rec.senderId,
+                        stockId: rec.stockId,
+                        title: "살게요",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 사겠다고 했습니다. 아직 산 건 아닙니다."
+                    )
+                ]
+            }
             if rec.status == .accepted {
                 return [
                     FeedEvent(
@@ -28,7 +41,7 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "추천 수락",
+                        title: "사서 기록",
                         message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId))를 사서 기록했습니다."
                     )
                 ]
@@ -66,8 +79,8 @@ struct ProposalRule: EventRule {
                     type: .proposalCreated,
                     actorId: proposal.proposerId,
                     stockId: proposal.stockId,
-                    title: "같이 사기 제안",
-                    message: "\(context.after.nickname(proposal.proposerId))가 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
+                    title: "그룹 제안",
+                    message: "\(context.after.nickname(proposal.proposerId))가 그룹에 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
                 )
             ]
         case let .proposalDeclined(id):

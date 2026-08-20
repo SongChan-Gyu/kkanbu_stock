@@ -2,6 +2,7 @@ import Foundation
 
 enum RecommendationStatus: String, Codable, Sendable {
     case pending
+    case willBuy
     case accepted
     case later
     case rejected

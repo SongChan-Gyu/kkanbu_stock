@@ -281,8 +281,7 @@ struct FriendDetailView: View {
                         Text(user.nickname)
                             .font(.title3.weight(.semibold))
                         if let pair {
-                            Text(pair.grade.title)
-                                .font(.subheadline)
+                            GradeTitle(grade: pair.grade, size: 15)
                             Text("공동 보유 \(pair.sharedCount)종목 · 평균 \(MoneyFormat.percent(pair.averageReturn))")
                                 .font(.caption)
                                 .foregroundStyle(KkanbuTheme.muted)
