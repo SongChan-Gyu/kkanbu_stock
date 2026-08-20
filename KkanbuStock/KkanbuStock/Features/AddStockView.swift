@@ -22,7 +22,7 @@ struct AddStockView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("이 앱은 주문을 넣지 않습니다. 이미 산 종목의 매수가를 기록합니다. 현재가를 그대로 넣으면 지금 산 것처럼 보입니다.")
+                    Text("내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Button {
@@ -65,7 +65,7 @@ struct AddStockView: View {
                     }
                 }
             }
-            .navigationTitle("내 매수가 기록")
+            .navigationTitle("주식 추가")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

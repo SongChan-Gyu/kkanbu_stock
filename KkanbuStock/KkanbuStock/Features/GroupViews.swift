@@ -112,7 +112,7 @@ struct GroupHomeView: View {
                     Text("내 차례")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    Text("이미 산 종목 추천과, 아직 안 산 종목 제안")
+                    Text("친구가 산 종목 알림")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in
@@ -273,9 +273,6 @@ struct ProposalCard: View {
         let stock = store.state.stock(proposal.stockId)
         let promised = store.state.coBuys.filter { $0.proposalId == proposal.id && $0.status != .declined }
         let mine = promised.contains { $0.userId == store.state.currentUserId }
-        let alreadyHolding = stock.map { item in
-            store.state.activeHoldings(of: store.state.currentUserId).contains(where: { $0.stockId == item.id })
-        } ?? false
         KkanbuCard(padding: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("\(store.state.nickname(proposal.proposerId)) · \(stock?.name ?? "")")
@@ -287,20 +284,10 @@ struct ProposalCard: View {
                     .font(.caption)
                     .foregroundStyle(KkanbuTheme.faint)
                 HStack {
-                    if mine {
-                        if proposal.proposerId == store.state.currentUserId {
-                            QuietButton(title: "조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
-                        }
-                        if !alreadyHolding, let stock {
-                            QuietButton(title: "지금 등록") { onRegister?(stock) }
-                        } else if alreadyHolding {
-                            Text("등록됨")
-                                .font(.footnote)
-                                .foregroundStyle(KkanbuTheme.muted)
-                        }
-                    } else {
-                        QuietButton(title: "관심 표시") { store.promiseCoBuy(proposalId: proposal.id) }
-                        QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
+                    if mine, proposal.proposerId == store.state.currentUserId {
+                        QuietButton(title: "조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
+                    } else if !mine {
+                        QuietButton(title: "확인", kind: .secondary) { store.declineProposal(proposal.id) }
                     }
                 }
             }

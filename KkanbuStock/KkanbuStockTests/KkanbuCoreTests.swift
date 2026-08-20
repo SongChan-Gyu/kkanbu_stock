@@ -354,7 +354,7 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.state.proposals.count, 1)
         store.playAs(younghee.id)
         store.promiseCoBuy(proposalId: store.state.proposals[0].id)
-        XCTAssertTrue(store.inboxItems(for: younghee.id).contains { $0.kind == .cobuyRegister })
+        XCTAssertTrue(store.state.coBuys.contains { $0.userId == younghee.id && $0.status == .promised })
         store.addHolding(stock: tsla, averagePrice: 241, quantity: nil, purchaseDate: Date(), method: .chart, verification: .unverified)
         store.playAs(me.id)
         store.addHolding(stock: tsla, averagePrice: 240, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)

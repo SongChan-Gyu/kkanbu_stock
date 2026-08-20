@@ -448,12 +448,7 @@ final class AppStore {
         let suspects = state.holdings.filter { $0.userId == userId && ($0.verificationState == .suspected || $0.verificationState == .mismatch) }.map {
             InboxItem(id: $0.id, kind: .suspect, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
         }
-        let cobuyRegister = state.coBuys.filter { $0.userId == userId && $0.status == .promised }.compactMap { cobuy -> InboxItem? in
-            guard state.activeHoldings(of: userId).contains(where: { $0.stockId == cobuy.stockId }) == false,
-                  let proposal = state.proposals.first(where: { $0.id == cobuy.proposalId }) else { return nil }
-            return InboxItem(id: cobuy.id, kind: .cobuyRegister, date: cobuy.createdAt, recommendation: nil, proposal: proposal, holding: nil)
-        }
-        return (recs + proposals + Array(nags) + suspects + cobuyRegister).sorted { $0.date > $1.date }
+        return (recs + proposals + Array(nags) + suspects).sorted { $0.date > $1.date }
     }
 
     private func completeCoBuysIfNeeded(userId: UUID, stockId: UUID) -> [Trigger] {

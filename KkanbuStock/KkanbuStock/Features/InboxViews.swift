@@ -56,13 +56,10 @@ struct InboxActionCard: View {
                             .font(.footnote)
                             .foregroundStyle(KkanbuTheme.muted)
                     }
-                    Text("이 앱은 주문을 넣지 않습니다. 아직 안 샀으면 나중에를 누르세요. 이미 직접 샀다면 내 매수가를 기록해야 \(store.state.nickname(rec.senderId))와 깐부가 됩니다.")
+                    Text("\(store.state.nickname(rec.senderId))가 이 종목을 들고 있습니다. 내가 같은 종목을 사면 내 주식에서 따로 기록합니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    HStack {
-                        QuietButton(title: "내 매수가 기록") { onRegister(stock) }
-                        QuietButton(title: "나중에", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
-                    }
+                    QuietButton(title: "확인", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
@@ -78,13 +75,10 @@ struct InboxActionCard: View {
                     Text("\(stock.ticker) · \(store.state.nickname(proposal.proposerId))")
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("이 앱은 주문을 넣지 않습니다. 관심만 남깁니다. 깐부가 되려면 산 뒤에 내 매수가를 기록하세요.")
+                    Text("\(store.state.nickname(proposal.proposerId))가 \(stock.name)를 같이 보자고 합니다. 매수가 아닙니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    HStack {
-                        QuietButton(title: "관심 표시") { store.promiseCoBuy(proposalId: proposal.id) }
-                        QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
-                    }
+                    QuietButton(title: "확인", kind: .secondary) { store.declineProposal(proposal.id) }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
@@ -119,10 +113,10 @@ struct InboxActionCard: View {
                     Text(stock.ticker)
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("아직 매수한 것이 아닙니다. \(stock.name)를 실제로 산 뒤에 내 매수가를 기록하세요.")
+                    Text("아직 매수한 것이 아닙니다. 내가 이 종목을 사면 내 주식에서 기록합니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "내 매수가 기록") { onRegister(stock) }
+                    QuietButton(title: "확인", kind: .secondary) { }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }

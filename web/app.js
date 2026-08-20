@@ -223,8 +223,6 @@ function inbox() {
     const nagger = state.cobuys.find((c) => c.proposalId === p.id && (c.nagCount || 0) > 0);
     if (!mine) {
       items.push({ kind: nagger ? "nag" : "proposal", proposal: p });
-    } else if (mine.status === "promised" && !activeHoldings(me).some((h) => h.stockId === p.stockId)) {
-      items.push({ kind: "cobuyRegister", proposal: p });
     }
   });
   state.holdings.filter((h) => h.userId === me && (h.verification === "suspected" || h.verification === "mismatch")).forEach((h) => {
@@ -305,7 +303,7 @@ function promiseCoBuy(proposalId) {
     state.cobuys.push({ id: uid(), proposalId, groupId: p.groupId, userId: state.me.id, stockId: p.stockId, status: "promised", nagCount: 0 });
   }
   pushEvent("같이 사기 약속", `${stock(p.stockId).name} 같이 사기에 참여했습니다.`, "prop");
-  toast("약속만 했습니다. 등록해야 깐부가 됩니다.");
+  toast("관심만 남겼습니다. 매수가 아닙니다.");
   render();
 }
 
@@ -456,8 +454,8 @@ function inboxBlock(item) {
       <div class="stock-name">${esc(s.name)}${h ? verifyMark(h.verification) : ""}</div>
       <div class="ticker">${esc(s.ticker)} · ${esc(nickname(rec.senderId))}</div>
       ${h ? `<div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · ${formatPct(r)}</div>` : ""}
-      <p class="caption">이 앱은 주문을 넣지 않습니다. 아직 안 샀으면 나중에를 누르세요. 이미 직접 샀다면 내 매수가를 기록해야 ${esc(nickname(rec.senderId))}와 깐부가 됩니다.</p>
-      <div class="split">${btn("내 매수가 기록", "primary", `register:${s.id}`)}${btn("나중에", "secondary", `reject:${rec.id}`)}</div>
+      <p class="caption">${esc(nickname(rec.senderId))}가 이 종목을 들고 있습니다. 내가 같은 종목을 사면 내 주식에서 따로 기록합니다.</p>
+      ${btn("확인", "secondary", `reject:${rec.id}`)}
     </div>`;
   }
   if (item.kind === "proposal" || item.kind === "nag") {
@@ -468,19 +466,8 @@ function inboxBlock(item) {
       <div class="kind">${kind}</div>
       <div class="stock-name">${esc(s.name)}</div>
       <div class="ticker">${esc(s.ticker)} · ${esc(nickname(p.proposerId))}</div>
-      <p class="caption">이 앱은 주문을 넣지 않습니다. 참여 약속은 매수가 아닙니다. 깐부가 되려면 산 뒤에 내 매수가를 기록하세요.</p>
-      <div class="split">${btn("관심 표시", "primary", `promise:${p.id}`)}${btn("나중에", "secondary", `later:${p.id}`)}</div>
-    </div>`;
-  }
-  if (item.kind === "cobuyRegister") {
-    const p = item.proposal;
-    const s = stock(p.stockId);
-    return `<div class="action-block">
-      <div class="kind">약속 완료 · 보유 등록 전</div>
-      <div class="stock-name">${esc(s.name)}</div>
-      <div class="ticker">${esc(s.ticker)}</div>
-      <p class="caption">아직 매수한 것이 아닙니다. ${esc(s.name)}를 실제로 산 뒤에 내 매수가를 기록하세요.</p>
-      ${btn("내 매수가 기록", "primary", `register:${s.id}`)}
+      <p class="caption">${esc(nickname(p.proposerId))}가 ${esc(s.name)}를 같이 보자고 합니다. 매수가 아닙니다.</p>
+      ${btn("확인", "secondary", `later:${p.id}`)}
     </div>`;
   }
   if (item.kind === "suspect") {
@@ -543,7 +530,7 @@ function renderGroup() {
         <button class="btn text" data-act="copy">코드 복사</button>
       </div>
       <div class="split">
-        ${btn("내 주식 등록", "primary", "open-add")}
+        ${btn("주식 추가", "primary", "open-add")}
         ${btn("같이 살 종목 제안", "secondary", "open-prop:")}
       </div>
 
@@ -589,7 +576,7 @@ function renderHoldings() {
     <div class="page-title">내 주식</div>
     <div class="pct ${avg >= 0 ? "up" : "down"}" style="font-size:28px;margin:8px 0 4px">${active.length ? formatPct(avg) : "—"}</div>
     <p class="page-sub">보유 ${active.length}종목</p>
-    ${btn("내 주식 등록", "primary", "open-add")}
+    ${btn("주식 추가", "primary", "open-add")}
     ${active.length ? `<div class="section"><div class="section-title">보유 중</div><div class="row-list">${active.map((h) => holdingRow(h, true)).join("")}</div></div>` : `<p class="empty">아직 등록한 주식이 없습니다.</p>`}
     ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다.</p>
@@ -647,12 +634,12 @@ function sheetHTML() {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>내 매수가 기록</h2>
-      <p class="note">주문을 넣거나 매수하지 않습니다. 증권 앱에서 이미 산 가격을 직접 적습니다. 현재가를 그대로 넣으면 지금 산 것처럼 보일 수 있습니다.</p>
+      <h2>주식 추가</h2>
+      <p class="note">내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다.</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       <label>매수가</label>
-      <input id="add-price" type="number" step="0.01" value="${pre ? priceOf(stock(pre)).toFixed(2) : ""}" />
+      <input id="add-price" type="number" step="0.01" placeholder="내가 산 가격" value="" />
       ${btn("등록", "primary full", "do-add")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
@@ -734,7 +721,11 @@ function handle(act) {
   if (act === "close") { state.sheet = null; render(); return; }
   if (act === "do-add") {
     const ticker = document.getElementById("add-ticker").value;
-    const price = Number(document.getElementById("add-price").value) || priceOf(stock(ticker));
+    const price = Number(document.getElementById("add-price").value);
+    if (!price) {
+      toast("내가 산 가격을 적어 주세요. 현재가로 채워 넣지 않습니다.");
+      return;
+    }
     addHolding(ticker, price);
     return;
   }
