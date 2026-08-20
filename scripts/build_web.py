@@ -13,34 +13,16 @@ html = f"""<!DOCTYPE html>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="주식 깐부" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#fff6eb" />
-  <title>주식 깐부 — 웹 데모</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#F6F7F8" />
+  <title>주식 깐부</title>
   <style>
 {css}
   </style>
 </head>
 <body>
-  <div class="page">
-    <aside class="desk-note">
-      <p class="brand">주식 깐부</p>
-      <h1>맥 없이 브라우저에서 플레이</h1>
-      <p>
-        아이폰만으로는 네이티브 앱을 깔 수 없습니다. (빌드는 Mac + Xcode가 필요합니다.)
-        이 페이지는 같은 핵심 루프를 Safari / Chrome에서 돌리는 플레이 데모입니다.
-      </p>
-      <ul>
-        <li>아이폰 Safari, Windows, Mac 브라우저 모두 OK</li>
-        <li>진짜 시세·푸시·OCR은 없음 (목 데이터)</li>
-        <li>친구와 실시간 멀티플레이는 없음</li>
-      </ul>
-      <p class="hint">시작은 <strong>데모 주식팟으로 시작</strong>을 고르세요. 영희가 NVIDIA를, 민수가 AMD를 이미 찔러 둔 상태입니다.</p>
-    </aside>
-
-    <div class="phone">
-      <div class="notch"></div>
-      <div id="app"></div>
-    </div>
+  <div class="device">
+    <div id="app"></div>
   </div>
   <div id="toast" class="toast" hidden></div>
   <script>

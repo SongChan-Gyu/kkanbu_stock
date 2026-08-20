@@ -11,22 +11,26 @@ struct ActivityView: View {
                 KkanbuBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("친구가 나를 부른 일")
-                            .font(.title2.bold())
+                        Text("나를 향한 일")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(KkanbuTheme.muted)
                         let items = store.inboxItems(for: store.state.currentUserId)
                         if items.isEmpty {
-                            EmptyStateView(emoji: "💤", title: "지금은 조용해요", message: "누가 너도 사! 하거나 같이 사자고 하면 여기에 쌓여요.")
+                            EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 같이 사기 제안이 오면 여기에 모입니다.")
                         }
                         ForEach(items) { item in
                             InboxActionCard(item: item, onVerify: { verifyHolding = $0 }, onRegister: { addPrefill = $0 })
                         }
-                        Text("최근 알림")
-                            .font(.title2.bold())
+                        Text("최근 기록")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(KkanbuTheme.muted)
                             .padding(.top, 8)
                         ForEach(Array(store.state.events.prefix(20))) { event in
-                            KkanbuCard(padding: 14) {
-                                EventRow(event: event, relative: MoneyFormat.relative(event.createdAt))
-                            }
+                            EventRow(
+                                event: event,
+                                relative: MoneyFormat.relative(event.createdAt),
+                                actorName: event.actorId.map { store.state.nickname($0) } ?? ""
+                            )
                         }
                     }
                     .padding(16)
@@ -52,12 +56,13 @@ struct ProfileView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         KkanbuCard {
                             HStack(spacing: 14) {
-                                AvatarView(emoji: store.state.currentUser.avatarEmoji, size: 72)
-                                VStack(alignment: .leading) {
+                                AvatarView(emoji: store.state.currentUser.avatarEmoji, name: store.state.currentUser.nickname, size: 48)
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(store.state.currentUser.nickname)
-                                        .font(.largeTitle.bold())
-                                    Text("친구들이랑 주식으로 노는 중")
-                                        .foregroundStyle(.secondary)
+                                        .font(.title3.weight(.semibold))
+                                    Text("로컬 데모")
+                                        .font(.caption)
+                                        .foregroundStyle(KkanbuTheme.faint)
                                 }
                             }
                         }
@@ -82,11 +87,13 @@ struct ProfileView: View {
         return KkanbuCard {
             VStack(alignment: .leading, spacing: 8) {
                 Text("주식 신뢰도 \(stats.score)")
-                    .font(.title2.bold())
-                Text("실제 신용이나 투자 실력이 아니라 앱 안 장난 지표예요.")
+                    .font(.headline)
+                Text("실제 신용이나 투자 실력이 아니라 앱 안 지표입니다.")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text("인증 \(stats.verifiedCount) · 의심 \(stats.suspectedCount) · 해명 \(stats.successCount) · 수정 \(stats.updatedCount)")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text("🟢 인증 \(stats.verifiedCount)  👀 의심 \(stats.suspectedCount)  😂 해명 \(stats.successCount)  🚨 수정 \(stats.updatedCount)")
+                    .foregroundStyle(KkanbuTheme.muted)
             }
         }
     }
@@ -116,7 +123,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("놀이터 · 시장 흔들기")
                     .font(.headline)
-                Text("시세 API는 StockPriceService 뒤에 숨어 있어요. 지금은 데모 시세입니다.")
+                Text("지금은 데모 시세입니다.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("사건 기준")
@@ -167,7 +174,7 @@ struct ProfileView: View {
                         .font(.subheadline.bold())
                         .padding(.top, 6)
                     ForEach(store.state.memberUsers(of: groupId)) { user in
-                        Button("\(user.avatarEmoji) \(user.nickname)로 보기") {
+                    Button("\(user.nickname)으로 보기") {
                             store.playAs(user.id)
                         }
                     }
@@ -187,7 +194,7 @@ struct ProfileView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(mine) { badge in
-                        Text("\(badge.emoji) \(badge.title)")
+                        Text(badge.title)
                     }
                 }
             }
@@ -204,9 +211,9 @@ struct RankingsView: View {
             ScrollView {
                 let board = RankingService.board(groupId: group.id, state: store.state, prices: store.currentPrices)
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("🏆 이번 주")
-                        .font(.largeTitle.bold())
-                    Text("금융 리그가 아니라 칭호 놀이입니다.")
+                    Text("이번 주")
+                        .font(.title3.weight(.semibold))
+                    Text("금융 리그가 아니라 그룹 안 기록입니다.")
                         .foregroundStyle(.secondary)
                     ForEach(board.weeklyReturns) { row in
                         KkanbuCard(padding: 14) {
@@ -222,7 +229,7 @@ struct RankingsView: View {
                     ForEach(board.titles) { row in
                         KkanbuCard(padding: 14) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("\(row.emoji) \(row.title)").font(.headline)
+                                Text(row.title).font(.headline)
                                 Text(row.subtitle).foregroundStyle(.secondary)
                                 Text(row.valueText).font(.subheadline.bold())
                             }
@@ -269,22 +276,25 @@ struct FriendDetailView: View {
         KkanbuCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    AvatarView(emoji: user.avatarEmoji, size: 64)
+                    AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 48)
                     VStack(alignment: .leading) {
-                        Text("\(user.nickname) 🤝")
-                            .font(.title.bold())
+                        Text(user.nickname)
+                            .font(.title3.weight(.semibold))
                         if let pair {
-                            Text("\(pair.grade.emoji) \(pair.grade.title)")
-                                .font(.headline)
+                            Text(pair.grade.title)
+                                .font(.subheadline)
                             Text("공동 보유 \(pair.sharedCount)종목 · 평균 \(MoneyFormat.percent(pair.averageReturn))")
+                                .font(.caption)
+                                .foregroundStyle(KkanbuTheme.muted)
                         } else {
-                            Text("아직 공동 종목이 없어요")
-                                .foregroundStyle(.secondary)
+                            Text("아직 공동 종목이 없습니다")
+                                .font(.footnote)
+                                .foregroundStyle(KkanbuTheme.muted)
                         }
                     }
                 }
                 let stats = TrustMath.stats(for: user.id, state: store.state)
-                Text("주식 신뢰도 \(stats.score)  ·  🟢 \(stats.verifiedCount)  👀 \(stats.suspectedCount)  🚨 \(stats.updatedCount)")
+                Text("주식 신뢰도 \(stats.score)  ·  인증 \(stats.verifiedCount) · 의심 \(stats.suspectedCount) · 수정 \(stats.updatedCount)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -315,12 +325,12 @@ struct FriendDetailView: View {
             prices: store.currentPrices
         )
         return VStack(alignment: .leading, spacing: 14) {
-            historyBlock("📣 내가 추천한 종목", records.recommendedByMe)
-            historyBlock("🤔 \(user.nickname)가 제안한 종목", records.proposedByFriend)
-            historyBlock("🤝 같이 사기로 한 종목", records.coBuys)
-            historyBlock("🏃 \(user.nickname)가 튄 기록", records.escapes)
-            historyBlock("🧠 \(user.nickname)의 선견지명", records.foresights)
-            historyBlock("🤡 너무 일찍 튄 기록", records.soldTooEarly)
+            historyBlock("내가 추천한 종목", records.recommendedByMe)
+            historyBlock("\(user.nickname)가 제안한 종목", records.proposedByFriend)
+            historyBlock("같이 사기로 한 종목", records.coBuys)
+            historyBlock("\(user.nickname)가 매도한 기록", records.escapes)
+            historyBlock("\(user.nickname)의 선견지명", records.foresights)
+            historyBlock("너무 이른 매도", records.soldTooEarly)
         }
     }
 
@@ -333,7 +343,7 @@ struct FriendDetailView: View {
                 ForEach(items) { item in
                     KkanbuCard(padding: 12) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("\(item.emoji) \(item.title)")
+                            Text(item.title)
                                 .font(.headline)
                             Text(item.detail)
                                 .font(.footnote)

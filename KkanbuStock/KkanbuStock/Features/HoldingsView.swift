@@ -21,9 +21,9 @@ struct HoldingsView: View {
                         let active = mine.filter { $0.status == .holding }
                         let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
-                            EmptyStateView(emoji: "✨", title: "아직 주식이 없어요", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
-                            PillButton(title: "주식 추가") { showAdd = true }
-                            PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
+                            EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
+                            QuietButton(title: "주식 추가") { showAdd = true }
+                            QuietButton(title: "같이 사기", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")
@@ -46,7 +46,7 @@ struct HoldingsView: View {
             .navigationTitle("내 주식")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("🤔 이거 어때?") { showPropose = true }
+                    Button("같이 사기") { showPropose = true }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -54,7 +54,7 @@ struct HoldingsView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(KkanbuTheme.coral)
+                            .foregroundStyle(KkanbuTheme.ink)
                     }
                 }
             }
@@ -91,12 +91,13 @@ struct HoldingsView: View {
         let avg = mine.isEmpty ? 0 : mine.map { $0.returnRate(currentPrice: store.price(for: $0.stockId)) }.reduce(0, +) / Double(mine.count)
         return KkanbuCard {
             VStack(alignment: .leading, spacing: 8) {
-                Text("지금 분위기")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                ReturnText(value: avg, size: 44)
-                Text("보유 \(mine.count)종목 · 깐부는 그룹에서 자동으로 맺어져요")
-                    .foregroundStyle(.secondary)
+                Text("평균 수익률")
+                    .font(.footnote)
+                    .foregroundStyle(KkanbuTheme.muted)
+                ReturnText(value: avg, size: 28)
+                Text("보유 \(mine.count)종목")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
             }
         }
     }
@@ -159,7 +160,7 @@ struct RecommendSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var holding: Holding
-    @State private var message = "나 이거 샀으니까 너도 사 ㅋㅋ"
+    @State private var message = "같이 들어가 봐."
     @State private var selected: UUID?
 
     var body: some View {
@@ -191,7 +192,7 @@ struct RecommendSheet: View {
                     TextField("한마디", text: $message, axis: .vertical)
                 }
             }
-            .navigationTitle("📣 너도 사!")
+            .navigationTitle("추천하기")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -231,17 +232,17 @@ struct ProposalSheet: View {
                     }
                     if let stock {
                         Text("선택됨: \(stock.name)")
-                            .foregroundStyle(KkanbuTheme.coral)
+                            .foregroundStyle(KkanbuTheme.ink)
                     }
                 }
                 Section("메시지") {
                     TextField("제안", text: $message, axis: .vertical)
-                    Text("너도 사! 는 내가 이미 보유한 종목, 이거 어때? 는 같이 살 사람을 찾는 제안이에요.")
+                    Text("추천은 이미 보유한 종목, 같이 사기는 아직 안 산 종목을 제안합니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("🤔 이거 어때?")
+            .navigationTitle("같이 사기")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

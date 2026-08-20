@@ -27,10 +27,11 @@ struct RootView: View {
         .overlay(alignment: .top) {
             if let toast = store.toast {
                 Text(toast)
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 16)
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .background(KkanbuTheme.ink, in: RoundedRectangle(cornerRadius: 8))
+                    .foregroundStyle(.white)
                     .padding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .animation(.spring(duration: 0.4), value: store.toast)
@@ -69,15 +70,15 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             GroupHomeContainer()
-                .tabItem { Label("그룹", systemImage: "person.3.fill") }
+                .tabItem { Label("그룹", systemImage: "person.2") }
             HoldingsView()
-                .tabItem { Label("내 주식", systemImage: "sparkles") }
+                .tabItem { Label("내 주식", systemImage: "chart.line.uptrend.xyaxis") }
             ActivityView()
-                .tabItem { Label("활동", systemImage: "bolt.heart.fill") }
+                .tabItem { Label("활동", systemImage: "bell") }
                 .badge(store.inboxItems(for: store.state.currentUserId).count)
             ProfileView()
-                .tabItem { Label("프로필", systemImage: "face.smiling") }
+                .tabItem { Label("프로필", systemImage: "person") }
         }
-        .tint(KkanbuTheme.coral)
+        .tint(KkanbuTheme.ink)
     }
 }

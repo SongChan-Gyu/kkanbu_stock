@@ -160,7 +160,7 @@ final class AppStore {
         state.holdings[index].sellDate = sellDate
         state.holdings[index].updatedAt = Date()
         emit(.holdingSold(holdingId: id), before: before)
-        toast = "매도 처리됨. 기록이 남고, 사건이 생길 수 있어요."
+        toast = "매도 처리됨"
     }
 
     func updateHoldingPrice(id: UUID, price: Double) {
@@ -187,7 +187,7 @@ final class AppStore {
         let before = state
         state.recommendations.append(rec)
         emit(.recommendationSent(id: rec.id), before: before)
-        toast = "너도 사! 를 보냈어요"
+        toast = "추천을 보냈습니다"
     }
 
     func resolveRecommendation(_ id: UUID, accept: Bool, averagePrice: Double? = nil, purchaseDate: Date? = nil) {
@@ -223,7 +223,7 @@ final class AppStore {
         state.proposals.append(proposal)
         state.coBuys.append(mine)
         emit([.proposalCreated(id: proposal.id), .coBuyPromised(id: mine.id)], before: before)
-        toast = "이거 어때? 를 보냈어요"
+        toast = "제안을 보냈습니다"
     }
 
     func promiseCoBuy(proposalId: UUID) {
@@ -392,7 +392,7 @@ final class AppStore {
             triggers.append(.recommendationSent(id: rec.id))
         }
         emit(triggers, before: before)
-        toast = "그룹에 너도 사! 를 보냈어요"
+        toast = "그룹에 추천을 보냈습니다"
     }
 
     func copyInviteCode(_ code: String) {

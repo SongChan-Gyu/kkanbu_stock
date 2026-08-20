@@ -38,63 +38,71 @@ struct InboxActionCard: View {
             case .recommend:
                 if let rec = item.recommendation, let stock = store.state.stock(rec.stockId) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("📣 \(store.state.nickname(rec.senderId))가 \(stock.name)를 추천했어요")
-                            .font(.headline)
+                        Text("\(store.state.nickname(rec.senderId)) · \(stock.name) 추천")
+                            .font(.subheadline.weight(.semibold))
                         if let holding = store.state.holding(rec.holdingId) {
                             Text("\(store.state.nickname(rec.senderId)) 평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
-                                .font(.subheadline)
+                                .font(.footnote)
+                                .foregroundStyle(KkanbuTheme.muted)
                         }
-                        Text("“\(rec.message)”")
+                        Text(rec.message)
+                            .font(.footnote)
                         HStack {
-                            PillButton(title: "나도 추가하기") { store.resolveRecommendation(rec.id, accept: true) }
-                            PillButton(title: "나중에", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                            QuietButton(title: "나도 추가") { store.resolveRecommendation(rec.id, accept: true) }
+                            QuietButton(title: "나중에", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
                         }
                     }
                 }
             case .proposal:
                 if let proposal = item.proposal {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("🤔 \(store.state.nickname(proposal.proposerId))가 같이 사자고 해요")
-                            .font(.headline)
+                        Text("\(store.state.nickname(proposal.proposerId)) · 같이 사기 제안")
+                            .font(.subheadline.weight(.semibold))
                         Text(proposal.message)
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.muted)
                         HStack {
-                            PillButton(title: "🤝 같이 사자") { store.promiseCoBuy(proposalId: proposal.id) }
-                            PillButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
+                            QuietButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
+                            QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
                         }
                     }
                 }
             case .suspect:
                 if let holding = item.holding, let stock = store.state.stock(holding.stockId) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("😂 친구들이 네 \(stock.name) 매수가를 의심하고 있습니다")
-                            .font(.headline)
-                        Text("진짜 \(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 거 맞아?")
-                            .font(.subheadline)
-                        Text("사기라고 단정하지 않아요. 캡처로 확인만 하면 됩니다.")
+                        Text("\(stock.name) 매수가 의심")
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 기록이 맞는지 확인해 주세요.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        PillButton(title: "📸 캡처로 인증하기") { onVerify(holding) }
+                        Text("사기라고 단정하지 않습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                        QuietButton(title: "캡처로 인증") { onVerify(holding) }
                     }
                 }
             case .nag:
                 if let proposal = item.proposal {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("😂 같이 사자고 또 찔렀어요")
-                            .font(.headline)
+                        Text("같이 사자고 조르는 중")
+                            .font(.subheadline.weight(.semibold))
                         Text(proposal.message)
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.muted)
                         HStack {
-                            PillButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
-                            PillButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
+                            QuietButton(title: "같이 사기") { store.promiseCoBuy(proposalId: proposal.id) }
+                            QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
                         }
                     }
                 }
             case .cobuyRegister:
                 if let proposal = item.proposal, let stock = store.state.stock(proposal.stockId) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("🤝 약속만 하고 아직 등록 전")
-                            .font(.headline)
-                        Text("\(stock.name)를 실제로 넣어야 깐부가 됩니다.")
-                        PillButton(title: "지금 등록하기") { onRegister(stock) }
+                        Text("약속만 하고 아직 미등록")
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(stock.name)를 등록해야 깐부가 됩니다.")
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.muted)
+                        QuietButton(title: "지금 등록") { onRegister(stock) }
                     }
                 }
             }

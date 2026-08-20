@@ -49,7 +49,7 @@ struct AddStockView: View {
                                 }
                                 Spacer()
                                 if selected?.id == stock.id {
-                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(KkanbuTheme.coral)
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(KkanbuTheme.ink)
                                 }
                             }
                         }
@@ -144,12 +144,12 @@ struct ChartPricePickerView: View {
                     .padding(.horizontal)
                 Chart(store.history(for: stock)) { point in
                     LineMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.coral)
+                        .foregroundStyle(KkanbuTheme.ink)
                     AreaMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.coral.opacity(0.12))
+                        .foregroundStyle(KkanbuTheme.ink.opacity(0.12))
                     if let selected, Calendar.current.isDate(selected.date, inSameDayAs: point.date) {
                         PointMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                            .foregroundStyle(KkanbuTheme.gold)
+                            .foregroundStyle(KkanbuTheme.ink)
                             .symbolSize(80)
                     }
                 }
@@ -243,7 +243,7 @@ struct ScreenshotAddView: View {
                         Label("앨범에서 고르기", systemImage: "photo")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(KkanbuTheme.coral.opacity(0.15), in: RoundedRectangle(cornerRadius: 18))
+                            .background(KkanbuTheme.ink.opacity(0.15), in: RoundedRectangle(cornerRadius: 18))
                     }
                     #if canImport(UIKit)
                     Button {
@@ -252,7 +252,7 @@ struct ScreenshotAddView: View {
                         Label("사진 촬영", systemImage: "camera")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(KkanbuTheme.gold.opacity(0.18), in: RoundedRectangle(cornerRadius: 18))
+                            .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8))
                     }
                     .sheet(isPresented: $showCamera) {
                         CameraPicker(
@@ -292,7 +292,7 @@ struct ScreenshotAddView: View {
                     .foregroundStyle(.secondary)
                 if result.tooLow {
                     Text("글자가 너무 흐려요. 다시 촬영하거나 다른 이미지를 사용해 주세요.")
-                        .foregroundStyle(KkanbuTheme.coral)
+                        .foregroundStyle(KkanbuTheme.ink)
                 } else {
                     Text("종목: \(result.recognizedName ?? "모름") \(result.recognizedTicker ?? "")")
                     TextField("매수가", text: $editedPrice)
@@ -399,7 +399,7 @@ struct ScreenshotVerifySheet: View {
                     Label("캡처로 인증하기", systemImage: "camera.viewfinder")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(KkanbuTheme.mint.opacity(0.2), in: RoundedRectangle(cornerRadius: 18))
+                        .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8))
                 }
                 Button("샘플로 인증 테스트") {
                     if let stock = store.state.stock(holding.stockId) {
@@ -435,7 +435,7 @@ struct ScreenshotVerifySheet: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("📸 캡처 인증")
+            .navigationTitle("캡처 인증")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
             .onChange(of: pickerItem) { _, item in
                 Task { await load(item) }
