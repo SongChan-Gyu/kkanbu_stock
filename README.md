@@ -4,7 +4,25 @@
 
 증권 앱이 아닙니다. 주가 숫자보다 **친구 사이에서 벌어진 사건**이 주인공입니다.
 
-## 실행 방법
+## 어디서 실행되나
+
+| 환경 | iPhone 앱 (`KkanbuStock.xcodeproj`) | 웹 데모 (`web/index.html`) |
+| --- | --- | --- |
+| macOS + Xcode | 가능 | 가능 |
+| Windows | **불가** (Xcode/시뮬레이터는 Mac 전용) | **가능** — 브라우저에서 연다 |
+| Linux / Cursor 클라우드 | 불가 | 가능 |
+
+Windows에서 Visual Studio로 iOS SwiftUI 앱을 Run할 수는 없습니다. 윈도우에서 핵심 루프를 보려면 웹 데모를 여세요.
+
+### 웹 데모 (Windows 포함)
+
+1. `web/index.html`을 Chrome / Edge에서 연다. (파일 더블클릭도 됩니다)
+2. **데모 주식팟으로 시작**을 고른다.
+3. 그룹 맨 위 **나한테 온 일**에서 영희의 NVIDIA 너도 사, 민수의 AMD 조르기를 처리한다.
+
+웹 데모는 같은 사건 루프를 브라우저에서 돌립니다. OCR·로컬 푸시·실기기 카메라는 iOS 앱에만 있습니다.
+
+### iOS 앱 (Mac 전용)
 
 1. macOS에서 `KkanbuStock/KkanbuStock.xcodeproj`를 엽니다.
 2. 시뮬레이터 또는 실기기 타깃을 iOS 17+로 맞춥니다.
@@ -45,7 +63,7 @@ Feed / Badge / Ranking / InAppNotificationPort
 - `StockScreenshotAnalyzer`: Vision OCR → `StockTextParser` → 종목 DB 매칭. 외부 OCR로 교체 가능.
 - `VerificationService`: 캡처와 입력 비교. 사기 단정 없음.
 - 이벤트 규칙은 `EventEngine.register`로 추가합니다.
-- 푸시는 `NotificationPort` 뒤에 붙이면 됩니다. MVP는 인앱 활동 함.
+- 푸시는 로컬 알림(`UNUserNotificationCenter`)입니다. APNs 원격 푸시는 없습니다. 웹 데모는 토스트만 씁니다.
 
 ## 데이터
 
