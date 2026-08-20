@@ -260,14 +260,31 @@ input, select, textarea {
 }
 
 @media (max-width: 860px) {
+  body { background: var(--bg1); }
   .page {
-    grid-template-columns: 1fr;
-    padding: 16px;
+    display: block;
+    padding: 0;
+    min-height: 100dvh;
   }
-  .desk-note { text-align: left; }
+  .desk-note { display: none; }
   .phone {
     width: 100%;
-    height: calc(100vh - 24px);
-    border-radius: 28px;
+    height: 100dvh;
+    height: 100svh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .notch { display: none; }
+  .screen {
+    padding: calc(16px + env(safe-area-inset-top)) 16px calc(108px + env(safe-area-inset-bottom));
+  }
+  .tabs {
+    left: 12px;
+    right: 12px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    bottom: calc(92px + env(safe-area-inset-bottom));
   }
 }
