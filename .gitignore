@@ -1,0 +1,18 @@
+# macOS / Xcode
+.DS_Store
+*.swp
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+build/
+.swiftpm/
+Package.resolved
+
+# Local persistence dumps
+*.json.bak

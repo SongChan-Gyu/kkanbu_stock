@@ -1,0 +1,443 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FFFE8F8BE4894D0283469EEF /* KkanbuStockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F8D6ED5DAF4BBD8EB0B434 /* KkanbuStockApp.swift */; };
+		980CC95CFF244EE1A9E5BC7F /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7440465F5A2A4ABDBF44300E /* Theme.swift */; };
+		1A3E4B02FF8D493FAEB41EDB /* EventEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EEDC443FA484FB9A83A7F02 /* EventEngine.swift */; };
+		FA9F4C515A984894A3666308 /* EventRulesCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2176C2D9EDA4C54AE55F1C3 /* EventRulesCore.swift */; };
+		F6C69FE4C2AC4BA5BABE664F /* EventRulesSocial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED84F38AB2F4240AE0F33D5 /* EventRulesSocial.swift */; };
+		B2FEC2CF4C6846CCA7FF4BD3 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD3C6E899D243CC82788C5C /* AppState.swift */; };
+		29A62961142041CDB010D6FC /* CoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EDC17472E6C4D8986A24492 /* CoreModels.swift */; };
+		992B6AF204974A209C747CCC /* EventModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30D3654E93C44C3895E7DFE /* EventModels.swift */; };
+		7C6C5B15E62E4994B3DE7087 /* SocialModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D88ABAB44E54F4CBEC20FDC /* SocialModels.swift */; };
+		1B7325F297164F2ABA06C930 /* KkangbuMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71FF49085B44437188A7C16B /* KkangbuMath.swift */; };
+		6908340D4180465783F00C96 /* MoneyFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564FE3F40B7047528BE6AB4F /* MoneyFormat.swift */; };
+		34791D4C531E4386B22A3D01 /* PersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D45813888747AEAB71BD8B /* PersistenceStore.swift */; };
+		E046DB2F84BE4858BEC9F965 /* RankingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99A5ED22853E4600B238C438 /* RankingService.swift */; };
+		6E7124AAC9254A3BACF0D264 /* StockPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED2DFCC61D94C0B91B5A692 /* StockPriceService.swift */; };
+		67AB09867A354F0BB74C60FF /* StockScreenshotAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8436C037252342BEB4E4A764 /* StockScreenshotAnalyzer.swift */; };
+		355B2DB4F1B541DFB2B3FBAA /* VerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D56A7793DF4FE981BB9DE4 /* VerificationService.swift */; };
+		25A9C40D22694A5A90F84E26 /* AddStockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78BD5E76746B4A6F9903AA61 /* AddStockView.swift */; };
+		A24518FF6E184F448919E389 /* GroupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22124D116BFF440084E338AD /* GroupViews.swift */; };
+		DBE1F3AC41EA41F18D2BDE86 /* HoldingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24DB7B208A53473DB3CDFAF6 /* HoldingsView.swift */; };
+		487E1DFC4E23473684E34F4E /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 557E04C86553490EB783D7C7 /* OnboardingView.swift */; };
+		4AD35201E3864B8CA36382F3 /* PeopleViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFE3E6588414806905CDB6C /* PeopleViews.swift */; };
+		D14325B511CE4F239351B409 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1160151844437AABBCE7C0 /* AppStore.swift */; };
+		9F8E728A7D3D4A4D9BAD3797 /* DemoSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B453219DFE204473973C9586 /* DemoSeeder.swift */; };
+		B1C6C222D0EF41D1852FCC08 /* KkanbuCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4EB5B7EE40345CF9FB7C396 /* KkanbuCoreTests.swift */; };
+		4F45A8C25AB04BF49073C1EF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 803CA5BE0E464FCFB2B34D4C /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		D5E0B0E69DC541A58D848835 /* KkanbuStock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KkanbuStock.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1CB7053B94D430E91E9628E /* KkanbuStockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KkanbuStockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		803CA5BE0E464FCFB2B34D4C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F9F8D6ED5DAF4BBD8EB0B434 /* KkanbuStockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuStockApp.swift; sourceTree = "<group>"; };
+		7440465F5A2A4ABDBF44300E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		0EEDC443FA484FB9A83A7F02 /* EventEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventEngine.swift; sourceTree = "<group>"; };
+		F2176C2D9EDA4C54AE55F1C3 /* EventRulesCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesCore.swift; sourceTree = "<group>"; };
+		5ED84F38AB2F4240AE0F33D5 /* EventRulesSocial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventRulesSocial.swift; sourceTree = "<group>"; };
+		ABD3C6E899D243CC82788C5C /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		0EDC17472E6C4D8986A24492 /* CoreModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreModels.swift; sourceTree = "<group>"; };
+		F30D3654E93C44C3895E7DFE /* EventModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventModels.swift; sourceTree = "<group>"; };
+		5D88ABAB44E54F4CBEC20FDC /* SocialModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialModels.swift; sourceTree = "<group>"; };
+		71FF49085B44437188A7C16B /* KkangbuMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkangbuMath.swift; sourceTree = "<group>"; };
+		564FE3F40B7047528BE6AB4F /* MoneyFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyFormat.swift; sourceTree = "<group>"; };
+		77D45813888747AEAB71BD8B /* PersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceStore.swift; sourceTree = "<group>"; };
+		99A5ED22853E4600B238C438 /* RankingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankingService.swift; sourceTree = "<group>"; };
+		DED2DFCC61D94C0B91B5A692 /* StockPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockPriceService.swift; sourceTree = "<group>"; };
+		8436C037252342BEB4E4A764 /* StockScreenshotAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StockScreenshotAnalyzer.swift; sourceTree = "<group>"; };
+		F7D56A7793DF4FE981BB9DE4 /* VerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationService.swift; sourceTree = "<group>"; };
+		78BD5E76746B4A6F9903AA61 /* AddStockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStockView.swift; sourceTree = "<group>"; };
+		22124D116BFF440084E338AD /* GroupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupViews.swift; sourceTree = "<group>"; };
+		24DB7B208A53473DB3CDFAF6 /* HoldingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldingsView.swift; sourceTree = "<group>"; };
+		557E04C86553490EB783D7C7 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		FBFE3E6588414806905CDB6C /* PeopleViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleViews.swift; sourceTree = "<group>"; };
+		7E1160151844437AABBCE7C0 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		B453219DFE204473973C9586 /* DemoSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSeeder.swift; sourceTree = "<group>"; };
+		C4EB5B7EE40345CF9FB7C396 /* KkanbuCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KkanbuCoreTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		B69FE1DB47A4494BBA4EEE29 = {
+			isa = PBXGroup;
+			children = (
+				54E9A5BBBE484AAF8B80C9F0 /* KkanbuStock */,
+				D909C30C5E004CFABEF6944E /* KkanbuStockTests */,
+				03D9276C058045299EF97F39 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		03D9276C058045299EF97F39 /* Products */ = {
+			isa = PBXGroup;
+			children = (D5E0B0E69DC541A58D848835 /* KkanbuStock.app */, D1CB7053B94D430E91E9628E /* KkanbuStockTests.xctest */,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		54E9A5BBBE484AAF8B80C9F0 /* KkanbuStock */ = {
+			isa = PBXGroup;
+			children = (
+				BBEA0EE1224E423D966B0704 /* App */,
+				9737B62435674D7584C863B8 /* DesignSystem */,
+				B8B2078DD2B24078B7779300 /* Domain */,
+				C67E7A8341994072B32937E5 /* Features */,
+				AEBCD666E1B24119A122BE0F /* Store */,
+				803CA5BE0E464FCFB2B34D4C /* Assets.xcassets */,
+			);
+			path = KkanbuStock;
+			sourceTree = "<group>";
+		};
+		BBEA0EE1224E423D966B0704 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F9F8D6ED5DAF4BBD8EB0B434 /* KkanbuStockApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		9737B62435674D7584C863B8 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				7440465F5A2A4ABDBF44300E /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		B8B2078DD2B24078B7779300 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				AC9470096509463F955F4F3E /* EventEngine */,
+				ADED89748A634D86BB4832D1 /* Models */,
+				C210B6BD127C4DC1A0F822AE /* Services */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		AC9470096509463F955F4F3E /* EventEngine */ = {
+			isa = PBXGroup;
+			children = (
+				0EEDC443FA484FB9A83A7F02 /* EventEngine.swift */,
+				F2176C2D9EDA4C54AE55F1C3 /* EventRulesCore.swift */,
+				5ED84F38AB2F4240AE0F33D5 /* EventRulesSocial.swift */,
+			);
+			path = EventEngine;
+			sourceTree = "<group>";
+		};
+		ADED89748A634D86BB4832D1 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				ABD3C6E899D243CC82788C5C /* AppState.swift */,
+				0EDC17472E6C4D8986A24492 /* CoreModels.swift */,
+				F30D3654E93C44C3895E7DFE /* EventModels.swift */,
+				5D88ABAB44E54F4CBEC20FDC /* SocialModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C210B6BD127C4DC1A0F822AE /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				71FF49085B44437188A7C16B /* KkangbuMath.swift */,
+				564FE3F40B7047528BE6AB4F /* MoneyFormat.swift */,
+				77D45813888747AEAB71BD8B /* PersistenceStore.swift */,
+				99A5ED22853E4600B238C438 /* RankingService.swift */,
+				DED2DFCC61D94C0B91B5A692 /* StockPriceService.swift */,
+				8436C037252342BEB4E4A764 /* StockScreenshotAnalyzer.swift */,
+				F7D56A7793DF4FE981BB9DE4 /* VerificationService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C67E7A8341994072B32937E5 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				78BD5E76746B4A6F9903AA61 /* AddStockView.swift */,
+				22124D116BFF440084E338AD /* GroupViews.swift */,
+				24DB7B208A53473DB3CDFAF6 /* HoldingsView.swift */,
+				557E04C86553490EB783D7C7 /* OnboardingView.swift */,
+				FBFE3E6588414806905CDB6C /* PeopleViews.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		AEBCD666E1B24119A122BE0F /* Store */ = {
+			isa = PBXGroup;
+			children = (
+				7E1160151844437AABBCE7C0 /* AppStore.swift */,
+				B453219DFE204473973C9586 /* DemoSeeder.swift */,
+			);
+			path = Store;
+			sourceTree = "<group>";
+		};
+		D909C30C5E004CFABEF6944E /* KkanbuStockTests */ = {
+			isa = PBXGroup;
+			children = (
+				C4EB5B7EE40345CF9FB7C396 /* KkanbuCoreTests.swift */,
+			);
+			path = KkanbuStockTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E714C2ECF4344D5587A89E38 /* KkanbuStock */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0C85E6A2368D4A2F97249404 /* Build configuration list for PBXNativeTarget "KkanbuStock" */;
+			buildPhases = (
+				07B85C14A8F6474AA704C940 /* Sources */,
+				62ACECCCF88C4A838AD2699F /* Frameworks */,
+				1CC0B72C6AEA4FABBC79E199 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = KkanbuStock;
+			productName = KkanbuStock;
+			productReference = D5E0B0E69DC541A58D848835 /* KkanbuStock.app */;
+			productType = "com.apple.product-type.application";
+		};
+		69221DAB0E234E0998025FE2 /* KkanbuStockTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DE574E0350AB4413BD0BCCDD /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */;
+			buildPhases = (
+				2092F0AF36704643AD4515ED /* Sources */,
+				DCA0D824993145C2852EBDD6 /* Frameworks */,
+			);
+			buildRules = ();
+			dependencies = (F0E8864090724DF0957B4A4B /* PBXTargetDependency */,);
+			name = KkanbuStockTests;
+			productName = KkanbuStockTests;
+			productReference = D1CB7053B94D430E91E9628E /* KkanbuStockTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		47D0EE2FAC5D410A883EF071 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = EC2EBD0087DF46FCA7FDCBA6 /* Project object */; proxyType = 1; remoteGlobalIDString = E714C2ECF4344D5587A89E38; remoteInfo = KkanbuStock; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		F0E8864090724DF0957B4A4B /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = E714C2ECF4344D5587A89E38 /* KkanbuStock */; targetProxy = 47D0EE2FAC5D410A883EF071 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin PBXProject section */
+		EC2EBD0087DF46FCA7FDCBA6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = {
+				E714C2ECF4344D5587A89E38 = {CreatedOnToolsVersion = 16.0; };
+				69221DAB0E234E0998025FE2 = {CreatedOnToolsVersion = 16.0; TestTargetID = E714C2ECF4344D5587A89E38; };
+			}; };
+			buildConfigurationList = E87169F48E24479CA5B99E6F /* Build configuration list for PBXProject "KkanbuStock" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ko;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, ko, Base,);
+			mainGroup = B69FE1DB47A4494BBA4EEE29;
+			productRefGroup = 03D9276C058045299EF97F39 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (E714C2ECF4344D5587A89E38 /* KkanbuStock */, 69221DAB0E234E0998025FE2 /* KkanbuStockTests */,);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1CC0B72C6AEA4FABBC79E199 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (4F45A8C25AB04BF49073C1EF /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		62ACECCCF88C4A838AD2699F /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		DCA0D824993145C2852EBDD6 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		07B85C14A8F6474AA704C940 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+			FFFE8F8BE4894D0283469EEF /* KkanbuStockApp.swift in Sources */,
+			980CC95CFF244EE1A9E5BC7F /* Theme.swift in Sources */,
+			1A3E4B02FF8D493FAEB41EDB /* EventEngine.swift in Sources */,
+			FA9F4C515A984894A3666308 /* EventRulesCore.swift in Sources */,
+			F6C69FE4C2AC4BA5BABE664F /* EventRulesSocial.swift in Sources */,
+			B2FEC2CF4C6846CCA7FF4BD3 /* AppState.swift in Sources */,
+			29A62961142041CDB010D6FC /* CoreModels.swift in Sources */,
+			992B6AF204974A209C747CCC /* EventModels.swift in Sources */,
+			7C6C5B15E62E4994B3DE7087 /* SocialModels.swift in Sources */,
+			1B7325F297164F2ABA06C930 /* KkangbuMath.swift in Sources */,
+			6908340D4180465783F00C96 /* MoneyFormat.swift in Sources */,
+			34791D4C531E4386B22A3D01 /* PersistenceStore.swift in Sources */,
+			E046DB2F84BE4858BEC9F965 /* RankingService.swift in Sources */,
+			6E7124AAC9254A3BACF0D264 /* StockPriceService.swift in Sources */,
+			67AB09867A354F0BB74C60FF /* StockScreenshotAnalyzer.swift in Sources */,
+			355B2DB4F1B541DFB2B3FBAA /* VerificationService.swift in Sources */,
+			25A9C40D22694A5A90F84E26 /* AddStockView.swift in Sources */,
+			A24518FF6E184F448919E389 /* GroupViews.swift in Sources */,
+			DBE1F3AC41EA41F18D2BDE86 /* HoldingsView.swift in Sources */,
+			487E1DFC4E23473684E34F4E /* OnboardingView.swift in Sources */,
+			4AD35201E3864B8CA36382F3 /* PeopleViews.swift in Sources */,
+			D14325B511CE4F239351B409 /* AppStore.swift in Sources */,
+			9F8E728A7D3D4A4D9BAD3797 /* DemoSeeder.swift in Sources */,
+		); runOnlyForDeploymentPostprocessing = 0; };
+		2092F0AF36704643AD4515ED /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+			B1C6C222D0EF41D1852FCC08 /* KkanbuCoreTests.swift in Sources */,
+		); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+		7719A19E1532462184C1D873 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				ENABLE_TESTABILITY = YES;
+			};
+			name = Debug;
+		};
+		3D164BEED9624FA2B505BF0E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				ENABLE_NS_ASSERTIONS = NO;
+			};
+			name = Release;
+		};
+		D644DC0637E24726AE25DBC7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "주식 깐부";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				INFOPLIST_KEY_NSCameraUsageDescription = "증권 앱 화면을 촬영해 종목과 매수가를 인식합니다. 원본 이미지는 친구에게 공유되지 않습니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "캡처한 증권 화면에서 종목 정보를 인식합니다. 원본 이미지는 친구에게 공개되지 않습니다.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kkanbu.stock;
+				PRODUCT_NAME = KkanbuStock;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+
+			};
+			name = Debug;
+		};
+		22A7BEDF13D54E2598736B1B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "주식 깐부";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
+				INFOPLIST_KEY_NSCameraUsageDescription = "증권 앱 화면을 촬영해 종목과 매수가를 인식합니다. 원본 이미지는 친구에게 공유되지 않습니다.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "캡처한 증권 화면에서 종목 정보를 인식합니다. 원본 이미지는 친구에게 공개되지 않습니다.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kkanbu.stock;
+				PRODUCT_NAME = KkanbuStock;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+
+			};
+			name = Release;
+		};
+		3E1A0EA881B7436E94D04131 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kkanbu.stock.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KkanbuStock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KkanbuStock";
+
+			};
+			name = Debug;
+		};
+		896CA754A18B41509A9A5E89 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kkanbu.stock.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KkanbuStock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KkanbuStock";
+
+			};
+			name = Release;
+		};
+/* Begin XCConfigurationList section */
+		E87169F48E24479CA5B99E6F /* Build configuration list for PBXProject "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (7719A19E1532462184C1D873 /* Debug */, 3D164BEED9624FA2B505BF0E /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		0C85E6A2368D4A2F97249404 /* Build configuration list for PBXNativeTarget "KkanbuStock" */ = {isa = XCConfigurationList; buildConfigurations = (D644DC0637E24726AE25DBC7 /* Debug */, 22A7BEDF13D54E2598736B1B /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		DE574E0350AB4413BD0BCCDD /* Build configuration list for PBXNativeTarget "KkanbuStockTests" */ = {isa = XCConfigurationList; buildConfigurations = (3E1A0EA881B7436E94D04131 /* Debug */, 896CA754A18B41509A9A5E89 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = EC2EBD0087DF46FCA7FDCBA6 /* Project object */;
+}
