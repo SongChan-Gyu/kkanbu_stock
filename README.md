@@ -29,8 +29,6 @@ https://htmlpreview.github.io/?https://github.com/SongChan-Gyu/kkanbu_stock/blob
 
 공유 시트 → **홈 화면에 추가** 하면 앱처럼 열립니다. (Safari 웹 데모입니다. 앱스토어 앱이 아닙니다.)
 
-GitHub Pages를 켜면 짧은 주소도 생깁니다: Settings → Pages → Source를 **GitHub Actions**로 저장 → `https://songchan-gyu.github.io/kkanbu_stock/`
-
 PC에서는 `web/index.html`을 Chrome / Edge에서 열어도 됩니다.
 
 1. **데모 주식팟으로 시작**을 고른다.
