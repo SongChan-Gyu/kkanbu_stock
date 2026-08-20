@@ -46,7 +46,7 @@ struct HoldingsView: View {
             .navigationTitle("내 주식")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("같이 사기") { showPropose = true }
+                    Button("종목 제안") { showPropose = true }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -242,7 +242,7 @@ struct ProposalSheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("같이 사기")
+            .navigationTitle("같이 살 종목 제안")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

@@ -197,7 +197,7 @@ struct GroupHomeView: View {
         return Group {
             if !open.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("같이 사기")
+                    Text("같이 살 종목")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
                     ForEach(open) { proposal in
