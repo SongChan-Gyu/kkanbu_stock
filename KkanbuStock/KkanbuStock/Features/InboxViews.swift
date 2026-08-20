@@ -56,11 +56,11 @@ struct InboxActionCard: View {
                             .font(.footnote)
                             .foregroundStyle(KkanbuTheme.muted)
                     }
-                    Text("같은 종목을 내 보유로 등록하면 \(store.state.nickname(rec.senderId))와 깐부가 됩니다.")
+                    Text("이 앱은 주문을 넣지 않습니다. 아직 안 샀으면 나중에를 누르세요. 이미 직접 샀다면 내 매수가를 기록해야 \(store.state.nickname(rec.senderId))와 깐부가 됩니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     HStack {
-                        QuietButton(title: "같은 종목 등록") { store.resolveRecommendation(rec.id, accept: true) }
+                        QuietButton(title: "내 매수가 기록") { onRegister(stock) }
                         QuietButton(title: "나중에", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
                     }
                 }
@@ -78,11 +78,11 @@ struct InboxActionCard: View {
                     Text("\(stock.ticker) · \(store.state.nickname(proposal.proposerId))")
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("지금은 참여 약속만 합니다. 이후 실제로 등록해야 깐부가 됩니다.")
+                    Text("이 앱은 주문을 넣지 않습니다. 관심만 남깁니다. 깐부가 되려면 산 뒤에 내 매수가를 기록하세요.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     HStack {
-                        QuietButton(title: "같이 살게요") { store.promiseCoBuy(proposalId: proposal.id) }
+                        QuietButton(title: "관심 표시") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
                     }
                 }
@@ -119,10 +119,10 @@ struct InboxActionCard: View {
                     Text(stock.ticker)
                         .font(.caption.monospaced())
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("약속만으로는 깐부가 되지 않습니다. \(stock.name)를 내 보유로 등록하세요.")
+                    Text("아직 매수한 것이 아닙니다. \(stock.name)를 실제로 산 뒤에 내 매수가를 기록하세요.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "\(stock.name) 등록") { onRegister(stock) }
+                    QuietButton(title: "내 매수가 기록") { onRegister(stock) }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }

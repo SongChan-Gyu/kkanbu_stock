@@ -252,7 +252,10 @@ function addHolding(ticker, avg, method = "manual") {
   state.cobuys.filter((c) => c.userId === state.me.id && c.stockId === ticker && c.status === "promised").forEach((c) => {
     c.status = "registered";
   });
-  toast(`${s.name} 등록됨`);
+  state.recs.filter((r) => r.receiverId === state.me.id && r.stockId === ticker && r.status === "pending").forEach((r) => {
+    r.status = "accepted";
+  });
+  toast(`${s.name} 기록됨`);
   state.sheet = null;
   render();
 }
@@ -453,8 +456,8 @@ function inboxBlock(item) {
       <div class="stock-name">${esc(s.name)}${h ? verifyMark(h.verification) : ""}</div>
       <div class="ticker">${esc(s.ticker)} · ${esc(nickname(rec.senderId))}</div>
       ${h ? `<div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · ${formatPct(r)}</div>` : ""}
-      <p class="caption">같은 종목을 내 보유로 등록하면 ${esc(nickname(rec.senderId))}와 깐부가 됩니다.</p>
-      <div class="split">${btn("같은 종목 등록", "primary", `accept:${rec.id}`)}${btn("나중에", "secondary", `reject:${rec.id}`)}</div>
+      <p class="caption">이 앱은 주문을 넣지 않습니다. 아직 안 샀으면 나중에를 누르세요. 이미 직접 샀다면 내 매수가를 기록해야 ${esc(nickname(rec.senderId))}와 깐부가 됩니다.</p>
+      <div class="split">${btn("내 매수가 기록", "primary", `register:${s.id}`)}${btn("나중에", "secondary", `reject:${rec.id}`)}</div>
     </div>`;
   }
   if (item.kind === "proposal" || item.kind === "nag") {
@@ -465,8 +468,8 @@ function inboxBlock(item) {
       <div class="kind">${kind}</div>
       <div class="stock-name">${esc(s.name)}</div>
       <div class="ticker">${esc(s.ticker)} · ${esc(nickname(p.proposerId))}</div>
-      <p class="caption">지금은 참여 약속만 합니다. 이후 실제로 등록해야 깐부가 됩니다.</p>
-      <div class="split">${btn("같이 살게요", "primary", `promise:${p.id}`)}${btn("나중에", "secondary", `later:${p.id}`)}</div>
+      <p class="caption">이 앱은 주문을 넣지 않습니다. 참여 약속은 매수가 아닙니다. 깐부가 되려면 산 뒤에 내 매수가를 기록하세요.</p>
+      <div class="split">${btn("관심 표시", "primary", `promise:${p.id}`)}${btn("나중에", "secondary", `later:${p.id}`)}</div>
     </div>`;
   }
   if (item.kind === "cobuyRegister") {
@@ -476,8 +479,8 @@ function inboxBlock(item) {
       <div class="kind">약속 완료 · 보유 등록 전</div>
       <div class="stock-name">${esc(s.name)}</div>
       <div class="ticker">${esc(s.ticker)}</div>
-      <p class="caption">약속만으로는 깐부가 되지 않습니다. ${esc(s.name)}를 내 보유로 등록하세요.</p>
-      ${btn(s.name + " 등록", "primary", `register:${s.id}`)}
+      <p class="caption">아직 매수한 것이 아닙니다. ${esc(s.name)}를 실제로 산 뒤에 내 매수가를 기록하세요.</p>
+      ${btn("내 매수가 기록", "primary", `register:${s.id}`)}
     </div>`;
   }
   if (item.kind === "suspect") {
@@ -644,8 +647,8 @@ function sheetHTML() {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>내 주식 등록</h2>
-      <p class="note">내가 보유한 종목을 기록합니다. 친구가 같은 종목을 들고 있으면 깐부가 됩니다.</p>
+      <h2>내 매수가 기록</h2>
+      <p class="note">주문을 넣거나 매수하지 않습니다. 증권 앱에서 이미 산 가격을 직접 적습니다. 현재가를 그대로 넣으면 지금 산 것처럼 보일 수 있습니다.</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       <label>매수가</label>

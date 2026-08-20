@@ -299,7 +299,7 @@ struct ProposalCard: View {
                                 .foregroundStyle(KkanbuTheme.muted)
                         }
                     } else {
-                        QuietButton(title: "같이 살게요") { store.promiseCoBuy(proposalId: proposal.id) }
+                        QuietButton(title: "관심 표시") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "나중에", kind: .secondary) { store.declineProposal(proposal.id) }
                     }
                 }

@@ -22,7 +22,7 @@ struct AddStockView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("종목만 고르고 매수가를 찍으면 끝. 수량은 안 적어도 돼요. 핵심은 같은 종목을 가지고 있는지입니다.")
+                    Text("이 앱은 주문을 넣지 않습니다. 이미 산 종목의 매수가를 기록합니다. 현재가를 그대로 넣으면 지금 산 것처럼 보입니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Button {
@@ -36,9 +36,6 @@ struct AddStockView: View {
                     ForEach(Array(store.searchStocks(query).prefix(10))) { stock in
                         Button {
                             selected = stock
-                            if priceText.isEmpty {
-                                priceText = defaultPrice(stock)
-                            }
                         } label: {
                             HStack {
                                 VStack(alignment: .leading) {
@@ -68,7 +65,7 @@ struct AddStockView: View {
                     }
                 }
             }
-            .navigationTitle("주식 추가")
+            .navigationTitle("내 매수가 기록")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -95,7 +92,6 @@ struct AddStockView: View {
                 if let prefill {
                     selected = prefill
                     query = prefill.name
-                    priceText = defaultPrice(prefill)
                 }
             }
         }

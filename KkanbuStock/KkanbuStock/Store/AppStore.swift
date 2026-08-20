@@ -142,6 +142,14 @@ final class AppStore {
         )
         let before = state
         state.holdings.append(holding)
+        for index in state.recommendations.indices where
+            state.recommendations[index].receiverId == state.currentUserId &&
+            state.recommendations[index].stockId == stock.id &&
+            state.recommendations[index].status == .pending
+        {
+            state.recommendations[index].status = .accepted
+            state.recommendations[index].resolvedAt = Date()
+        }
         let cobuyTriggers = completeCoBuysIfNeeded(userId: state.currentUserId, stockId: stock.id)
         var triggers: [Trigger] = [.holdingAdded(holdingId: holding.id)]
         if verification == .screenshotVerified {
