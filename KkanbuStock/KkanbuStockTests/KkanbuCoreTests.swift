@@ -478,6 +478,10 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(StockIdentity.mark(ticker: "AAPL").glyph, "A")
         XCTAssertEqual(StockIdentity.mark(ticker: "035720").glyph, "K")
         XCTAssertEqual(StockIdentity.mark(ticker: "005930").glyph, "삼")
+        XCTAssertEqual(StockIdentity.logoURL(ticker: "NVDA")?.host, "cdn.simpleicons.org")
+        XCTAssertTrue(StockIdentity.logoURL(ticker: "NVDA")?.absoluteString.contains("nvidia") == true)
+        XCTAssertEqual(StockIdentity.logoURL(ticker: "000660")?.host, "www.google.com")
+        XCTAssertNil(StockIdentity.logoURL(ticker: "UNKNOWN"))
     }
 
     func testCatalogTickersAllHaveGlyphs() {

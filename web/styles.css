@@ -191,10 +191,22 @@ body {
   font-weight: 750;
   letter-spacing: -0.04em;
   flex-shrink: 0;
+  overflow: hidden;
   font-family: -apple-system, "SF Pro Rounded", "Apple SD Gothic Neo", sans-serif;
 }
 .stock-mark.sm { width: 32px; height: 32px; font-size: 12px; }
 .stock-mark.lg { width: 52px; height: 52px; font-size: 20px; }
+.stock-mark img {
+  width: 58%;
+  height: 58%;
+  object-fit: contain;
+  display: none;
+}
+.stock-mark.has-logo img { display: block; }
+.stock-mark .stock-glyph { display: grid; place-items: center; }
+.stock-mark.has-logo .stock-glyph { display: none; }
+.stock-mark.logo-failed img { display: none; }
+.stock-mark.logo-failed .stock-glyph { display: grid; }
 
 .icon-meta {
   display: inline-flex;
@@ -443,6 +455,7 @@ label {
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  z-index: 6;
 }
 .tabs button {
   background: none;
@@ -469,9 +482,18 @@ label {
   background: rgba(17, 17, 17, 0.4);
   display: flex;
   align-items: flex-end;
-  z-index: 8;
+  z-index: 40;
+}
+.sheet-dismiss {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 .sheet .panel {
+  position: relative;
+  z-index: 1;
   background: var(--surface);
   width: 100%;
   border-radius: 16px 16px 0 0;

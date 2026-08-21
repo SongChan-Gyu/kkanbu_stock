@@ -212,9 +212,9 @@ enum StockIdentity {
         "AAPL": .init(glyph: "A", backgroundHex: "1C1C1E", foregroundHex: "FFFFFF"),
         "TSLA": .init(glyph: "T", backgroundHex: "CC0000", foregroundHex: "FFFFFF"),
         "AMD": .init(glyph: "A", backgroundHex: "000000", foregroundHex: "FFFFFF"),
-        "MSFT": .init(glyph: "M", backgroundHex: "00A4EF", foregroundHex: "FFFFFF"),
+        "MSFT": .init(glyph: "M", backgroundHex: "F5F5F5", foregroundHex: "111111"),
         "AMZN": .init(glyph: "a", backgroundHex: "FF9900", foregroundHex: "111111"),
-        "GOOGL": .init(glyph: "G", backgroundHex: "4285F4", foregroundHex: "FFFFFF"),
+        "GOOGL": .init(glyph: "G", backgroundHex: "FFFFFF", foregroundHex: "4285F4"),
         "META": .init(glyph: "f", backgroundHex: "0668E1", foregroundHex: "FFFFFF"),
         "AVGO": .init(glyph: "B", backgroundHex: "CC092F", foregroundHex: "FFFFFF"),
         "NFLX": .init(glyph: "N", backgroundHex: "E50914", foregroundHex: "FFFFFF"),
@@ -252,6 +252,53 @@ enum StockIdentity {
         let palettes = ["405DE6", "C13584", "F77737", "833AB4", "1FA2F1", "2BB673"]
         let sum = ticker.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return Mark(glyph: glyph, backgroundHex: palettes[sum % palettes.count], foregroundHex: "FFFFFF")
+    }
+
+    private static let simpleIcons: [String: String] = [
+        "NVDA": "nvidia/111111",
+        "AAPL": "apple/ffffff",
+        "TSLA": "tesla/ffffff",
+        "AMD": "amd/ffffff",
+        "MSFT": "microsoft",
+        "AMZN": "amazon/111111",
+        "GOOGL": "google",
+        "META": "meta/ffffff",
+        "NFLX": "netflix/ffffff",
+        "INTC": "intel/ffffff",
+        "COIN": "coinbase/ffffff",
+        "005930": "samsung/ffffff",
+        "035420": "naver/ffffff",
+        "035720": "kakaotalk/191919"
+    ]
+
+    private static let logoDomains: [String: String] = [
+        "AVGO": "broadcom.com",
+        "PLTR": "palantir.com",
+        "SMCI": "supermicro.com",
+        "ARM": "arm.com",
+        "000660": "skhynix.com",
+        "005380": "hyundai.com",
+        "000270": "kia.com",
+        "068270": "celltrion.com",
+        "207940": "samsungbiologics.com",
+        "051910": "lgchem.com",
+        "006400": "samsungsdi.com",
+        "373220": "lgensol.com",
+        "012330": "mobis.co.kr",
+        "105560": "kbfg.com",
+        "055550": "shinhan.com",
+        "003670": "poscofuturem.com"
+    ]
+
+    static func logoURL(ticker: String) -> URL? {
+        let key = ticker.uppercased()
+        if let slug = simpleIcons[key] {
+            return URL(string: "https://cdn.simpleicons.org/\(slug)")
+        }
+        if let domain = logoDomains[key] {
+            return URL(string: "https://www.google.com/s2/favicons?sz=128&domain=\(domain)")
+        }
+        return nil
     }
 }
 

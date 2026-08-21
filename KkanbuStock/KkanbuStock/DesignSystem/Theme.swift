@@ -82,12 +82,32 @@ struct StockMark: View {
 
     var body: some View {
         let mark = StockIdentity.mark(ticker: ticker, name: name)
+        ZStack {
+            Circle().fill(Color(hex: mark.backgroundHex))
+            if let url = StockIdentity.logoURL(ticker: ticker) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(size * 0.22)
+                    default:
+                        glyph(mark)
+                    }
+                }
+            } else {
+                glyph(mark)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel(name.isEmpty ? ticker : name)
+    }
+
+    private func glyph(_ mark: StockIdentity.Mark) -> some View {
         Text(mark.glyph)
             .font(.system(size: size * (mark.glyph.count > 1 ? 0.32 : 0.42), weight: .bold, design: .rounded))
             .foregroundStyle(Color(hex: mark.foregroundHex))
-            .frame(width: size, height: size)
-            .background(Color(hex: mark.backgroundHex), in: Circle())
-            .accessibilityLabel(name.isEmpty ? ticker : name)
     }
 }
 
