@@ -51,10 +51,7 @@ struct InboxActionCard: View {
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                Text(StockPulse.headline(ticker: stock.ticker))
-                                    .font(.caption)
-                                    .foregroundStyle(KkanbuTheme.muted)
-                                    .lineLimit(1)
+                                PulseStrip(snapshot: pulse(for: stock))
                             }
                         }
                         Text("사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.")
@@ -81,10 +78,7 @@ struct InboxActionCard: View {
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                Text(StockPulse.headline(ticker: stock.ticker))
-                                    .font(.caption)
-                                    .foregroundStyle(KkanbuTheme.muted)
-                                    .lineLimit(1)
+                                PulseStrip(snapshot: pulse(for: stock))
                             }
                         }
                         Text("살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.")
@@ -195,6 +189,24 @@ struct InboxActionCard: View {
             .buttonStyle(.plain)
         }
     }
+
+    private func pulse(for stock: Stock) -> StockPulse.Snapshot {
+        let gid = store.state.selectedGroupId
+        let comments = gid.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
+        let pending = store.state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = gid.flatMap { id in
+            KkangbuMath.bonds(in: id, state: store.state, prices: store.currentPrices)
+                .first { $0.stockId == stock.id }?.sharedReturn
+        }
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared
+        )
+    }
 }
 
 struct RecommendationThreadView: View {
@@ -226,26 +238,22 @@ struct RecommendationThreadView: View {
     private var groupId: UUID? { store.state.selectedGroupId }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            StockMark(ticker: stock.ticker, name: stock.name, size: 52)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(stock.ticker)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(KkanbuTheme.faint)
-                Text(StockPulse.headline(ticker: stock.ticker))
-                    .font(.subheadline)
-                    .foregroundStyle(KkanbuTheme.ink)
-                Text(StockPulse.newsAge)
-                    .font(.caption)
-                    .foregroundStyle(KkanbuTheme.faint)
-                Text(vibeLine)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(KkanbuTheme.muted)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                StockMark(ticker: stock.ticker, name: stock.name, size: 52)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(stock.name)
+                        .font(.title3.weight(.semibold))
+                    Text(stock.ticker)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(KkanbuTheme.faint)
+                }
             }
+            PulseStrip(snapshot: pulseSnapshot, compact: false)
         }
     }
 
-    private var vibeLine: String {
+    private var pulseSnapshot: StockPulse.Snapshot {
         let comments = groupId.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
         let pending = store.state.recommendations.filter {
             $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
@@ -254,7 +262,12 @@ struct RecommendationThreadView: View {
             KkangbuMath.bonds(in: gid, state: store.state, prices: store.currentPrices)
                 .first { $0.stockId == stock.id }?.sharedReturn
         }
-        return StockPulse.vibe(commentCount: comments, pendingRecommendations: pending, sharedReturn: shared)
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared
+        )
     }
 
     private var history: some View {

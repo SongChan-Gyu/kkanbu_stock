@@ -250,6 +250,79 @@ body {
   color: var(--text-2);
   margin-top: 4px;
 }
+.pulse { margin-top: 6px; }
+.pulse-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pulse-chip {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.pulse-chip.glory { color: var(--up); background: rgba(225, 29, 72, 0.12); }
+.pulse-chip.roast { color: var(--down); background: rgba(37, 99, 235, 0.12); }
+.pulse-take {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pulse-blurb {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 4px 0 2px;
+}
+.pulse-label {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-3);
+  margin: 6px 0 2px;
+}
+.pulse-news-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+  padding: 3px 0;
+}
+.pulse-news-row span:last-child {
+  color: var(--text-3);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.chart-box { margin: 2px 0 16px; }
+.chart-cap {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.45;
+}
+.chart-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: none;
+}
 
 .feed-badge {
   position: absolute;
@@ -677,33 +750,168 @@ function stockMark(s, size) {
   const img = src ? `<img alt="" src="${esc(src)}" onerror="this.parentNode.classList.add('logo-failed')">` : "";
   return `<div class="${cls}" style="background:${mark.bg};color:${mark.fg}">${img}${glyph}</div>`;
 }
-const HEADLINES = {
-  NVDA: "실적 발표 앞두고 거래량 늘었어요",
-  AAPL: "서비스 매출이 버텨 준다는 이야기",
-  TSLA: "인도량 숫자 가지고 말이 많아요",
-  AMD: "AI 칩 수주 이야기가 돌아요",
-  MSFT: "클라우드 실적 눈높이 이야기",
-  AMZN: "광고·AWS가 끌고 간다는 말",
-  "005930": "반도체 업황 이야기가 다시 나와요",
-  "000660": "HBM 수요 이야기가 나와요",
-  "035420": "광고·커머스 회복 속도 이야기",
-  "035720": "플랫폼 실적 눈높이 조정 중"
+const NEWS = {
+  NVDA: [
+    ["실적 발표 앞두고 거래량 늘었어요", "2시간 전"],
+    ["데이터센터 가이던스 이야기가 나와요", "어제"]
+  ],
+  AAPL: [
+    ["서비스 매출이 버텨 준다는 이야기", "3시간 전"],
+    ["신제품 사이클 눈높이 조정 중", "어제"]
+  ],
+  TSLA: [
+    ["인도량 숫자 가지고 말이 많아요", "1시간 전"],
+    ["마진 이야기가 다시 나와요", "어제"]
+  ],
+  AMD: [
+    ["AI 칩 수주 이야기가 돌아요", "4시간 전"],
+    ["서버 GPU 수요 눈높이 이야기", "그제"]
+  ],
+  MSFT: [
+    ["클라우드 실적 눈높이 이야기", "2시간 전"],
+    ["AI 구독이 끌고 간다는 말", "어제"]
+  ],
+  AMZN: [
+    ["광고·AWS가 끌고 간다는 말", "5시간 전"],
+    ["물류 비용 이야기가 나와요", "어제"]
+  ],
+  "005930": [
+    ["반도체 업황 이야기가 다시 나와요", "2시간 전"],
+    ["HBM·파운드리 수주 이야기", "어제"]
+  ],
+  "000660": [
+    ["HBM 수요 이야기가 나와요", "1시간 전"],
+    ["공급 계약 눈높이 이야기", "어제"]
+  ],
+  "035420": [
+    ["광고·커머스 회복 속도 이야기", "3시간 전"],
+    ["웹툰·콘텐츠 매출 이야기", "어제"]
+  ],
+  "035720": [
+    ["플랫폼 실적 눈높이 조정 중", "2시간 전"],
+    ["톡비즈 회복 속도 이야기", "어제"]
+  ]
 };
 
-function newsLine(ticker) {
-  return (HEADLINES[ticker] || "그룹에서 이 종목 이야기 중") + " · 2시간 전 · 데모";
+function headlines(ticker) {
+  return NEWS[ticker] || [["그룹에서 이 종목 이야기 중", "데모"]];
 }
-function pulseVibe(stockId) {
+function newsLine(ticker) {
+  const [title, ago] = headlines(ticker)[0];
+  return title + " · " + ago + " · 데모";
+}
+function pulseOf(stockId) {
+  const s = stock(stockId);
   const n = commentsFor(stockId).length;
   const pending = state.recs.filter((r) => r.stockId === stockId && (r.status === "pending" || r.status === "willBuy")).length;
   const shared = bonds().find((b) => b.stockId === stockId)?.shared;
-  if (n >= 3) return "지금 말이 많은 종목";
-  if (pending > 0 && n > 0) return "추천이 왔고 댓글도 있음";
-  if (pending > 0) return "추천이 와 있음";
-  if (n > 0) return "댓글 있음";
-  if (shared <= -0.15) return "같이 물린 분위기";
-  if (shared >= 0.15) return "같이 웃는 분위기";
-  return "아직 말 없음";
+  const items = headlines(s ? s.ticker : stockId);
+  if (n >= 3) return { rating: "들뜸", kick: "glory", take: "지금 말이 많은 종목", blurb: "댓글 " + n + (pending ? " · 추천 " + pending : ""), items };
+  if (typeof shared === "number" && shared <= -0.15) return { rating: "물림", kick: "roast", take: "같이 물린 분위기", blurb: "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""), items };
+  if (typeof shared === "number" && shared >= 0.15) return { rating: "웃는 중", kick: "glory", take: "같이 웃는 분위기", blurb: "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""), items };
+  if (pending > 0) return { rating: "추천 중", kick: "plain", take: n ? "추천이 왔고 댓글도 있음" : "추천이 와 있음", blurb: "추천 " + pending + (n ? " · 댓글 " + n : ""), items };
+  if (n > 0) return { rating: "이야기 중", kick: "plain", take: "댓글이 오가는 중", blurb: "댓글 " + n, items };
+  return { rating: "조용", kick: "plain", take: "아직 말 없음", blurb: "그룹 평가 없음", items };
+}
+function pulseVibe(stockId) {
+  return pulseOf(stockId).take;
+}
+function pulseStrip(stockId, compact) {
+  const p = pulseOf(stockId);
+  const news = compact
+    ? `<div class="news">${esc(p.items[0][0])} · ${esc(p.items[0][1])}</div>`
+    : `<div class="pulse-blurb">${esc(p.blurb)}</div>
+    <div class="pulse-label">헤드라인</div>` + p.items.slice(0, 2).map((it) => `<div class="pulse-news-row"><span>${esc(it[0])}</span><span>${esc(it[1])}</span></div>`).join("");
+  return `<div class="pulse ${compact ? "compact" : ""}">
+    <div class="pulse-top"><span class="pulse-chip ${p.kick}">${esc(p.rating)}</span><span class="pulse-take">${esc(p.take)}</span></div>
+    ${news}
+  </div>`;
+}
+function seedValue(ticker) {
+  return [...String(ticker)].reduce((a, c) => a + c.charCodeAt(0), 0);
+}
+function history(s, days) {
+  days = days || 14;
+  const base = priceOf(s);
+  let price = base * 0.86;
+  const seed = seedValue(s.ticker);
+  const points = [];
+  for (let i = days; i >= 0; i--) {
+    const wave = Math.sin((i + seed) / 6.5) * 0.018;
+    const drift = ((seed % 7) - 3) * 0.0015;
+    price = Math.max(base * 0.55, price * (1 + wave + drift));
+    const rounded = s.market === "krx" ? Math.round(price / 50) * 50 : Math.round(price * 100) / 100;
+    points.push({ daysAgo: i, price: rounded });
+  }
+  points[points.length - 1].price = s.market === "krx" ? Math.round(base / 50) * 50 : Math.round(base * 100) / 100;
+  return points;
+}
+function chartPickHTML(s) {
+  const pts = history(s);
+  const idx = state.chartIndex == null ? pts.length - 1 : Math.min(state.chartIndex, pts.length - 1);
+  const ys = pts.map((p) => p.price);
+  const min = Math.min.apply(null, ys);
+  const max = Math.max.apply(null, ys);
+  const span = max - min || 1;
+  const w = 320;
+  const h = 88;
+  const coords = pts.map((p, i) => {
+    const x = 8 + (i / (pts.length - 1)) * (w - 16);
+    const y = 10 + (1 - (p.price - min) / span) * (h - 20);
+    return [x, y];
+  });
+  const line = coords.map((c) => c[0].toFixed(1) + "," + c[1].toFixed(1)).join(" ");
+  const sel = coords[idx];
+  const picked = pts[idx];
+  const when = picked.daysAgo === 0 ? "오늘" : picked.daysAgo + "일 전";
+  const meta = state.chartIndex == null
+    ? `눌러서 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].price, s.market)}`
+    : `${when} · ${formatPrice(picked.price, s.market)}`;
+  return `<div class="chart-box">
+    <div class="chart-cap">차트를 눌러 그날 가격을 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.</div>
+    <svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="최근 시세 차트">
+      <rect width="${w}" height="${h}" fill="transparent"></rect>
+      <polyline fill="none" stroke="currentColor" stroke-width="2" points="${line}"></polyline>
+      ${state.chartIndex == null ? "" : `<circle cx="${sel[0].toFixed(1)}" cy="${sel[1].toFixed(1)}" r="4.5" fill="currentColor"></circle>`}
+    </svg>
+    <div class="chart-meta">${meta}</div>
+  </div>`;
+}
+function applyChartPick(clientX) {
+  const svg = document.querySelector("svg.chart");
+  const ticker = document.getElementById("add-ticker")?.value;
+  const s = ticker ? stock(ticker) : null;
+  if (!svg || !s) return;
+  const pts = history(s);
+  const rect = svg.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const idx = Math.max(0, Math.min(pts.length - 1, Math.round((x / Math.max(rect.width, 1)) * (pts.length - 1))));
+  state.chartIndex = idx;
+  state.addTicker = ticker;
+  const p = pts[idx].price;
+  state.addPrice = s.market === "krx" ? String(Math.round(p)) : p.toFixed(2);
+  const input = document.getElementById("add-price");
+  if (input) input.value = state.addPrice;
+  const meta = document.querySelector(".chart-meta");
+  const when = pts[idx].daysAgo === 0 ? "오늘" : pts[idx].daysAgo + "일 전";
+  if (meta) meta.textContent = when + " · " + formatPrice(p, s.market);
+  const ys = pts.map((pt) => pt.price);
+  const min = Math.min.apply(null, ys);
+  const max = Math.max.apply(null, ys);
+  const span = max - min || 1;
+  const w = 320;
+  const h = 88;
+  const cx = 8 + (idx / (pts.length - 1)) * (w - 16);
+  const cy = 10 + (1 - (pts[idx].price - min) / span) * (h - 20);
+  let circle = svg.querySelector("circle");
+  if (!circle) {
+    circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("r", "4.5");
+    circle.setAttribute("fill", "currentColor");
+    svg.appendChild(circle);
+  }
+  circle.setAttribute("cx", cx.toFixed(1));
+  circle.setAttribute("cy", cy.toFixed(1));
 }
 function ico(name, filled) {
   const solid = filled && (name === "heart" || name === "me" || name === "star");
@@ -748,7 +956,10 @@ function emptyState(me) {
     toast: null,
     error: null,
     replyTo: null,
-    threadDraft: ""
+    threadDraft: "",
+    addTicker: null,
+    addPrice: "",
+    chartIndex: null
   };
 }
 
@@ -950,6 +1161,9 @@ function addHolding(ticker, avg, method = "manual") {
     toast(`${s.name} 기록됨`);
   }
   state.sheet = null;
+  state.addTicker = null;
+  state.addPrice = "";
+  state.chartIndex = null;
   render();
 }
 
@@ -1160,7 +1374,7 @@ function holdingRow(h, isMine) {
         <div class="stock-name">${esc(s.name)}${verifyMark(h.verification)}</div>
         <div class="ticker">${esc(s.ticker)}</div>
         <div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · 현재가 ${formatPrice(priceOf(s), s.market)}</div>
-        <div class="news">${esc(newsLine(s.ticker))}</div>
+        ${pulseStrip(s.id, true)}
         ${partnerLine ? `<div class="caption">${partnerLine}</div>` : ""}
         ${h.status === "sold" ? `<div class="caption">매도 · ${formatPct(ret(h.averagePrice, h.sellPrice))}</div>` : ""}
         ${suspect}
@@ -1189,7 +1403,7 @@ function inboxBlock(item) {
           <div class="grow">
             <div class="stock-name">${esc(nickname(rec.senderId))}가 추천한 ${esc(s.name)}</div>
             <div class="ticker">${esc(s.ticker)}</div>
-            <div class="news">${esc(newsLine(s.ticker))}</div>
+            ${pulseStrip(s.id, true)}
           </div>
         </div>
         <p class="caption">사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.</p>
@@ -1206,7 +1420,7 @@ function inboxBlock(item) {
         <div class="grow">
           <div class="stock-name">${esc(nickname(rec.senderId))}가 ${esc(s.name)}를 추천함</div>
           <div class="ticker">${esc(s.ticker)}</div>
-          <div class="news">${esc(newsLine(s.ticker))}</div>
+          ${pulseStrip(s.id, true)}
         </div>
       </div>
       <p class="caption">살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.</p>
@@ -1304,10 +1518,28 @@ function recommendedSection() {
       <div class="grow">
         <div class="stock-name">${esc(s.name)}</div>
         <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
-        <div class="news">${esc(newsLine(s.ticker))}</div>
+        ${pulseStrip(id, true)}
         <div class="meta">“${esc(last.message)}”</div>
       </div>
       <div class="right">${commentMeta(id)}</div>
+    </button>`;
+  }).join("")}</div>`;
+}
+
+function moodSection() {
+  const recIds = state.recs.filter((r) => r.groupId === group()?.id).map((r) => r.stockId);
+  const bondIds = bonds().map((b) => b.stockId);
+  const ids = [];
+  recIds.concat(bondIds).forEach((id) => { if (!ids.includes(id)) ids.push(id); });
+  if (!ids.length) return "";
+  return `<div class="section"><div class="section-title">종목 평가</div>${ids.slice(0, 3).map((id) => {
+    const s = stock(id);
+    return `<button class="row btn" data-act="thread:${id}">
+      ${stockMark(s)}
+      <div class="grow">
+        <div class="stock-name">${esc(s.name)}</div>
+        ${pulseStrip(id, false)}
+      </div>
     </button>`;
   }).join("")}</div>`;
 }
@@ -1339,6 +1571,7 @@ function renderGroup() {
       ${items.length ? `<div class="section"><div class="section-title">내 차례</div><div class="row-list">${items.map(inboxBlock).join("")}</div></div>` : ""}
 
       ${recommendedSection()}
+      ${moodSection()}
 
       <div class="section">
         <div class="section-title">멤버</div>
@@ -1449,14 +1682,18 @@ function sheetHTML() {
   if (!state.sheet) return "";
   if (state.sheet.startsWith("add") || state.sheet.startsWith("register:")) {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
-    const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
+    const selectedId = state.addTicker || pre || state.stocks[0]?.id;
+    const selected = stock(selectedId) || state.stocks[0];
+    const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === selectedId ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
+    const priceVal = state.addPrice || "";
     return sheetWrap(`
       <h2>주식 추가</h2>
-      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "웹 데모는 목록에서 종목을 고릅니다. 캡처·차트 검색은 iOS 앱에 있습니다."}</p>
+      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "목록에서 종목을 고르고, 차트에서 그날 가격을 고르거나 직접 적으세요. 캡처는 iOS 앱에 있습니다."}</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
+      ${selected ? chartPickHTML(selected) : ""}
       <label>매수가</label>
-      <input id="add-price" type="number" step="0.01" placeholder="내가 산 가격" value="" />
+      <input id="add-price" type="number" step="0.01" placeholder="내가 산 가격" value="${esc(priceVal)}" />
       ${btn("등록", "primary full", "do-add")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
@@ -1511,8 +1748,7 @@ function sheetHTML() {
         <div class="grow">
           <h2 style="margin:0">${esc(s.name)}</h2>
           <div class="ticker">${esc(s.ticker)}</div>
-          <div class="news">${esc(newsLine(s.ticker))}</div>
-          <div class="vibe">${esc(pulseVibe(s.id))}</div>
+          ${pulseStrip(s.id, false)}
         </div>
       </div>
       <p class="note">이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
@@ -1567,10 +1803,52 @@ function closeSheet() {
   if (Date.now() < sheetGuard) return;
   state.sheet = null;
   state.replyTo = null;
+  state.addTicker = null;
+  state.addPrice = "";
+  state.chartIndex = null;
   render();
 }
 
+let chartTracking = false;
+function onChartPointer(e) {
+  const svg = e.target.closest && e.target.closest("svg.chart");
+  if (!svg) return false;
+  e.preventDefault();
+  applyChartPick(e.clientX);
+  return true;
+}
+document.addEventListener("pointerdown", (e) => {
+  if (!onChartPointer(e)) return;
+  chartTracking = true;
+  if (e.target.setPointerCapture) {
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+});
+document.addEventListener("pointermove", (e) => {
+  if (!chartTracking) return;
+  onChartPointer(e);
+});
+document.addEventListener("pointerup", () => { chartTracking = false; });
+document.addEventListener("pointercancel", () => { chartTracking = false; });
+
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "add-ticker") {
+    state.addTicker = e.target.value;
+    state.chartIndex = null;
+    state.addPrice = "";
+    render();
+  }
+});
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.id === "add-price") state.addPrice = e.target.value;
+  if (e.target && e.target.id === "thread-text") state.threadDraft = e.target.value;
+});
+
 document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest("svg.chart")) {
+    e.preventDefault();
+    return;
+  }
   if (e.target.classList.contains("sheet")) {
     closeSheet();
     return;
@@ -1601,7 +1879,13 @@ function handle(act) {
   }
   if (act.startsWith("tab:")) { state.tab = act.split(":")[1]; render(); return; }
   if (act === "copy") { navigator.clipboard?.writeText("KKANBU"); toast("초대 코드 복사됨"); return; }
-  if (act === "open-add") { openSheet("add"); return; }
+  if (act === "open-add") {
+    state.addTicker = null;
+    state.addPrice = "";
+    state.chartIndex = null;
+    openSheet("add");
+    return;
+  }
   if (act === "close") { closeSheet(); return; }
   if (act === "do-add") {
     const ticker = document.getElementById("add-ticker").value;
@@ -1610,12 +1894,16 @@ function handle(act) {
       toast("내가 산 가격을 적어 주세요. 현재가로 채워 넣지 않습니다.");
       return;
     }
-    addHolding(ticker, price);
+    const method = state.chartIndex != null ? "chart" : "manual";
+    addHolding(ticker, price, method);
     return;
   }
   if (act.startsWith("bought:")) {
     const rec = state.recs.find((r) => r.id === act.split(":")[1]);
     if (!rec) return;
+    state.addTicker = rec.stockId;
+    state.addPrice = "";
+    state.chartIndex = null;
     openSheet("register:" + rec.stockId);
     return;
   }
@@ -1623,7 +1911,13 @@ function handle(act) {
   if (act.startsWith("reject:")) return acceptRec(act.split(":")[1], false);
   if (act.startsWith("promise:")) return promiseCoBuy(act.split(":")[1]);
   if (act.startsWith("later:")) return declineProposal(act.split(":")[1]);
-  if (act.startsWith("register:")) { openSheet(act); return; }
+  if (act.startsWith("register:")) {
+    state.addTicker = act.split(":")[1];
+    state.addPrice = "";
+    state.chartIndex = null;
+    openSheet(act);
+    return;
+  }
   if (act.startsWith("sell:")) return sellHolding(act.split(":")[1]);
   if (act.startsWith("verify:")) return verify(act.split(":")[1]);
   if (act.startsWith("suspect:")) return suspect(act.split(":")[1]);

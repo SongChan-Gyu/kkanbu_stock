@@ -64,6 +64,7 @@ struct GroupHomeView: View {
                 header
                 myTurn
                 recommendedThreads
+                todayPulse
                 hero
                 members
                 kkangbuStrip
@@ -158,10 +159,7 @@ struct GroupHomeView: View {
                                         Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
                                             .font(.caption)
                                             .foregroundStyle(KkanbuTheme.muted)
-                                        Text(StockPulse.newsLine(ticker: stock.ticker))
-                                            .font(.caption)
-                                            .foregroundStyle(KkanbuTheme.muted)
-                                            .lineLimit(1)
+                                        PulseStrip(snapshot: pulse(for: stock))
                                         Text(related.last.map { "“\($0.message)”" } ?? "")
                                             .font(.caption)
                                             .foregroundStyle(KkanbuTheme.ink)
@@ -178,6 +176,59 @@ struct GroupHomeView: View {
                 }
             }
         }
+    }
+
+    private var todayPulse: some View {
+        let recIds = store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)
+        let bondIds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).map(\.stockId)
+        let ids = (recIds + bondIds).reduce(into: [UUID]()) { result, id in
+            if !result.contains(id) { result.append(id) }
+        }
+        return Group {
+            if !ids.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("종목 평가")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.muted)
+                    ForEach(ids.prefix(3), id: \.self) { stockId in
+                        if let stock = store.state.stock(stockId) {
+                            let snap = pulse(for: stock)
+                            Button {
+                                threadStock = stock
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(stock.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(KkanbuTheme.ink)
+                                        PulseStrip(snapshot: snap, compact: false)
+                                    }
+                                }
+                                .padding(.vertical, 10)
+                                .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func pulse(for stock: Stock) -> StockPulse.Snapshot {
+        let comments = store.commentCount(in: group.id, stockId: stock.id)
+        let pending = store.state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices)
+            .first { $0.stockId == stock.id }?.sharedReturn
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared
+        )
     }
 
     private var hero: some View {
@@ -353,10 +404,7 @@ struct ProposalCard: View {
                         Text(stock?.name ?? "")
                             .font(.subheadline.weight(.semibold))
                         if let stock {
-                            Text(StockPulse.headline(ticker: stock.ticker))
-                                .font(.caption)
-                                .foregroundStyle(KkanbuTheme.muted)
-                                .lineLimit(1)
+                            PulseStrip(snapshot: pulse(for: stock))
                         }
                     }
                 }
@@ -378,6 +426,21 @@ struct ProposalCard: View {
             .padding(.vertical, 12)
             .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
         }
+    }
+
+    private func pulse(for stock: Stock) -> StockPulse.Snapshot {
+        let comments = store.commentCount(in: proposal.groupId, stockId: stock.id)
+        let pending = store.state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = KkangbuMath.bonds(in: proposal.groupId, state: store.state, prices: store.currentPrices)
+            .first { $0.stockId == stock.id }?.sharedReturn
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared
+        )
     }
 }
 

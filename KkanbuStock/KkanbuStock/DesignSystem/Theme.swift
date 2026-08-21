@@ -127,6 +127,71 @@ struct CommentCountLabel: View {
     }
 }
 
+struct PulseChip: View {
+    var snapshot: StockPulse.Snapshot
+
+    var body: some View {
+        Text(snapshot.rating)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(color)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+
+    private var color: Color {
+        switch snapshot.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.muted
+        }
+    }
+}
+
+struct PulseStrip: View {
+    var snapshot: StockPulse.Snapshot
+    var compact: Bool = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                PulseChip(snapshot: snapshot)
+                Text(snapshot.take)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KkanbuTheme.muted)
+                    .lineLimit(1)
+            }
+            if compact {
+                if let first = snapshot.items.first {
+                    Text("\(first.title) · \(first.ago)")
+                        .font(.caption)
+                        .foregroundStyle(KkanbuTheme.muted)
+                        .lineLimit(1)
+                }
+            } else {
+                Text(snapshot.blurb)
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text("헤드라인")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.faint)
+                    .padding(.top, 2)
+                ForEach(Array(snapshot.items.prefix(2).enumerated()), id: \.offset) { _, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.title)
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.ink)
+                        Spacer(minLength: 8)
+                        Text(item.ago)
+                            .font(.caption2)
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct QuietButton: View {
     var title: String
     var kind: Kind = .primary
@@ -350,10 +415,7 @@ struct HoldingCardView: View {
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
                 .foregroundStyle(KkanbuTheme.muted)
-            Text(StockPulse.newsLine(ticker: stock.ticker))
-                .font(.caption)
-                .foregroundStyle(KkanbuTheme.muted)
-                .lineLimit(1)
+            PulseStrip(snapshot: rowPulse)
             if showsQuantity, let qty = holding.quantity {
                 Text("수량 \(String(format: "%g", qty))")
                     .font(.caption)
@@ -390,6 +452,23 @@ struct HoldingCardView: View {
         .overlay(alignment: .bottom) {
             KkanbuTheme.line.frame(height: 1)
         }
+    }
+
+    private var rowPulse: StockPulse.Snapshot {
+        let shared: Double?
+        if let grade {
+            if grade.isGlory { shared = 0.2 }
+            else if grade.isRoast { shared = -0.2 }
+            else { shared = 0 }
+        } else {
+            shared = nil
+        }
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: 0,
+            pendingRecommendations: 0,
+            sharedReturn: shared
+        )
     }
 
     @ViewBuilder

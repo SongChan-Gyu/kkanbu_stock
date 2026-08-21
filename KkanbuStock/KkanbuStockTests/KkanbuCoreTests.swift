@@ -492,10 +492,32 @@ final class StockIdentityPulseTests: XCTestCase {
         }
     }
 
-    func testHeadlineIsOneLineDemoCopy() {
+    func testHeadlinesAreTwoDemoLines() {
+        let nvda = StockPulse.headlines(ticker: "NVDA")
+        XCTAssertEqual(nvda.count, 2)
+        XCTAssertTrue(nvda[0].title.contains("거래량"))
+        XCTAssertEqual(nvda[0].ago, "2시간 전")
+        XCTAssertTrue(nvda[1].title.contains("데이터센터"))
         XCTAssertTrue(StockPulse.headline(ticker: "NVDA").contains("거래량"))
         XCTAssertTrue(StockPulse.newsLine(ticker: "NVDA").contains("데모"))
+        XCTAssertEqual(StockPulse.headlines(ticker: "UNKNOWN").count, 1)
         XCTAssertEqual(StockPulse.headline(ticker: "UNKNOWN"), "그룹에서 이 종목 이야기 중")
+    }
+
+    func testSnapshotKeepsLightCopy() {
+        let busy = StockPulse.snapshot(ticker: "NVDA", commentCount: 4, pendingRecommendations: 1, sharedReturn: 0.4)
+        XCTAssertEqual(busy.rating, "들뜸")
+        XCTAssertEqual(busy.take, "지금 말이 많은 종목")
+        XCTAssertEqual(busy.items.count, 2)
+        XCTAssertTrue(busy.blurb.contains("댓글 4"))
+
+        let roasted = StockPulse.snapshot(ticker: "AAPL", commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2)
+        XCTAssertEqual(roasted.rating, "물림")
+        XCTAssertEqual(roasted.take, "같이 물린 분위기")
+
+        let quiet = StockPulse.snapshot(ticker: "AMD", commentCount: 0, pendingRecommendations: 0, sharedReturn: nil)
+        XCTAssertEqual(quiet.rating, "조용")
+        XCTAssertEqual(quiet.take, "아직 말 없음")
     }
 
     func testVibeStaysLight() {

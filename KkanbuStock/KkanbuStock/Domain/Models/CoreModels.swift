@@ -305,37 +305,169 @@ enum StockIdentity {
 enum StockPulse {
     static let newsAge = "2시간 전 · 데모"
 
-    static func headline(ticker: String) -> String {
+    struct NewsItem: Equatable {
+        var title: String
+        var ago: String
+    }
+
+    struct Snapshot: Equatable {
+        var rating: String
+        var kick: String
+        var take: String
+        var blurb: String
+        var items: [NewsItem]
+    }
+
+    static func headlines(ticker: String) -> [NewsItem] {
         switch ticker.uppercased() {
-        case "NVDA": "실적 발표 앞두고 거래량 늘었어요"
-        case "AAPL": "서비스 매출이 버텨 준다는 이야기"
-        case "TSLA": "인도량 숫자 가지고 말이 많아요"
-        case "AMD": "AI 칩 수주 이야기가 돌아요"
-        case "MSFT": "클라우드 실적 눈높이 이야기"
-        case "AMZN": "광고·AWS가 끌고 간다는 말"
-        case "GOOGL": "검색·클라우드 실적 이야기"
-        case "META": "광고 회복 속도 이야기가 나와요"
-        case "005930": "반도체 업황 이야기가 다시 나와요"
-        case "000660": "HBM 수요 이야기가 나와요"
-        case "035420": "광고·커머스 회복 속도 이야기"
-        case "035720": "플랫폼 실적 눈높이 조정 중"
-        default: "그룹에서 이 종목 이야기 중"
+        case "NVDA":
+            [
+                .init(title: "실적 발표 앞두고 거래량 늘었어요", ago: "2시간 전"),
+                .init(title: "데이터센터 가이던스 이야기가 나와요", ago: "어제")
+            ]
+        case "AAPL":
+            [
+                .init(title: "서비스 매출이 버텨 준다는 이야기", ago: "3시간 전"),
+                .init(title: "신제품 사이클 눈높이 조정 중", ago: "어제")
+            ]
+        case "TSLA":
+            [
+                .init(title: "인도량 숫자 가지고 말이 많아요", ago: "1시간 전"),
+                .init(title: "마진 이야기가 다시 나와요", ago: "어제")
+            ]
+        case "AMD":
+            [
+                .init(title: "AI 칩 수주 이야기가 돌아요", ago: "4시간 전"),
+                .init(title: "서버 GPU 수요 눈높이 이야기", ago: "그제")
+            ]
+        case "MSFT":
+            [
+                .init(title: "클라우드 실적 눈높이 이야기", ago: "2시간 전"),
+                .init(title: "AI 구독이 끌고 간다는 말", ago: "어제")
+            ]
+        case "AMZN":
+            [
+                .init(title: "광고·AWS가 끌고 간다는 말", ago: "5시간 전"),
+                .init(title: "물류 비용 이야기가 나와요", ago: "어제")
+            ]
+        case "GOOGL":
+            [
+                .init(title: "검색·클라우드 실적 이야기", ago: "3시간 전"),
+                .init(title: "광고 단가 회복 속도 이야기", ago: "어제")
+            ]
+        case "META":
+            [
+                .init(title: "광고 회복 속도 이야기가 나와요", ago: "2시간 전"),
+                .init(title: "릴스 매출 눈높이 이야기", ago: "어제")
+            ]
+        case "005930":
+            [
+                .init(title: "반도체 업황 이야기가 다시 나와요", ago: "2시간 전"),
+                .init(title: "HBM·파운드리 수주 이야기", ago: "어제")
+            ]
+        case "000660":
+            [
+                .init(title: "HBM 수요 이야기가 나와요", ago: "1시간 전"),
+                .init(title: "공급 계약 눈높이 이야기", ago: "어제")
+            ]
+        case "035420":
+            [
+                .init(title: "광고·커머스 회복 속도 이야기", ago: "3시간 전"),
+                .init(title: "웹툰·콘텐츠 매출 이야기", ago: "어제")
+            ]
+        case "035720":
+            [
+                .init(title: "플랫폼 실적 눈높이 조정 중", ago: "2시간 전"),
+                .init(title: "톡비즈 회복 속도 이야기", ago: "어제")
+            ]
+        default:
+            [
+                .init(title: "그룹에서 이 종목 이야기 중", ago: "데모")
+            ]
         }
+    }
+
+    static func headline(ticker: String) -> String {
+        headlines(ticker: ticker).first?.title ?? "그룹에서 이 종목 이야기 중"
     }
 
     static func newsLine(ticker: String) -> String {
-        "\(headline(ticker: ticker)) · \(newsAge)"
+        let item = headlines(ticker: ticker)[0]
+        return "\(item.title) · \(item.ago) · 데모"
+    }
+
+    static func snapshot(
+        ticker: String,
+        commentCount: Int,
+        pendingRecommendations: Int,
+        sharedReturn: Double?
+    ) -> Snapshot {
+        let items = headlines(ticker: ticker)
+        if commentCount >= 3 {
+            return Snapshot(
+                rating: "들뜸",
+                kick: "glory",
+                take: "지금 말이 많은 종목",
+                blurb: "댓글 \(commentCount)" + (pendingRecommendations > 0 ? " · 추천 \(pendingRecommendations)" : ""),
+                items: items
+            )
+        }
+        if let sharedReturn, sharedReturn <= -0.15 {
+            return Snapshot(
+                rating: "물림",
+                kick: "roast",
+                take: "같이 물린 분위기",
+                blurb: "깐부 수익률 \(percent(sharedReturn))" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
+                items: items
+            )
+        }
+        if let sharedReturn, sharedReturn >= 0.15 {
+            return Snapshot(
+                rating: "웃는 중",
+                kick: "glory",
+                take: "같이 웃는 분위기",
+                blurb: "깐부 수익률 \(percent(sharedReturn))" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
+                items: items
+            )
+        }
+        if pendingRecommendations > 0 {
+            return Snapshot(
+                rating: "추천 중",
+                kick: "plain",
+                take: commentCount > 0 ? "추천이 왔고 댓글도 있음" : "추천이 와 있음",
+                blurb: "추천 \(pendingRecommendations)" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
+                items: items
+            )
+        }
+        if commentCount > 0 {
+            return Snapshot(
+                rating: "이야기 중",
+                kick: "plain",
+                take: "댓글이 오가는 중",
+                blurb: "댓글 \(commentCount)",
+                items: items
+            )
+        }
+        return Snapshot(
+            rating: "조용",
+            kick: "plain",
+            take: "아직 말 없음",
+            blurb: "그룹 평가 없음",
+            items: items
+        )
     }
 
     static func vibe(commentCount: Int, pendingRecommendations: Int, sharedReturn: Double?) -> String {
-        if commentCount >= 3 { return "지금 말이 많은 종목" }
-        if pendingRecommendations > 0 && commentCount > 0 { return "추천이 왔고 댓글도 있음" }
-        if pendingRecommendations > 0 { return "추천이 와 있음" }
-        if commentCount > 0 { return "댓글 있음" }
-        if let sharedReturn {
-            if sharedReturn <= -0.15 { return "같이 물린 분위기" }
-            if sharedReturn >= 0.15 { return "같이 웃는 분위기" }
-        }
-        return "아직 말 없음"
+        snapshot(
+            ticker: "NVDA",
+            commentCount: commentCount,
+            pendingRecommendations: pendingRecommendations,
+            sharedReturn: sharedReturn
+        ).take
+    }
+
+    private static func percent(_ value: Double) -> String {
+        let sign = value >= 0 ? "+" : ""
+        return "\(sign)\(String(format: "%.0f", value * 100))%"
     }
 }
