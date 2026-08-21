@@ -754,7 +754,13 @@ function initial(name) {
 function avatarHTML(person, size) {
   const id = person.id || person.nickname || "x";
   const n = [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
-  return `<div class="avatar c${n}${size === "sm" ? " sm" : ""}">${esc(initial(person.nickname))}</div>`;
+  return `<div class="avatar c${n}${size === "sm" ? " sm" : size === "lg" ? " lg" : ""}">${esc(initial(person.nickname))}</div>`;
+}
+function brandMark() {
+  return `<div class="brand-mark" aria-hidden="true"><span></span><span></span></div>`;
+}
+function emptyStateHTML(title, message) {
+  return `<div class="empty-state">${brandMark()}<div class="empty-title">${esc(title)}</div><p class="empty-msg">${esc(message)}</p></div>`;
 }
 function btn(label, kind, action) {
   return `<button class="btn ${kind || "primary"}" data-act="${esc(action)}">${label}</button>`;
@@ -908,15 +914,16 @@ function eventRow(e) {
 
 function renderOnboarding() {
   return `
-    <div class="screen">
-      <div class="page-title">주식 깐부</div>
-      <p class="page-sub">친구와 같은 종목을 보유하면 깐부가 됩니다.</p>
+    <div class="screen onboard">
+      ${brandMark()}
+      <h1 class="brand-name">주식 깐부</h1>
+      <p class="lead">같은 종목을 사면 깐부가 됩니다.</p>
       <label>닉네임</label>
       <input id="nick" value="${esc(state.me.nickname)}" />
-      <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다. 투자 자문이 아닙니다.</p>
       ${btn("데모 그룹으로 시작", "primary full", "demo")}
       <div style="height:8px"></div>
       ${btn("빈 그룹으로 시작", "secondary full", "empty-start")}
+      <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다. 투자 자문이 아닙니다.</p>
     </div>`;
 }
 
@@ -1023,9 +1030,8 @@ function moodSection() {
 function renderGroup() {
   const g = group();
   if (!g) {
-    return `<div class="screen"><div class="page-title">그룹</div>
-      <p class="empty">아직 그룹이 없습니다.</p>
-      ${btn("데모 그룹 불러오기", "primary", "demo")}</div>`;
+    return `<div class="screen">${emptyStateHTML("아직 그룹이 없습니다", "그룹을 만들거나 초대 코드로 들어가세요.")}
+      ${btn("데모 그룹으로 시작", "primary", "demo")}</div>`;
   }
   const items = inbox();
   const kk = bonds();
@@ -1033,20 +1039,16 @@ function renderGroup() {
   return `
     <div class="screen">
       <div class="header-meta">
-        <div>
-          <div class="page-title">${esc(g.name)}</div>
-          <div class="invite">초대 코드 ${g.invite}</div>
-        </div>
-        <button class="btn text" data-act="copy">코드 복사</button>
+        <div class="page-title">${esc(g.name)}</div>
+        <button class="btn text" data-act="rank">랭킹</button>
+      </div>
+      <div class="members story">${memberUsers().map((u) => `<button class="member" data-act="play:${u.id}">${avatarHTML(u)}<span>${esc(u.id === state.me.id ? "나" : u.nickname)}</span></button>`).join("")}</div>
+      <div class="header-actions">
+        <button class="invite-chip" data-act="copy"><span>초대</span>${esc(g.invite)}</button>
       </div>
       <div class="split">
         ${btn("주식 추가", "primary", "open-add")}
         ${btn("매수 제안", "secondary", "open-prop:")}
-      </div>
-
-      <div class="section members-sec">
-        <div class="section-title">멤버</div>
-        <div class="members">${memberUsers().map((u) => `<button class="member" data-act="play:${u.id}">${avatarHTML(u)}${`<span>${esc(u.id === state.me.id ? "나" : u.nickname)}</span>`}</button>`).join("")}</div>
       </div>
 
       ${turnPager(items)}
@@ -1089,7 +1091,8 @@ function renderHoldings() {
       ${btn("주식 추가", "primary", "open-add")}
       ${btn("매수 제안", "secondary", "open-prop:")}
     </div>
-    ${active.length ? `<div class="section"><div class="section-title">보유 중</div><div class="row-list">${active.map((h) => holdingRow(h, true)).join("")}</div></div>` : `<p class="empty">아직 등록한 주식이 없습니다.</p>`}
+    ${active.length ? `<div class="section"><div class="section-title">보유 중</div><div class="row-list">${active.map((h) => holdingRow(h, true)).join("")}</div></div>` : emptyStateHTML("아직 주식이 없습니다", "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")}
+    ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다.</p>
   </div>`;
@@ -1102,7 +1105,7 @@ function renderActivity() {
   return `<div class="screen">
     <div class="page-title">활동</div>
     <p class="page-sub">추천과 매수 제안</p>
-    ${mine.length ? `<div class="row-list">${mine.map(inboxBlock).join("")}</div>` : `<p class="empty">대기 중인 일이 없습니다.</p>`}
+    ${mine.length ? `<div class="row-list">${mine.map(inboxBlock).join("")}</div>` : emptyStateHTML("대기 중인 일이 없습니다", "추천이나 매수 제안이 오면 여기에 모입니다.")}
     <div class="section">
       <div class="section-title">추천 기록</div>
       ${recs.length ? recs.map((r) => `<div class="pair-row">${stockMark(stock(r.stockId), "sm")}<div class="grow"><div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div><div class="stock">${esc(stock(r.stockId).name)} · ${recStatus[r.status] || r.status}</div></div></div>`).join("") : `<p class="empty">기록이 없습니다.</p>`}
@@ -1111,18 +1114,18 @@ function renderActivity() {
 }
 
 function renderProfile() {
+  const g = group();
+  const n = memberUsers().length;
   return `<div class="screen">
     <div class="page-title">프로필</div>
-    <div class="row" style="border-top:1px solid var(--line)">
-      ${avatarHTML(state.me)}
-      <div class="grow">
-        <div class="stock-name">${esc(state.me.nickname)}</div>
-        <div class="caption">로컬 데모 · 서버 없음</div>
-      </div>
+    <div class="profile-head">
+      ${avatarHTML(state.me, "lg")}
+      <div class="brand-name" style="font-size:22px;margin:12px 0 4px">${esc(state.me.nickname)}</div>
+      <div class="caption">${g ? `${esc(g.name)} · 멤버 ${n}` : "아직 그룹 없음"}</div>
     </div>
     <div class="section">
-      <div class="section-title">시장 흔들기</div>
-      <p class="note">데모에서 사건을 만들기 위한 시세 조작입니다.</p>
+      <div class="section-title">실험</div>
+      <p class="note">시세를 흔들어 사건을 만들어 봅니다.</p>
       <div class="actions">
         ${sm("NVDA +12%", "shock:NVDA:0.12")}
         ${sm("NVDA -12%", "shock:NVDA:-0.12")}
@@ -1141,7 +1144,7 @@ function renderProfile() {
 }
 
 function sheetWrap(inner) {
-  return `<div class="sheet"><div class="panel">${inner}</div></div>`;
+  return `<div class="sheet"><div class="panel"><div class="grabber"></div>${inner}</div></div>`;
 }
 
 function sheetHTML() {
@@ -1188,6 +1191,27 @@ function sheetHTML() {
       <label>메시지</label>
       <input id="prop-msg" value="이번에 같이 들어갈 사람?" />
       ${btn("보내기", "primary full", "do-prop")}
+      <div style="height:8px"></div>
+      ${btn("닫기", "secondary full", "close")}
+    `);
+  }
+  if (state.sheet === "rank") {
+    const rows = memberUsers().map((u) => {
+      const hs = state.holdings.filter((h) => h.userId === u.id && h.status === "holding");
+      const avg = hs.length ? hs.map((h) => ret(h.averagePrice, priceOf(stock(h.stockId)))).reduce((a, b) => a + b, 0) / hs.length : 0;
+      return { u, avg, n: hs.length };
+    }).sort((a, b) => b.avg - a.avg);
+    return sheetWrap(`
+      <h2>랭킹</h2>
+      <p class="note">그룹 안 기록입니다. 금융 리그가 아닙니다.</p>
+      ${rows.map((r, i) => `<div class="pair-row">
+        ${avatarHTML(r.u, "sm")}
+        <div class="grow">
+          <div class="names">${esc(r.u.id === state.me.id ? "나" : r.u.nickname)}</div>
+          <div class="stock">보유 ${r.n}종목</div>
+        </div>
+        <div class="pct ${r.avg >= 0 ? "up" : "down"}">${r.n ? formatPct(r.avg) : "—"}</div>
+      </div>`).join("")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
     `);
@@ -1367,7 +1391,8 @@ function handle(act) {
     if (idx && n) idx.textContent = (i + 1) + " / " + n;
     return;
   }
-  if (act === "copy") { navigator.clipboard?.writeText("KKANBU"); toast("초대 코드 복사됨"); return; }
+  if (act === "copy") { navigator.clipboard?.writeText((group() && group().invite) || "KKANBU"); toast("초대 코드 복사됨"); return; }
+  if (act === "rank") { openSheet("rank"); return; }
   if (act === "open-add") {
     state.addTicker = null;
     state.addPrice = "";

@@ -17,6 +17,7 @@ struct GroupHomeContainer: View {
                 }
             }
             .navigationTitle(store.state.selectedGroup?.name ?? "그룹")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("그룹") { showSwitch = true }
@@ -38,11 +39,15 @@ struct GroupHomeContainer: View {
 
     private var empty: some View {
         VStack(spacing: 16) {
-            EmptyStateView(title: "아직 그룹이 없습니다", message: "그룹을 만들거나 초대 코드로 들어가세요.")
-            PillButton(title: "그룹 만들기", systemImage: "plus") { showCreate = true }
-                .padding(.horizontal, 32)
-            PillButton(title: "초대 코드로 참여", kind: .secondary) { showJoin = true }
-                .padding(.horizontal, 32)
+            EmptyStateView(
+                title: "아직 그룹이 없습니다",
+                message: "그룹을 만들거나 초대 코드로 들어가세요.",
+                centered: true
+            )
+            QuietButton(title: "그룹 만들기") { showCreate = true }
+                .padding(.horizontal, 24)
+            QuietButton(title: "초대 코드로 참여", kind: .secondary) { showJoin = true }
+                .padding(.horizontal, 24)
         }
         .padding()
     }
@@ -62,8 +67,8 @@ struct GroupHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                header
                 members
+                header
                 myTurn
                 if recCount > 0 {
                     FoldSection(title: "추천 종목", count: recCount, isOpen: openBinding("recs")) {
@@ -149,27 +154,21 @@ struct GroupHomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(group.name)
-                .font(.title2.weight(.semibold))
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("초대 코드 \(group.inviteCode)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(KkanbuTheme.faint)
+                InviteChip(code: group.inviteCode) { store.copyInviteCode(group.inviteCode) }
                 Spacer()
-                Button("코드 복사") { store.copyInviteCode(group.inviteCode) }
-                    .font(.caption.weight(.medium))
+                Button("랭킹") { showRank = true }
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(KkanbuTheme.ink)
             }
             HStack(spacing: 8) {
-                QuietButton(title: "내 주식 등록") { showAdd = true }
+                QuietButton(title: "주식 추가") { showAdd = true }
                 QuietButton(title: "매수 제안", kind: .secondary) { showPropose = true }
             }
-            Button("칭호 랭킹") { showRank = true }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(KkanbuTheme.muted)
         }
-        .padding(.bottom, 4)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
     }
 
     private var myTurn: some View {
@@ -301,28 +300,29 @@ struct GroupHomeView: View {
     }
 
     private var members: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("멤버")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(KkanbuTheme.muted)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(store.state.memberUsers(of: group.id)) { user in
-                        NavigationLink {
-                            FriendDetailView(user: user, group: group)
-                        } label: {
-                            VStack(spacing: 6) {
-                                AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 52)
-                                Text(user.id == store.state.currentUserId ? "나" : user.nickname)
-                                    .font(.caption)
-                                    .foregroundStyle(.primary)
-                            }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(store.state.memberUsers(of: group.id)) { user in
+                    NavigationLink {
+                        FriendDetailView(user: user, group: group)
+                    } label: {
+                        VStack(spacing: 7) {
+                            AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 56)
+                                .overlay {
+                                    Circle().stroke(KkanbuTheme.line, lineWidth: 1)
+                                }
+                            Text(user.id == store.state.currentUserId ? "나" : user.nickname)
+                                .font(.caption)
+                                .foregroundStyle(KkanbuTheme.ink)
+                                .lineLimit(1)
                         }
+                        .frame(width: 64)
                     }
+                    .buttonStyle(.plain)
                 }
             }
+            .padding(.vertical, 6)
         }
-        .padding(.top, 8)
     }
 
     private var kkangbuStrip: some View {

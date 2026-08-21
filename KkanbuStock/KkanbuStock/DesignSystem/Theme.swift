@@ -1,5 +1,16 @@
 import SwiftUI
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
+
+enum KkanbuHaptic {
+    static func tap() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+}
 
 enum KkanbuTheme {
     static let radius: CGFloat = 10
@@ -32,6 +43,26 @@ extension Color {
 struct KkanbuBackground: View {
     var body: some View {
         KkanbuTheme.bg.ignoresSafeArea()
+    }
+}
+
+struct BrandMark: View {
+    var size: CGFloat = 56
+
+    var body: some View {
+        let diameter = size * 0.62
+        ZStack {
+            Circle()
+                .fill(KkanbuTheme.ink)
+                .frame(width: diameter, height: diameter)
+                .offset(x: -diameter * 0.28)
+            Circle()
+                .fill(Color.kkanbuUp)
+                .frame(width: diameter, height: diameter)
+                .offset(x: diameter * 0.28)
+        }
+        .frame(width: size, height: size * 0.72)
+        .accessibilityHidden(true)
     }
 }
 
@@ -156,6 +187,7 @@ struct TakeStepper: View {
         HStack(spacing: 4) {
             ForEach(TakeLevel.allCases, id: \.self) { level in
                 Button {
+                    KkanbuHaptic.tap()
                     action(level)
                 } label: {
                     Text(level.shortTitle)
@@ -278,6 +310,7 @@ struct FoldSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
+                KkanbuHaptic.tap()
                 withAnimation(.easeInOut(duration: 0.2)) { isOpen.toggle() }
             } label: {
                 HStack(spacing: 8) {
@@ -321,13 +354,15 @@ struct QuietButton: View {
     enum Kind { case primary, secondary, ghost }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            KkanbuHaptic.tap()
+            action()
+        } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(foreground)
-                .background(background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -395,17 +430,48 @@ struct EmptyStateView: View {
     var emoji: String = ""
     var title: String
     var message: String
+    var centered: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: centered ? .center : .leading, spacing: 8) {
+            if centered {
+                BrandMark(size: 64)
+                    .padding(.bottom, 8)
+            }
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(centered ? .center : .leading)
             Text(message)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(KkanbuTheme.muted)
+                .multilineTextAlignment(centered ? .center : .leading)
+                .lineSpacing(2)
         }
-        .padding(.vertical, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, centered ? 28 : 20)
+        .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
+    }
+}
+
+struct InviteChip: View {
+    var code: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("초대")
+                    .foregroundStyle(KkanbuTheme.muted)
+                Text(code)
+                    .font(.caption.weight(.semibold).monospaced())
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(KkanbuTheme.chip, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("초대 코드 \(code) 복사")
     }
 }
 

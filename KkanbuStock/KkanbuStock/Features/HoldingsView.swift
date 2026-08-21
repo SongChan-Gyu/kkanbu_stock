@@ -14,14 +14,17 @@ struct HoldingsView: View {
                 KkanbuBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        DisclaimerBanner()
                         summary
                         let mine = store.state.holdings.filter { $0.userId == store.state.currentUserId }
                         let active = mine.filter { $0.status == .holding }
                         let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
-                            EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
-                            QuietButton(title: "내 주식 등록") { showAdd = true }
+                            EmptyStateView(
+                                title: "아직 주식이 없습니다",
+                                message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.",
+                                centered: true
+                            )
+                            QuietButton(title: "주식 추가") { showAdd = true }
                             QuietButton(title: "매수 제안", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
@@ -38,11 +41,13 @@ struct HoldingsView: View {
                                 holdingBlock(holding)
                             }
                         }
+                        DisclaimerBanner()
                     }
                     .padding(16)
                 }
             }
             .navigationTitle("내 주식")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("그룹에 제안") { showPropose = true }

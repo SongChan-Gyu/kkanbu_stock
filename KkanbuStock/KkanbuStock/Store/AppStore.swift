@@ -504,8 +504,9 @@ final class AppStore {
     func copyInviteCode(_ code: String) {
         #if canImport(UIKit)
         UIPasteboard.general.string = code
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         #endif
-        toast = "초대 코드 \(code) 복사됨"
+        toast = "초대 코드 복사됨"
     }
 
     func refreshDerived() {

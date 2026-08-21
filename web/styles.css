@@ -64,6 +64,82 @@ body {
   letter-spacing: -0.03em;
   margin: 4px 0 4px;
 }
+.brand-mark {
+  width: 78px;
+  height: 56px;
+  position: relative;
+  margin-bottom: 22px;
+}
+.brand-mark span {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  top: 6px;
+}
+.brand-mark span:first-child { left: 0; background: #111; }
+.brand-mark span:last-child { left: 28px; background: #e11d48; }
+.brand-name {
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  margin: 0;
+  line-height: 1.1;
+}
+.lead {
+  font-size: 16px;
+  color: var(--text-2);
+  margin: 10px 0 32px;
+  line-height: 1.45;
+}
+.screen.onboard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  animation: rise 0.45s ease-out;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.empty-state {
+  text-align: center;
+  padding: 36px 12px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-state .brand-mark { margin-bottom: 16px; }
+.empty-title {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.empty-msg {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 260px;
+}
+.invite-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: var(--chip);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+.invite-chip span { color: var(--text-2); font-weight: 500; }
+.header-actions { margin: 4px 0 14px; }
+.profile-head { padding: 8px 0 8px; }
+.avatar.lg { width: 72px; height: 72px; font-size: 26px; }
 .page-sub {
   font-size: 13px;
   color: var(--text-2);
@@ -510,7 +586,13 @@ body {
   color: var(--text);
   font: inherit;
 }
-.member .avatar { width: 52px; height: 52px; font-size: 18px; }
+.members.story { padding: 2px 0 12px; }
+.member .avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 18px;
+  box-shadow: 0 0 0 1px var(--line);
+}
 .member span {
   display: block;
   margin-top: 6px;
@@ -533,9 +615,10 @@ button {
 }
 .btn {
   border: 0;
-  border-radius: 8px;
-  padding: 11px 14px;
-  font-size: 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-height: 48px;
+  font-size: 15px;
   font-weight: 600;
 }
 .btn.primary {
@@ -550,17 +633,20 @@ button {
   background: transparent;
   color: var(--text-2);
   padding-left: 0;
+  min-height: 0;
 }
 .btn.text {
   background: none;
   border: 0;
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 500;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 550;
   padding: 6px 0;
+  min-height: 0;
 }
 .btn.full { width: 100%; }
 .btn.sm {
+  min-height: 32px;
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 550;
@@ -694,7 +780,9 @@ label {
   bottom: 0;
   height: calc(var(--tab-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
   border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -732,11 +820,18 @@ label {
   width: 100%;
   max-width: 430px;
   margin: 0 auto;
-  border-radius: 16px 16px 0 0;
-  padding: 20px var(--pad) calc(24px + env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0;
+  padding: 10px var(--pad) calc(24px + env(safe-area-inset-bottom));
   max-height: 86%;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+}
+.grabber {
+  width: 36px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--line);
+  margin: 4px auto 14px;
 }
 .sheet h2 {
   font-size: 18px;
