@@ -16,6 +16,7 @@ struct AppState: Codable, Sendable {
     var badges: [Badge]
     var suspicions: [GurapingSuspicion]
     var comments: [StockComment]
+    var takes: [StockTake]
     var thresholds: EventThresholds
     var livePriceOffsets: [UUID: Double]
     var hasCompletedOnboarding: Bool
@@ -38,6 +39,7 @@ struct AppState: Codable, Sendable {
             badges: [],
             suspicions: [],
             comments: [],
+            takes: [],
             thresholds: .default,
             livePriceOffsets: [:],
             hasCompletedOnboarding: false,

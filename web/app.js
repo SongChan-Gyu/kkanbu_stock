@@ -95,55 +95,108 @@ function stockMark(s, size) {
   const img = src ? `<img alt="" src="${esc(src)}" onerror="this.parentNode.classList.add('logo-failed')">` : "";
   return `<div class="${cls}" style="background:${mark.bg};color:${mark.fg}">${img}${glyph}</div>`;
 }
+const PHOTOS = {
+  chip: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&h=280&q=60",
+  phone: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=400&h=280&q=60",
+  car: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=400&h=280&q=60",
+  cloud: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&h=280&q=60",
+  shop: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&h=280&q=60",
+  social: "https://images.unsplash.com/photo-1611162616475-46b635cb6868?auto=format&fit=crop&w=400&h=280&q=60"
+};
+const TAKE_LEVELS = [
+  { v: -2, title: "강력 매도", short: "강매도", kick: "roast" },
+  { v: -1, title: "매도", short: "매도", kick: "roast" },
+  { v: 0, title: "관망", short: "관망", kick: "plain" },
+  { v: 1, title: "추천", short: "추천", kick: "glory" },
+  { v: 2, title: "강력 추천", short: "강추천", kick: "glory" }
+];
 const NEWS = {
   NVDA: [
-    ["실적 발표 앞두고 거래량 늘었어요", "2시간 전"],
-    ["데이터센터 가이던스 이야기가 나와요", "어제"]
+    { t: "엔비디아, 실적 발표 앞두고 거래량 증가", ago: "2시간 전", src: "한국경제", q: "엔비디아 실적 거래량", img: PHOTOS.chip },
+    { t: "데이터센터 가이던스 전망이 다시 나와", ago: "어제", src: "매일경제", q: "엔비디아 데이터센터 가이던스", img: PHOTOS.chip }
   ],
   AAPL: [
-    ["서비스 매출이 버텨 준다는 이야기", "3시간 전"],
-    ["신제품 사이클 눈높이 조정 중", "어제"]
+    { t: "애플 서비스 매출이 실적을 받쳐 준다는 분석", ago: "3시간 전", src: "서울경제", q: "애플 서비스 매출", img: PHOTOS.phone },
+    { t: "신제품 사이클 눈높이 조정 중", ago: "어제", src: "한국경제", q: "애플 신제품 사이클", img: PHOTOS.phone }
   ],
   TSLA: [
-    ["인도량 숫자 가지고 말이 많아요", "1시간 전"],
-    ["마진 이야기가 다시 나와요", "어제"]
+    { t: "테슬라 인도량 숫자를 놓고 전망이 갈려", ago: "1시간 전", src: "매일경제", q: "테슬라 인도량", img: PHOTOS.car },
+    { t: "마진 회복 속도가 다시 주목받는 이유", ago: "어제", src: "한국경제", q: "테슬라 마진", img: PHOTOS.car }
   ],
   AMD: [
-    ["AI 칩 수주 이야기가 돌아요", "4시간 전"],
-    ["서버 GPU 수요 눈높이 이야기", "그제"]
+    { t: "AMD, AI 칩 수주 이야기가 다시 나와", ago: "4시간 전", src: "서울경제", q: "AMD AI 칩 수주", img: PHOTOS.chip },
+    { t: "서버 GPU 수요 눈높이 조정 중", ago: "어제", src: "매일경제", q: "AMD 서버 GPU", img: PHOTOS.chip }
   ],
   MSFT: [
-    ["클라우드 실적 눈높이 이야기", "2시간 전"],
-    ["AI 구독이 끌고 간다는 말", "어제"]
+    { t: "마이크로소프트 클라우드 실적 눈높이", ago: "2시간 전", src: "한국경제", q: "마이크로소프트 클라우드 실적", img: PHOTOS.cloud },
+    { t: "AI 구독이 실적을 끌고 간다는 분석", ago: "어제", src: "매일경제", q: "마이크로소프트 AI 구독", img: PHOTOS.cloud }
   ],
   AMZN: [
-    ["광고·AWS가 끌고 간다는 말", "5시간 전"],
-    ["물류 비용 이야기가 나와요", "어제"]
+    { t: "아마존 광고·AWS가 실적을 끌고 간다", ago: "5시간 전", src: "서울경제", q: "아마존 AWS 광고", img: PHOTOS.shop },
+    { t: "물류 비용 이야기가 다시 나와", ago: "어제", src: "한국경제", q: "아마존 물류 비용", img: PHOTOS.shop }
   ],
   "005930": [
-    ["반도체 업황 이야기가 다시 나와요", "2시간 전"],
-    ["HBM·파운드리 수주 이야기", "어제"]
+    { t: "삼성전자, 반도체 업황 이야기가 다시 나와", ago: "2시간 전", src: "한국경제", q: "삼성전자 반도체 업황", img: PHOTOS.chip, kr: true },
+    { t: "HBM·파운드리 수주 전망", ago: "어제", src: "매일경제", q: "삼성전자 HBM 파운드리", img: PHOTOS.chip, kr: true }
   ],
   "000660": [
-    ["HBM 수요 이야기가 나와요", "1시간 전"],
-    ["공급 계약 눈높이 이야기", "어제"]
+    { t: "SK하이닉스 HBM 수요 이야기가 나와", ago: "1시간 전", src: "한국경제", q: "SK하이닉스 HBM", img: PHOTOS.chip, kr: true },
+    { t: "공급 계약 눈높이 조정 중", ago: "어제", src: "서울경제", q: "SK하이닉스 공급 계약", img: PHOTOS.chip, kr: true }
   ],
   "035420": [
-    ["광고·커머스 회복 속도 이야기", "3시간 전"],
-    ["웹툰·콘텐츠 매출 이야기", "어제"]
+    { t: "네이버 광고·커머스 회복 속도", ago: "3시간 전", src: "매일경제", q: "네이버 광고 커머스", img: PHOTOS.shop, kr: true },
+    { t: "웹툰·콘텐츠 매출 이야기", ago: "어제", src: "한국경제", q: "네이버 웹툰 매출", img: PHOTOS.social, kr: true }
   ],
   "035720": [
-    ["플랫폼 실적 눈높이 조정 중", "2시간 전"],
-    ["톡비즈 회복 속도 이야기", "어제"]
+    { t: "카카오 플랫폼 실적 눈높이 조정", ago: "2시간 전", src: "한국경제", q: "카카오 실적", img: PHOTOS.social, kr: true },
+    { t: "톡비즈 회복 속도가 관전 포인트", ago: "어제", src: "서울경제", q: "카카오 톡비즈", img: PHOTOS.social, kr: true }
   ]
 };
 
 function headlines(ticker) {
-  return NEWS[ticker] || [["그룹에서 이 종목 이야기 중", "데모"]];
+  return NEWS[ticker] || [{ t: "그룹에서 이 종목 이야기 중", ago: "데모", src: "뉴스", q: ticker, img: PHOTOS.chip }];
 }
 function newsLine(ticker) {
-  const [title, ago] = headlines(ticker)[0];
-  return title + " · " + ago + " · 데모";
+  const item = headlines(ticker)[0];
+  return item.t + " · " + item.ago + " · 데모";
+}
+function newsLink(item, ticker) {
+  const q = encodeURIComponent(item.q || item.t);
+  if (item.kr || (stock(ticker) || {}).market === "krx") {
+    return "https://search.naver.com/search.naver?where=news&query=" + q;
+  }
+  return "https://news.google.com/search?q=" + q + "&hl=ko&gl=KR&ceid=KR:ko";
+}
+function newsCard(item, ticker) {
+  return `<a class="news-card" href="${esc(newsLink(item, ticker))}" target="_blank" rel="noopener">
+    <img class="news-thumb" src="${esc(item.img)}" alt="" onerror="this.style.visibility='hidden'">
+    <span class="news-body">
+      <span class="news-title">${esc(item.t)}</span>
+      <span class="news-meta">${esc(item.src)} · ${esc(item.ago)}</span>
+    </span>
+  </a>`;
+}
+function takeMeta(v) {
+  return TAKE_LEVELS.find((x) => x.v === v) || TAKE_LEVELS[2];
+}
+function takesFor(stockId) {
+  return (state.takes || []).filter((t) => t.stockId === stockId);
+}
+function myTake(stockId) {
+  const row = takesFor(stockId).find((t) => t.userId === state.me.id);
+  return row ? row.level : null;
+}
+function groupTake(stockId) {
+  const levels = takesFor(stockId).map((t) => t.level);
+  if (!levels.length) return null;
+  const avg = levels.reduce((a, b) => a + b, 0) / levels.length;
+  const rounded = Math.sign(avg) * Math.round(Math.abs(avg));
+  return Math.max(-2, Math.min(2, rounded));
+}
+function takeStepper(stockId) {
+  const mine = myTake(stockId);
+  const selected = mine == null ? groupTake(stockId) : mine;
+  return `<div class="take-steps">${TAKE_LEVELS.map((lv) => `<button type="button" class="take-step ${lv.kick}${selected === lv.v ? " on" : ""}" data-act="take:${stockId}:${lv.v}">${esc(lv.short)}</button>`).join("")}</div>`;
 }
 function pulseOf(stockId) {
   const s = stock(stockId);
@@ -151,22 +204,30 @@ function pulseOf(stockId) {
   const pending = state.recs.filter((r) => r.stockId === stockId && (r.status === "pending" || r.status === "willBuy")).length;
   const shared = bonds().find((b) => b.stockId === stockId)?.shared;
   const items = headlines(s ? s.ticker : stockId);
-  if (n >= 3) return { rating: "들뜸", kick: "glory", take: "지금 말이 많은 종목", blurb: "댓글 " + n + (pending ? " · 추천 " + pending : ""), items };
-  if (typeof shared === "number" && shared <= -0.15) return { rating: "물림", kick: "roast", take: "같이 물린 분위기", blurb: "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""), items };
-  if (typeof shared === "number" && shared >= 0.15) return { rating: "웃는 중", kick: "glory", take: "같이 웃는 분위기", blurb: "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""), items };
-  if (pending > 0) return { rating: "추천 중", kick: "plain", take: n ? "추천이 왔고 댓글도 있음" : "추천이 와 있음", blurb: "추천 " + pending + (n ? " · 댓글 " + n : ""), items };
-  if (n > 0) return { rating: "이야기 중", kick: "plain", take: "댓글이 오가는 중", blurb: "댓글 " + n, items };
-  return { rating: "조용", kick: "plain", take: "아직 말 없음", blurb: "그룹 평가 없음", items };
-}
-function pulseVibe(stockId) {
-  return pulseOf(stockId).take;
+  const voted = groupTake(stockId);
+  const takeN = takesFor(stockId).length;
+  let rating = "관망", kick = "plain", take = "아직 평가 없음", blurb = "그룹 평가 없음";
+  if (n >= 3) { rating = "들뜸"; kick = "glory"; take = "지금 말이 많은 종목"; blurb = "댓글 " + n + (pending ? " · 추천 " + pending : ""); }
+  else if (typeof shared === "number" && shared <= -0.15) { rating = "물림"; kick = "roast"; take = "같이 물린 분위기"; blurb = "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""); }
+  else if (typeof shared === "number" && shared >= 0.15) { rating = "웃는 중"; kick = "glory"; take = "같이 웃는 분위기"; blurb = "깐부 수익률 " + formatPct(shared) + (n ? " · 댓글 " + n : ""); }
+  else if (pending > 0) { rating = "추천 중"; kick = "plain"; take = n ? "추천이 왔고 댓글도 있음" : "추천이 와 있음"; blurb = "추천 " + pending + (n ? " · 댓글 " + n : ""); }
+  else if (n > 0) { rating = "이야기 중"; kick = "plain"; take = "댓글이 오가는 중"; blurb = "댓글 " + n; }
+  if (voted != null) {
+    const meta = takeMeta(voted);
+    rating = meta.title;
+    kick = meta.kick;
+    take = takeN ? "그룹 " + takeN + "명 평가" : meta.title;
+  }
+  return { rating, kick, take, blurb, items, voted, takeN, mine: myTake(stockId) };
 }
 function pulseStrip(stockId, compact) {
   const p = pulseOf(stockId);
+  const ticker = (stock(stockId) || {}).ticker || stockId;
   const news = compact
-    ? `<div class="news">${esc(p.items[0][0])} · ${esc(p.items[0][1])}</div>`
+    ? newsCard(p.items[0], ticker)
     : `<div class="pulse-blurb">${esc(p.blurb)}</div>
-    <div class="pulse-label">헤드라인</div>` + p.items.slice(0, 2).map((it) => `<div class="pulse-news-row"><span>${esc(it[0])}</span><span>${esc(it[1])}</span></div>`).join("");
+    ${takeStepper(stockId)}
+    <div class="pulse-label">주요 뉴스</div>` + p.items.slice(0, 2).map((it) => newsCard(it, ticker)).join("");
   return `<div class="pulse ${compact ? "compact" : ""}">
     <div class="pulse-top"><span class="pulse-chip ${p.kick}">${esc(p.rating)}</span><span class="pulse-take">${esc(p.take)}</span></div>
     ${news}
@@ -295,6 +356,7 @@ function emptyState(me) {
     events: [],
     badges: [],
     comments: [],
+    takes: [],
     stocks: makeStocks(),
     onboarding: true,
     tab: "group",
@@ -306,7 +368,7 @@ function emptyState(me) {
     addTicker: null,
     addPrice: "",
     chartIndex: null,
-    groupOpen: { turn: true },
+    groupOpen: { turn: true, mood: true },
     inboxPage: 0
   };
 }
@@ -364,6 +426,15 @@ function seed(state) {
     { id: "cm1", groupId: group.id, stockId: "NVDA", authorId: "cheolsu", parentId: null, body: "지금 들어가도 늦었나", createdAt: now() - hours(2) },
     { id: "cm2", groupId: group.id, stockId: "NVDA", authorId: state.me.id, parentId: "cm1", body: "평단만 적어둘게", createdAt: now() - hours(1) },
     { id: "cm3", groupId: group.id, stockId: "NVDA", authorId: "minsu", parentId: null, body: "나는 패스ㅋㅋ 물리면 니 탓이다", createdAt: now() - hours(0.5) }
+  );
+  state.takes.push(
+    { id: "tk-nvda-yh", stockId: "NVDA", userId: "younghee", level: 2 },
+    { id: "tk-nvda-cs", stockId: "NVDA", userId: "cheolsu", level: 1 },
+    { id: "tk-nvda-ms", stockId: "NVDA", userId: "minsu", level: 2 },
+    { id: "tk-aapl-me", stockId: "AAPL", userId: state.me.id, level: 1 },
+    { id: "tk-kakao-ms", stockId: "035720", userId: "minsu", level: -2 },
+    { id: "tk-kakao-jh", stockId: "035720", userId: "junho", level: -1 },
+    { id: "tk-amd-ms", stockId: "AMD", userId: "minsu", level: 1 }
   );
   const proposal = {
     id: "p1", groupId: group.id, proposerId: "minsu", stockId: "AMD",
@@ -910,16 +981,18 @@ function recommendedSection() {
     const s = stock(id);
     const related = recs.filter((r) => r.stockId === id);
     const last = related[related.length - 1];
-    return `<button class="row btn" data-act="thread:${id}">
-      ${stockMark(s)}
-      <div class="grow">
-        <div class="stock-name">${esc(s.name)}</div>
-        <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
-        ${pulseStrip(id, true)}
-        <div class="meta">“${esc(last.message)}”</div>
-      </div>
-      <div class="right">${commentMeta(id)}</div>
-    </button>`;
+    return `<div class="row-block">
+      <button class="row btn" data-act="thread:${id}">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+          <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
+          <div class="meta">“${esc(last.message)}”</div>
+        </div>
+        <div class="right">${commentMeta(id)}</div>
+      </button>
+      ${pulseStrip(id, true)}
+    </div>`;
   }).join("");
   return foldSection("recs", "추천 종목", ids.length, lastName, body);
 }
@@ -934,15 +1007,17 @@ function moodSection() {
   const preview = first ? first.name : "";
   const body = ids.slice(0, 3).map((id) => {
     const s = stock(id);
-    return `<button class="row btn" data-act="thread:${id}">
-      ${stockMark(s)}
-      <div class="grow">
-        <div class="stock-name">${esc(s.name)}</div>
-        ${pulseStrip(id, false)}
-      </div>
-    </button>`;
+    return `<div class="row-block">
+      <button class="row btn" data-act="thread:${id}">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+        </div>
+      </button>
+      ${pulseStrip(id, false)}
+    </div>`;
   }).join("");
-  return foldSection("mood", "종목 평가", ids.length, preview, body);
+  return foldSection("mood", "종목 평가", ids.length, preview, body, true);
 }
 
 function renderGroup() {
@@ -1135,12 +1210,14 @@ function sheetHTML() {
     </div>`;
     return sheetWrap(`
       <div class="thread-head">
-        ${stockMark(s, "lg")}
-        <div class="grow">
-          <h2 style="margin:0">${esc(s.name)}</h2>
-          <div class="ticker">${esc(s.ticker)}</div>
-          ${pulseStrip(s.id, false)}
+        <div class="thread-title">
+          ${stockMark(s, "lg")}
+          <div class="grow">
+            <h2 style="margin:0">${esc(s.name)}</h2>
+            <div class="ticker">${esc(s.ticker)}</div>
+          </div>
         </div>
+        ${pulseStrip(s.id, false)}
       </div>
       <p class="note">이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
       <div class="kind">추천 히스토리</div>
@@ -1241,6 +1318,7 @@ document.addEventListener("click", (e) => {
     e.preventDefault();
     return;
   }
+  if (e.target.closest && e.target.closest("a[href]")) return;
   if (e.target.classList.contains("sheet")) {
     closeSheet();
     return;
@@ -1338,6 +1416,20 @@ function handle(act) {
     const parts = act.split(":");
     const msg = document.getElementById("rec-msg")?.value;
     return recommend(parts[1], parts[2], msg);
+  }
+  if (act.startsWith("take:")) {
+    const parts = act.split(":");
+    const stockId = parts[1];
+    const level = Number(parts[2]);
+    if (!stockId || Number.isNaN(level)) return;
+    if (!state.takes) state.takes = [];
+    const idx = state.takes.findIndex((t) => t.stockId === stockId && t.userId === state.me.id);
+    if (idx >= 0) state.takes[idx].level = level;
+    else state.takes.push({ id: uid(), stockId, userId: state.me.id, level });
+    const s = stock(stockId);
+    toast(takeMeta(level).title + (s ? " · " + s.name : ""));
+    render();
+    return;
   }
   if (act.startsWith("thread:")) {
     state.replyTo = null;

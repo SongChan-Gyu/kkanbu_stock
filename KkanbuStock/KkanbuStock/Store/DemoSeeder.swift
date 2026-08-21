@@ -187,6 +187,16 @@ enum DemoSeeder {
             )
         ])
 
+        state.takes.append(contentsOf: [
+            StockTake(groupId: group.id, userId: younghee.id, stockId: nvda.id, level: .strongBuy),
+            StockTake(groupId: group.id, userId: cheolsu.id, stockId: nvda.id, level: .buy),
+            StockTake(groupId: group.id, userId: minsu.id, stockId: nvda.id, level: .strongBuy),
+            StockTake(groupId: group.id, userId: currentUser.id, stockId: aapl.id, level: .buy),
+            StockTake(groupId: group.id, userId: minsu.id, stockId: kakao.id, level: .strongSell),
+            StockTake(groupId: group.id, userId: junho.id, stockId: kakao.id, level: .sell),
+            StockTake(groupId: group.id, userId: minsu.id, stockId: amd.id, level: .buy)
+        ])
+
         let proposal = StockProposal(
             groupId: group.id,
             proposerId: minsu.id,

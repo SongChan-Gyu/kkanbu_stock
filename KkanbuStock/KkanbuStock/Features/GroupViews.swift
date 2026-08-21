@@ -57,7 +57,7 @@ struct GroupHomeView: View {
     @State private var addPrefill: Stock?
     @State private var verifyHolding: Holding?
     @State private var threadStock: Stock?
-    @State private var openSections: Set<String> = ["turn"]
+    @State private var openSections: Set<String> = ["turn", "mood"]
 
     var body: some View {
         ScrollView {
@@ -207,30 +207,32 @@ struct GroupHomeView: View {
                         if let stock = store.state.stock(stockId) {
                             let related = recs.filter { $0.stockId == stockId }
                             let count = store.commentCount(in: group.id, stockId: stockId)
-                            Button {
-                                threadStock = stock
-                            } label: {
-                                HStack(alignment: .top, spacing: 12) {
-                                    StockMark(ticker: stock.ticker, name: stock.name, size: 40)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(stock.name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(KkanbuTheme.ink)
-                                        Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
-                                            .font(.caption)
-                                            .foregroundStyle(KkanbuTheme.muted)
-                                        PulseStrip(snapshot: pulse(for: stock))
-                                        Text(related.last.map { "“\($0.message)”" } ?? "")
-                                            .font(.caption)
-                                            .foregroundStyle(KkanbuTheme.ink)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    threadStock = stock
+                                } label: {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        StockMark(ticker: stock.ticker, name: stock.name, size: 40)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(stock.name)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(KkanbuTheme.ink)
+                                            Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
+                                                .font(.caption)
+                                                .foregroundStyle(KkanbuTheme.muted)
+                                            Text(related.last.map { "“\($0.message)”" } ?? "")
+                                                .font(.caption)
+                                                .foregroundStyle(KkanbuTheme.ink)
+                                        }
+                                        Spacer()
+                                        CommentCountLabel(count: count)
                                     }
-                                    Spacer()
-                                    CommentCountLabel(count: count)
                                 }
-                                .padding(.vertical, 10)
-                                .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                                .buttonStyle(.plain)
+                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
                             }
-                            .buttonStyle(.plain)
+                            .padding(.vertical, 10)
+                            .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
                         }
                     }
                 }
@@ -250,22 +252,23 @@ struct GroupHomeView: View {
                     ForEach(ids.prefix(3), id: \.self) { stockId in
                         if let stock = store.state.stock(stockId) {
                             let snap = pulse(for: stock)
-                            Button {
-                                threadStock = stock
-                            } label: {
-                                HStack(alignment: .top, spacing: 12) {
-                                    StockMark(ticker: stock.ticker, name: stock.name, size: 36)
-                                    VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    threadStock = stock
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
                                         Text(stock.name)
                                             .font(.subheadline.weight(.semibold))
                                             .foregroundStyle(KkanbuTheme.ink)
-                                        PulseStrip(snapshot: snap, compact: false)
+                                        Spacer()
                                     }
                                 }
-                                .padding(.vertical, 10)
-                                .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                                .buttonStyle(.plain)
+                                PulseStrip(snapshot: snap, compact: false, stock: stock)
                             }
-                            .buttonStyle(.plain)
+                            .padding(.vertical, 10)
+                            .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
                         }
                     }
                 }
@@ -274,18 +277,7 @@ struct GroupHomeView: View {
     }
 
     private func pulse(for stock: Stock) -> StockPulse.Snapshot {
-        let comments = store.commentCount(in: group.id, stockId: stock.id)
-        let pending = store.state.recommendations.filter {
-            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
-        }.count
-        let shared = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices)
-            .first { $0.stockId == stock.id }?.sharedReturn
-        return StockPulse.snapshot(
-            ticker: stock.ticker,
-            commentCount: comments,
-            pendingRecommendations: pending,
-            sharedReturn: shared
-        )
+        store.pulseSnapshot(for: stock, in: group.id)
     }
 
     private var hero: some View {
@@ -392,21 +384,25 @@ struct GroupHomeView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(rows.prefix(8), id: \.1.id) { user, holding in
                         if let stock = store.state.stock(holding.stockId) {
-                            NavigationLink {
-                                FriendDetailView(user: user, group: group)
-                            } label: {
-                                HoldingCardView(
-                                    stock: stock,
-                                    holding: holding,
-                                    currentPrice: store.price(for: stock.id),
-                                    partners: [],
-                                    grade: nil,
-                                    showsQuantity: user.shareQuantity,
-                                    isMine: false,
-                                    ownerName: user.nickname
-                                )
+                            VStack(alignment: .leading, spacing: 8) {
+                                NavigationLink {
+                                    FriendDetailView(user: user, group: group)
+                                } label: {
+                                    HoldingCardView(
+                                        stock: stock,
+                                        holding: holding,
+                                        currentPrice: store.price(for: stock.id),
+                                        partners: [],
+                                        grade: nil,
+                                        showsQuantity: user.shareQuantity,
+                                        isMine: false,
+                                        ownerName: user.nickname,
+                                        showsPulse: false
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                PulseStrip(snapshot: store.pulseSnapshot(for: stock, in: group.id), stock: stock)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -455,7 +451,7 @@ struct ProposalCard: View {
                         Text(stock?.name ?? "")
                             .font(.subheadline.weight(.semibold))
                         if let stock {
-                            PulseStrip(snapshot: pulse(for: stock))
+                            PulseStrip(snapshot: pulse(for: stock), stock: stock)
                         }
                     }
                 }
@@ -480,18 +476,7 @@ struct ProposalCard: View {
     }
 
     private func pulse(for stock: Stock) -> StockPulse.Snapshot {
-        let comments = store.commentCount(in: proposal.groupId, stockId: stock.id)
-        let pending = store.state.recommendations.filter {
-            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
-        }.count
-        let shared = KkangbuMath.bonds(in: proposal.groupId, state: store.state, prices: store.currentPrices)
-            .first { $0.stockId == stock.id }?.sharedReturn
-        return StockPulse.snapshot(
-            ticker: stock.ticker,
-            commentCount: comments,
-            pendingRecommendations: pending,
-            sharedReturn: shared
-        )
+        store.pulseSnapshot(for: stock, in: proposal.groupId)
     }
 }
 

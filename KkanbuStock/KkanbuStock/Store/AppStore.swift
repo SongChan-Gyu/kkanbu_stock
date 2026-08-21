@@ -449,6 +449,52 @@ final class AppStore {
         comments(in: groupId, stockId: stockId).count
     }
 
+    func setTake(stockId: UUID, level: TakeLevel) {
+        guard let groupId = state.selectedGroupId else { return }
+        if let index = state.takes.firstIndex(where: {
+            $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId
+        }) {
+            state.takes[index].level = level
+        } else {
+            state.takes.append(StockTake(groupId: groupId, userId: state.currentUserId, stockId: stockId, level: level))
+        }
+        persist()
+        toast = level.title
+    }
+
+    func takes(in groupId: UUID, stockId: UUID) -> [StockTake] {
+        state.takes.filter { $0.groupId == groupId && $0.stockId == stockId }
+    }
+
+    func myTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        state.takes.first { $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId }?.level
+    }
+
+    func groupTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        TakeLevel.consensus(takes(in: groupId, stockId: stockId).map(\.level))
+    }
+
+    func pulseSnapshot(for stock: Stock, in groupId: UUID?) -> StockPulse.Snapshot {
+        let comments = groupId.map { commentCount(in: $0, stockId: stock.id) } ?? 0
+        let pending = state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = groupId.flatMap { gid in
+            KkangbuMath.bonds(in: gid, state: state, prices: currentPrices)
+                .first { $0.stockId == stock.id }?.sharedReturn
+        }
+        let takeCount = groupId.map { takes(in: $0, stockId: stock.id).count } ?? 0
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared,
+            groupTake: groupId.flatMap { groupTake(in: $0, stockId: stock.id) },
+            takeCount: takeCount,
+            myTake: groupId.flatMap { myTake(in: $0, stockId: stock.id) }
+        )
+    }
+
     func recommendations(in groupId: UUID, stockId: UUID) -> [StockRecommendation] {
         state.recommendations
             .filter { $0.groupId == groupId && $0.stockId == stockId }

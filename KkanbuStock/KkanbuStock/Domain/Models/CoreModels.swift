@@ -302,12 +302,68 @@ enum StockIdentity {
     }
 }
 
+enum TakeLevel: Int, Codable, CaseIterable, Sendable, Hashable {
+    case strongSell = -2
+    case sell = -1
+    case hold = 0
+    case buy = 1
+    case strongBuy = 2
+
+    var title: String {
+        switch self {
+        case .strongSell: "강력 매도"
+        case .sell: "매도"
+        case .hold: "관망"
+        case .buy: "추천"
+        case .strongBuy: "강력 추천"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .strongSell: "강매도"
+        case .sell: "매도"
+        case .hold: "관망"
+        case .buy: "추천"
+        case .strongBuy: "강추천"
+        }
+    }
+
+    var kick: String {
+        switch self {
+        case .strongSell, .sell: "roast"
+        case .strongBuy, .buy: "glory"
+        case .hold: "plain"
+        }
+    }
+
+    static func consensus(_ levels: [TakeLevel]) -> TakeLevel? {
+        guard !levels.isEmpty else { return nil }
+        let avg = Double(levels.map(\.rawValue).reduce(0, +)) / Double(levels.count)
+        return TakeLevel(rawValue: Int(avg.rounded())) ?? .hold
+    }
+}
+
 enum StockPulse {
     static let newsAge = "2시간 전 · 데모"
+    private static let chipPhoto = "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&h=280&q=60"
+    private static let phonePhoto = "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=400&h=280&q=60"
+    private static let carPhoto = "https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&w=400&h=280&q=60"
+    private static let cloudPhoto = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&h=280&q=60"
+    private static let shopPhoto = "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&h=280&q=60"
+    private static let socialPhoto = "https://images.unsplash.com/photo-1611162616475-46b635cb6868?auto=format&fit=crop&w=400&h=280&q=60"
 
-    struct NewsItem: Equatable {
+    struct NewsItem: Equatable, Identifiable {
+        var id: String { title + source }
         var title: String
         var ago: String
+        var source: String
+        var query: String
+        var image: String
+        var kr: Bool
+
+        var url: URL { StockPulse.newsURL(query: query, kr: kr) }
+        var imageURL: URL? { URL(string: image) }
     }
 
     struct Snapshot: Equatable {
@@ -316,73 +372,88 @@ enum StockPulse {
         var take: String
         var blurb: String
         var items: [NewsItem]
+        var groupTake: TakeLevel? = nil
+        var takeCount: Int = 0
+        var myTake: TakeLevel? = nil
+    }
+
+    static func newsURL(query: String, kr: Bool) -> URL {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        if kr {
+            return URL(string: "https://search.naver.com/search.naver?where=news&query=\(encoded)")!
+        }
+        return URL(string: "https://news.google.com/search?q=\(encoded)&hl=ko&gl=KR&ceid=KR:ko")!
+    }
+
+    private static func item(_ title: String, _ ago: String, _ source: String, _ query: String, _ image: String, kr: Bool = false) -> NewsItem {
+        NewsItem(title: title, ago: ago, source: source, query: query, image: image, kr: kr)
     }
 
     static func headlines(ticker: String) -> [NewsItem] {
         switch ticker.uppercased() {
         case "NVDA":
             [
-                .init(title: "실적 발표 앞두고 거래량 늘었어요", ago: "2시간 전"),
-                .init(title: "데이터센터 가이던스 이야기가 나와요", ago: "어제")
+                item("엔비디아, 실적 발표 앞두고 거래량 증가", "2시간 전", "한국경제", "엔비디아 실적 거래량", chipPhoto),
+                item("데이터센터 가이던스 전망이 다시 나와", "어제", "매일경제", "엔비디아 데이터센터 가이던스", chipPhoto)
             ]
         case "AAPL":
             [
-                .init(title: "서비스 매출이 버텨 준다는 이야기", ago: "3시간 전"),
-                .init(title: "신제품 사이클 눈높이 조정 중", ago: "어제")
+                item("애플 서비스 매출이 실적을 받쳐 준다는 분석", "3시간 전", "서울경제", "애플 서비스 매출", phonePhoto),
+                item("신제품 사이클 눈높이 조정 중", "어제", "한국경제", "애플 신제품 사이클", phonePhoto)
             ]
         case "TSLA":
             [
-                .init(title: "인도량 숫자 가지고 말이 많아요", ago: "1시간 전"),
-                .init(title: "마진 이야기가 다시 나와요", ago: "어제")
+                item("테슬라 인도량 숫자를 놓고 전망이 갈려", "1시간 전", "매일경제", "테슬라 인도량", carPhoto),
+                item("마진 회복 속도가 다시 주목받는 이유", "어제", "한국경제", "테슬라 마진", carPhoto)
             ]
         case "AMD":
             [
-                .init(title: "AI 칩 수주 이야기가 돌아요", ago: "4시간 전"),
-                .init(title: "서버 GPU 수요 눈높이 이야기", ago: "그제")
+                item("AMD, AI 칩 수주 이야기가 다시 나와", "4시간 전", "서울경제", "AMD AI 칩 수주", chipPhoto),
+                item("서버 GPU 수요 눈높이 조정 중", "어제", "매일경제", "AMD 서버 GPU", chipPhoto)
             ]
         case "MSFT":
             [
-                .init(title: "클라우드 실적 눈높이 이야기", ago: "2시간 전"),
-                .init(title: "AI 구독이 끌고 간다는 말", ago: "어제")
+                item("마이크로소프트 클라우드 실적 눈높이", "2시간 전", "한국경제", "마이크로소프트 클라우드 실적", cloudPhoto),
+                item("AI 구독이 실적을 끌고 간다는 분석", "어제", "매일경제", "마이크로소프트 AI 구독", cloudPhoto)
             ]
         case "AMZN":
             [
-                .init(title: "광고·AWS가 끌고 간다는 말", ago: "5시간 전"),
-                .init(title: "물류 비용 이야기가 나와요", ago: "어제")
+                item("아마존 광고·AWS가 실적을 끌고 간다", "5시간 전", "서울경제", "아마존 AWS 광고", shopPhoto),
+                item("물류 비용 이야기가 다시 나와", "어제", "한국경제", "아마존 물류 비용", shopPhoto)
             ]
         case "GOOGL":
             [
-                .init(title: "검색·클라우드 실적 이야기", ago: "3시간 전"),
-                .init(title: "광고 단가 회복 속도 이야기", ago: "어제")
+                item("구글 검색·클라우드 실적 이야기", "3시간 전", "한국경제", "구글 클라우드 실적", cloudPhoto),
+                item("광고 단가 회복 속도가 관전 포인트", "어제", "매일경제", "구글 광고 단가", cloudPhoto)
             ]
         case "META":
             [
-                .init(title: "광고 회복 속도 이야기가 나와요", ago: "2시간 전"),
-                .init(title: "릴스 매출 눈높이 이야기", ago: "어제")
+                item("메타 광고 회복 속도가 다시 나와", "2시간 전", "서울경제", "메타 광고 회복", socialPhoto),
+                item("릴스 매출 눈높이 이야기", "어제", "한국경제", "메타 릴스 매출", socialPhoto)
             ]
         case "005930":
             [
-                .init(title: "반도체 업황 이야기가 다시 나와요", ago: "2시간 전"),
-                .init(title: "HBM·파운드리 수주 이야기", ago: "어제")
+                item("삼성전자, 반도체 업황 이야기가 다시 나와", "2시간 전", "한국경제", "삼성전자 반도체 업황", chipPhoto, kr: true),
+                item("HBM·파운드리 수주 전망", "어제", "매일경제", "삼성전자 HBM 파운드리", chipPhoto, kr: true)
             ]
         case "000660":
             [
-                .init(title: "HBM 수요 이야기가 나와요", ago: "1시간 전"),
-                .init(title: "공급 계약 눈높이 이야기", ago: "어제")
+                item("SK하이닉스 HBM 수요 이야기가 나와", "1시간 전", "한국경제", "SK하이닉스 HBM", chipPhoto, kr: true),
+                item("공급 계약 눈높이 조정 중", "어제", "서울경제", "SK하이닉스 공급 계약", chipPhoto, kr: true)
             ]
         case "035420":
             [
-                .init(title: "광고·커머스 회복 속도 이야기", ago: "3시간 전"),
-                .init(title: "웹툰·콘텐츠 매출 이야기", ago: "어제")
+                item("네이버 광고·커머스 회복 속도", "3시간 전", "매일경제", "네이버 광고 커머스", shopPhoto, kr: true),
+                item("웹툰·콘텐츠 매출 이야기", "어제", "한국경제", "네이버 웹툰 매출", socialPhoto, kr: true)
             ]
         case "035720":
             [
-                .init(title: "플랫폼 실적 눈높이 조정 중", ago: "2시간 전"),
-                .init(title: "톡비즈 회복 속도 이야기", ago: "어제")
+                item("카카오 플랫폼 실적 눈높이 조정", "2시간 전", "한국경제", "카카오 실적", socialPhoto, kr: true),
+                item("톡비즈 회복 속도가 관전 포인트", "어제", "서울경제", "카카오 톡비즈", socialPhoto, kr: true)
             ]
         default:
             [
-                .init(title: "그룹에서 이 종목 이야기 중", ago: "데모")
+                item("그룹에서 이 종목 이야기 중", "데모", "뉴스", ticker, chipPhoto)
             ]
         }
     }
@@ -400,61 +471,71 @@ enum StockPulse {
         ticker: String,
         commentCount: Int,
         pendingRecommendations: Int,
-        sharedReturn: Double?
+        sharedReturn: Double?,
+        groupTake: TakeLevel? = nil,
+        takeCount: Int = 0,
+        myTake: TakeLevel? = nil
     ) -> Snapshot {
         let items = headlines(ticker: ticker)
+        var snap: Snapshot
         if commentCount >= 3 {
-            return Snapshot(
+            snap = Snapshot(
                 rating: "들뜸",
                 kick: "glory",
                 take: "지금 말이 많은 종목",
                 blurb: "댓글 \(commentCount)" + (pendingRecommendations > 0 ? " · 추천 \(pendingRecommendations)" : ""),
                 items: items
             )
-        }
-        if let sharedReturn, sharedReturn <= -0.15 {
-            return Snapshot(
+        } else if let sharedReturn, sharedReturn <= -0.15 {
+            snap = Snapshot(
                 rating: "물림",
                 kick: "roast",
                 take: "같이 물린 분위기",
                 blurb: "깐부 수익률 \(percent(sharedReturn))" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
                 items: items
             )
-        }
-        if let sharedReturn, sharedReturn >= 0.15 {
-            return Snapshot(
+        } else if let sharedReturn, sharedReturn >= 0.15 {
+            snap = Snapshot(
                 rating: "웃는 중",
                 kick: "glory",
                 take: "같이 웃는 분위기",
                 blurb: "깐부 수익률 \(percent(sharedReturn))" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
                 items: items
             )
-        }
-        if pendingRecommendations > 0 {
-            return Snapshot(
+        } else if pendingRecommendations > 0 {
+            snap = Snapshot(
                 rating: "추천 중",
                 kick: "plain",
                 take: commentCount > 0 ? "추천이 왔고 댓글도 있음" : "추천이 와 있음",
                 blurb: "추천 \(pendingRecommendations)" + (commentCount > 0 ? " · 댓글 \(commentCount)" : ""),
                 items: items
             )
-        }
-        if commentCount > 0 {
-            return Snapshot(
+        } else if commentCount > 0 {
+            snap = Snapshot(
                 rating: "이야기 중",
                 kick: "plain",
                 take: "댓글이 오가는 중",
                 blurb: "댓글 \(commentCount)",
                 items: items
             )
+        } else {
+            snap = Snapshot(
+                rating: "관망",
+                kick: "plain",
+                take: "아직 평가 없음",
+                blurb: "그룹 평가 없음",
+                items: items
+            )
         }
-        return Snapshot(
-            rating: "조용",
-            kick: "plain",
-            take: "아직 말 없음",
-            blurb: "그룹 평가 없음",
-            items: items
-        )
+        if let groupTake {
+            snap.rating = groupTake.title
+            snap.kick = groupTake.kick
+            snap.take = takeCount > 0 ? "그룹 \(takeCount)명 평가" : groupTake.title
+        }
+        snap.groupTake = groupTake
+        snap.takeCount = takeCount
+        snap.myTake = myTake
+        return snap
     }
 
     static func vibe(commentCount: Int, pendingRecommendations: Int, sharedReturn: Double?) -> String {

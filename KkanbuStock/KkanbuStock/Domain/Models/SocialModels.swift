@@ -187,6 +187,31 @@ struct GurapingSuspicion: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+struct StockTake: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var groupId: UUID
+    var userId: UUID
+    var stockId: UUID
+    var level: TakeLevel
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        groupId: UUID,
+        userId: UUID,
+        stockId: UUID,
+        level: TakeLevel,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.groupId = groupId
+        self.userId = userId
+        self.stockId = stockId
+        self.level = level
+        self.createdAt = createdAt
+    }
+}
+
 struct StockComment: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var groupId: UUID

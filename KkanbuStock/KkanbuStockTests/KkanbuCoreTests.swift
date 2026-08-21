@@ -440,6 +440,8 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertTrue(bonds.contains { $0.grade.isGlory })
         XCTAssertTrue(bonds.contains { $0.grade.isRoast })
         XCTAssertFalse(store.state.comments.isEmpty)
+        XCTAssertFalse(store.state.takes.isEmpty)
+        XCTAssertEqual(store.groupTake(in: store.state.groups[0].id, stockId: StockCatalog.stock(ticker: "NVDA")!.id), .strongBuy)
     }
 
     func testRecommendationThreadKeepsCommentsAndReplies() {
@@ -497,11 +499,49 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(nvda.count, 2)
         XCTAssertTrue(nvda[0].title.contains("거래량"))
         XCTAssertEqual(nvda[0].ago, "2시간 전")
+        XCTAssertEqual(nvda[0].source, "한국경제")
+        XCTAssertTrue(nvda[0].url.host?.contains("news.google.com") == true)
+        XCTAssertNotNil(nvda[0].imageURL)
         XCTAssertTrue(nvda[1].title.contains("데이터센터"))
         XCTAssertTrue(StockPulse.headline(ticker: "NVDA").contains("거래량"))
         XCTAssertTrue(StockPulse.newsLine(ticker: "NVDA").contains("데모"))
         XCTAssertEqual(StockPulse.headlines(ticker: "UNKNOWN").count, 1)
         XCTAssertEqual(StockPulse.headline(ticker: "UNKNOWN"), "그룹에서 이 종목 이야기 중")
+        let samsung = StockPulse.headlines(ticker: "005930")[0]
+        XCTAssertTrue(samsung.url.host?.contains("search.naver.com") == true)
+    }
+
+    func testTakeStepsAndConsensus() {
+        XCTAssertEqual(TakeLevel.allCases.count, 5)
+        XCTAssertEqual(TakeLevel.strongBuy.title, "강력 추천")
+        XCTAssertEqual(TakeLevel.consensus([.strongBuy, .buy, .strongBuy]), .strongBuy)
+        XCTAssertEqual(TakeLevel.consensus([.strongSell, .sell]), .strongSell)
+        let rated = StockPulse.snapshot(
+            ticker: "NVDA",
+            commentCount: 4,
+            pendingRecommendations: 1,
+            sharedReturn: 0.4,
+            groupTake: .strongBuy,
+            takeCount: 3,
+            myTake: .buy
+        )
+        XCTAssertEqual(rated.rating, "강력 추천")
+        XCTAssertEqual(rated.kick, "glory")
+        XCTAssertTrue(rated.take.contains("3명"))
+    }
+
+    func testSetTakeUpdatesMyVote() {
+        let me = User(nickname: "나")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-take-\(UUID().uuidString).json")
+        )
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.setTake(stockId: nvda.id, level: .hold)
+        XCTAssertEqual(store.myTake(in: store.state.groups[0].id, stockId: nvda.id), .hold)
+        XCTAssertEqual(store.toast, "관망")
     }
 
     func testSnapshotKeepsLightCopy() {
@@ -516,8 +556,8 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(roasted.take, "같이 물린 분위기")
 
         let quiet = StockPulse.snapshot(ticker: "AMD", commentCount: 0, pendingRecommendations: 0, sharedReturn: nil)
-        XCTAssertEqual(quiet.rating, "조용")
-        XCTAssertEqual(quiet.take, "아직 말 없음")
+        XCTAssertEqual(quiet.rating, "관망")
+        XCTAssertEqual(quiet.take, "아직 평가 없음")
     }
 
     func testVibeStaysLight() {
@@ -526,6 +566,6 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 1, sharedReturn: nil), "추천이 와 있음")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2), "같이 물린 분위기")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: 0.2), "같이 웃는 분위기")
-        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 말 없음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 평가 없음")
     }
 }

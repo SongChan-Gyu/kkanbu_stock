@@ -51,7 +51,7 @@ struct InboxActionCard: View {
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                PulseStrip(snapshot: pulse(for: stock))
+                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
                             }
                         }
                         VStack(spacing: 8) {
@@ -75,7 +75,7 @@ struct InboxActionCard: View {
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                PulseStrip(snapshot: pulse(for: stock))
+                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
                             }
                         }
                         VStack(spacing: 8) {
@@ -184,21 +184,7 @@ struct InboxActionCard: View {
     }
 
     private func pulse(for stock: Stock) -> StockPulse.Snapshot {
-        let gid = store.state.selectedGroupId
-        let comments = gid.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
-        let pending = store.state.recommendations.filter {
-            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
-        }.count
-        let shared = gid.flatMap { id in
-            KkangbuMath.bonds(in: id, state: store.state, prices: store.currentPrices)
-                .first { $0.stockId == stock.id }?.sharedReturn
-        }
-        return StockPulse.snapshot(
-            ticker: stock.ticker,
-            commentCount: comments,
-            pendingRecommendations: pending,
-            sharedReturn: shared
-        )
+        store.pulseSnapshot(for: stock, in: store.state.selectedGroupId)
     }
 }
 
@@ -242,25 +228,12 @@ struct RecommendationThreadView: View {
                         .foregroundStyle(KkanbuTheme.faint)
                 }
             }
-            PulseStrip(snapshot: pulseSnapshot, compact: false)
+            PulseStrip(snapshot: pulseSnapshot, compact: false, stock: stock)
         }
     }
 
     private var pulseSnapshot: StockPulse.Snapshot {
-        let comments = groupId.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
-        let pending = store.state.recommendations.filter {
-            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
-        }.count
-        let shared = groupId.flatMap { gid in
-            KkangbuMath.bonds(in: gid, state: store.state, prices: store.currentPrices)
-                .first { $0.stockId == stock.id }?.sharedReturn
-        }
-        return StockPulse.snapshot(
-            ticker: stock.ticker,
-            commentCount: comments,
-            pendingRecommendations: pending,
-            sharedReturn: shared
-        )
+        store.pulseSnapshot(for: stock, in: groupId)
     }
 
     private var history: some View {

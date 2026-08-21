@@ -148,12 +148,82 @@ struct PulseChip: View {
     }
 }
 
-struct PulseStrip: View {
-    var snapshot: StockPulse.Snapshot
-    var compact: Bool = true
+struct TakeStepper: View {
+    var selected: TakeLevel?
+    var action: (TakeLevel) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 4) {
+            ForEach(TakeLevel.allCases, id: \.self) { level in
+                Button {
+                    action(level)
+                } label: {
+                    Text(level.shortTitle)
+                        .font(.caption2.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(selected == level ? color(level) : KkanbuTheme.muted)
+                        .background(
+                            (selected == level ? color(level).opacity(0.12) : KkanbuTheme.chip),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func color(_ level: TakeLevel) -> Color {
+        switch level.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.ink
+        }
+    }
+}
+
+struct NewsCard: View {
+    var item: StockPulse.NewsItem
+
+    var body: some View {
+        Link(destination: item.url) {
+            HStack(alignment: .top, spacing: 10) {
+                AsyncImage(url: item.imageURL) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image.resizable().scaledToFill()
+                    default:
+                        KkanbuTheme.chip
+                    }
+                }
+                .frame(width: 72, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text("\(item.source) · \(item.ago)")
+                        .font(.caption2)
+                        .foregroundStyle(KkanbuTheme.faint)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PulseStrip: View {
+    @Environment(AppStore.self) private var store
+    var snapshot: StockPulse.Snapshot
+    var compact: Bool = true
+    var stock: Stock? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 PulseChip(snapshot: snapshot)
                 Text(snapshot.take)
@@ -161,32 +231,24 @@ struct PulseStrip: View {
                     .foregroundStyle(KkanbuTheme.muted)
                     .lineLimit(1)
             }
-            if compact {
-                if let first = snapshot.items.first {
-                    Text("\(first.title) · \(first.ago)")
-                        .font(.caption)
-                        .foregroundStyle(KkanbuTheme.muted)
-                        .lineLimit(1)
+            if !compact {
+                if let stock {
+                    TakeStepper(selected: snapshot.myTake ?? snapshot.groupTake) { level in
+                        store.setTake(stockId: stock.id, level: level)
+                    }
                 }
-            } else {
                 Text(snapshot.blurb)
                     .font(.caption)
                     .foregroundStyle(KkanbuTheme.faint)
-                Text("헤드라인")
+                Text("주요 뉴스")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(KkanbuTheme.faint)
                     .padding(.top, 2)
-                ForEach(Array(snapshot.items.prefix(2).enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(item.title)
-                            .font(.caption)
-                            .foregroundStyle(KkanbuTheme.ink)
-                        Spacer(minLength: 8)
-                        Text(item.ago)
-                            .font(.caption2)
-                            .foregroundStyle(KkanbuTheme.faint)
-                    }
+                ForEach(snapshot.items.prefix(2)) { item in
+                    NewsCard(item: item)
                 }
+            } else if let first = snapshot.items.first {
+                NewsCard(item: first)
             }
         }
     }
@@ -437,6 +499,7 @@ struct GradeTitle: View {
 }
 
 struct HoldingCardView: View {
+    @Environment(AppStore.self) private var store
     var stock: Stock
     var holding: Holding
     var currentPrice: Double
@@ -448,6 +511,7 @@ struct HoldingCardView: View {
     var onRecommend: (() -> Void)?
     var onSell: (() -> Void)?
     var onVerify: (() -> Void)?
+    var showsPulse: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -474,7 +538,9 @@ struct HoldingCardView: View {
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
                 .foregroundStyle(KkanbuTheme.muted)
-            PulseStrip(snapshot: rowPulse)
+            if showsPulse {
+                PulseStrip(snapshot: rowPulse, stock: stock)
+            }
             if showsQuantity, let qty = holding.quantity {
                 Text("수량 \(String(format: "%g", qty))")
                     .font(.caption)
@@ -514,20 +580,7 @@ struct HoldingCardView: View {
     }
 
     private var rowPulse: StockPulse.Snapshot {
-        let shared: Double?
-        if let grade {
-            if grade.isGlory { shared = 0.2 }
-            else if grade.isRoast { shared = -0.2 }
-            else { shared = 0 }
-        } else {
-            shared = nil
-        }
-        return StockPulse.snapshot(
-            ticker: stock.ticker,
-            commentCount: 0,
-            pendingRecommendations: 0,
-            sharedReturn: shared
-        )
+        store.pulseSnapshot(for: stock, in: store.state.selectedGroupId)
     }
 
     @ViewBuilder
