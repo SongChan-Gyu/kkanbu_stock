@@ -30,7 +30,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; }
+html, body { margin: 0; min-height: 100%; min-height: 100dvh; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
   background: #e8eaed;
@@ -287,6 +287,8 @@ body {
 button {
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
 }
 .btn {
   border: 0;
@@ -477,29 +479,23 @@ label {
 .tabs button.on { color: var(--text); font-weight: 650; }
 
 .sheet {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: rgba(17, 17, 17, 0.4);
   display: flex;
   align-items: flex-end;
   z-index: 40;
 }
-.sheet-dismiss {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: transparent;
-  padding: 0;
-}
 .sheet .panel {
-  position: relative;
-  z-index: 1;
   background: var(--surface);
   width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
   border-radius: 16px 16px 0 0;
   padding: 20px var(--pad) calc(24px + env(safe-area-inset-bottom));
   max-height: 86%;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .sheet h2 {
   font-size: 18px;

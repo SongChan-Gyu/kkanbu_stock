@@ -860,7 +860,7 @@ function renderProfile() {
 }
 
 function sheetWrap(inner) {
-  return `<div class="sheet"><button type="button" class="sheet-dismiss" data-act="close" aria-label="닫기"></button><div class="panel">${inner}</div></div>`;
+  return `<div class="sheet"><div class="panel">${inner}</div></div>`;
 }
 
 function sheetHTML() {
@@ -975,10 +975,26 @@ function render() {
   root.innerHTML = body + tabs() + sheetHTML();
 }
 
+let sheetGuard = 0;
+function openSheet(name) {
+  state.sheet = name;
+  sheetGuard = Date.now() + 700;
+  render();
+}
+function closeSheet() {
+  if (Date.now() < sheetGuard) return;
+  state.sheet = null;
+  state.replyTo = null;
+  render();
+}
+
 document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("sheet")) {
+    closeSheet();
+    return;
+  }
   const actEl = e.target.closest("[data-act]");
   if (!actEl) return;
-  if (actEl.classList.contains("sheet-dismiss") && e.target.closest(".panel")) return;
   handle(actEl.getAttribute("data-act"));
 });
 
@@ -1003,8 +1019,8 @@ function handle(act) {
   }
   if (act.startsWith("tab:")) { state.tab = act.split(":")[1]; render(); return; }
   if (act === "copy") { navigator.clipboard?.writeText("KKANBU"); toast("초대 코드 복사됨"); return; }
-  if (act === "open-add") { state.sheet = "add"; render(); return; }
-  if (act === "close") { state.sheet = null; render(); return; }
+  if (act === "open-add") { openSheet("add"); return; }
+  if (act === "close") { closeSheet(); return; }
   if (act === "do-add") {
     const ticker = document.getElementById("add-ticker").value;
     const price = Number(document.getElementById("add-price").value);
@@ -1018,30 +1034,28 @@ function handle(act) {
   if (act.startsWith("bought:")) {
     const rec = state.recs.find((r) => r.id === act.split(":")[1]);
     if (!rec) return;
-    state.sheet = "register:" + rec.stockId;
-    render();
+    openSheet("register:" + rec.stockId);
     return;
   }
   if (act.startsWith("accept:")) return acceptRec(act.split(":")[1], true);
   if (act.startsWith("reject:")) return acceptRec(act.split(":")[1], false);
   if (act.startsWith("promise:")) return promiseCoBuy(act.split(":")[1]);
   if (act.startsWith("later:")) return declineProposal(act.split(":")[1]);
-  if (act.startsWith("register:")) { state.sheet = act; render(); return; }
+  if (act.startsWith("register:")) { openSheet(act); return; }
   if (act.startsWith("sell:")) return sellHolding(act.split(":")[1]);
   if (act.startsWith("verify:")) return verify(act.split(":")[1]);
   if (act.startsWith("suspect:")) return suspect(act.split(":")[1]);
-  if (act.startsWith("open-rec:")) { state.sheet = act; render(); return; }
-  if (act.startsWith("open-prop")) { state.sheet = act; render(); return; }
+  if (act.startsWith("open-rec:")) { openSheet(act); return; }
+  if (act.startsWith("open-prop")) { openSheet(act); return; }
   if (act.startsWith("send-rec:")) {
     const parts = act.split(":");
     const msg = document.getElementById("rec-msg")?.value;
     return recommend(parts[1], parts[2], msg);
   }
   if (act.startsWith("thread:")) {
-    state.sheet = act;
     state.replyTo = null;
     state.threadDraft = "";
-    render();
+    openSheet(act);
     return;
   }
   if (act.startsWith("reply:")) {

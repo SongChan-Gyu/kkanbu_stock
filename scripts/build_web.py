@@ -32,4 +32,8 @@ html = f"""<!DOCTYPE html>
 </html>
 """
 (root / "index.html").write_text(html, encoding="utf-8")
-print(f"wrote {root / 'index.html'} ({len(html)} bytes)")
+docs = root.parent / "docs"
+docs.mkdir(exist_ok=True)
+(docs / "index.html").write_text(html, encoding="utf-8")
+(docs / ".nojekyll").write_text("", encoding="utf-8")
+print(f"wrote {root / 'index.html'} and {docs / 'index.html'} ({len(html)} bytes)")
