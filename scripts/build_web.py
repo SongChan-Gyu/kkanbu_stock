@@ -14,7 +14,7 @@ html = f"""<!DOCTYPE html>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="주식 깐부" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="theme-color" content="#F6F7F8" />
+  <meta name="theme-color" content="#FAFAFA" />
   <title>주식 깐부</title>
   <style>
 {css}

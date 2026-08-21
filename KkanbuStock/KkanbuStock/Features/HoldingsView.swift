@@ -125,7 +125,10 @@ struct SellSheet: View {
         NavigationStack {
             Form {
                 if let stock = store.state.stock(holding.stockId) {
-                    Text(stock.name)
+                    HStack(spacing: 10) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                        Text(stock.name)
+                    }
                     Text("현재가 \(MoneyFormat.price(store.price(for: stock.id), market: stock.market))")
                     TextField("매도가", text: $priceText)
                         .keyboardType(.decimalPad)
@@ -165,7 +168,10 @@ struct RecommendSheet: View {
             Form {
                 if let stock = store.state.stock(holding.stockId) {
                     Section("종목") {
-                        Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 32)
+                            Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
+                        }
                     }
                 }
                 Section("누구한테") {
@@ -177,8 +183,9 @@ struct RecommendSheet: View {
                         Button {
                             selected = user.id
                         } label: {
-                            HStack {
-                                Text("\(user.avatarEmoji) \(user.nickname)")
+                            HStack(spacing: 10) {
+                                InitialsAvatar(name: user.nickname, size: 28)
+                                Text(user.nickname)
                                 Spacer()
                                 if selected == user.id { Image(systemName: "checkmark") }
                             }
@@ -225,7 +232,18 @@ struct ProposalSheet: View {
                 Section("아직 안 산 종목") {
                     TextField("종목 검색", text: $query)
                     ForEach(Array(store.searchStocks(query).prefix(8))) { item in
-                        Button("\(item.name) \(item.ticker)") { stock = item }
+                        Button {
+                            stock = item
+                        } label: {
+                            HStack(spacing: 10) {
+                                StockMark(ticker: item.ticker, name: item.name, size: 28)
+                                Text("\(item.name)")
+                                Spacer()
+                                Text(item.ticker)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KkanbuTheme.faint)
+                            }
+                        }
                     }
                     if let stock {
                         Text("선택됨: \(stock.name)")

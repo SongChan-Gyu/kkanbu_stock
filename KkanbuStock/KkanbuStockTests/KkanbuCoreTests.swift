@@ -439,6 +439,7 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertFalse(bonds.isEmpty)
         XCTAssertTrue(bonds.contains { $0.grade.isGlory })
         XCTAssertTrue(bonds.contains { $0.grade.isRoast })
+        XCTAssertFalse(store.state.comments.isEmpty)
     }
 
     func testRecommendationThreadKeepsCommentsAndReplies() {
@@ -467,5 +468,38 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.commentCount(in: store.state.groups[0].id, stockId: nvda.id), 2)
         XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
         XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
+    }
+}
+
+final class StockIdentityPulseTests: XCTestCase {
+    func testKnownTickersHaveBrandMarks() {
+        XCTAssertEqual(StockIdentity.mark(ticker: "NVDA").glyph, "N")
+        XCTAssertEqual(StockIdentity.mark(ticker: "NVDA").backgroundHex, "76B900")
+        XCTAssertEqual(StockIdentity.mark(ticker: "AAPL").glyph, "A")
+        XCTAssertEqual(StockIdentity.mark(ticker: "035720").glyph, "K")
+        XCTAssertEqual(StockIdentity.mark(ticker: "005930").glyph, "삼")
+    }
+
+    func testCatalogTickersAllHaveGlyphs() {
+        for stock in StockCatalog.all {
+            let mark = StockIdentity.mark(ticker: stock.ticker, name: stock.name)
+            XCTAssertFalse(mark.glyph.isEmpty, stock.ticker)
+            XCTAssertEqual(mark.backgroundHex.count, 6, stock.ticker)
+        }
+    }
+
+    func testHeadlineIsOneLineDemoCopy() {
+        XCTAssertTrue(StockPulse.headline(ticker: "NVDA").contains("거래량"))
+        XCTAssertTrue(StockPulse.newsLine(ticker: "NVDA").contains("데모"))
+        XCTAssertEqual(StockPulse.headline(ticker: "UNKNOWN"), "그룹에서 이 종목 이야기 중")
+    }
+
+    func testVibeStaysLight() {
+        XCTAssertEqual(StockPulse.vibe(commentCount: 4, pendingRecommendations: 1, sharedReturn: 0.4), "지금 말이 많은 종목")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 1, pendingRecommendations: 1, sharedReturn: nil), "추천이 왔고 댓글도 있음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 1, sharedReturn: nil), "추천이 와 있음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2), "같이 물린 분위기")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: 0.2), "같이 웃는 분위기")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 말 없음")
     }
 }

@@ -315,8 +315,11 @@ struct FriendDetailView: View {
             if let pair {
                 ForEach(pair.bonds) { bond in
                     if let stock = store.state.stock(bond.stockId) {
-                        Text("\(stock.name) \(MoneyFormat.percent(bond.sharedReturn))")
-                            .font(.title3.bold())
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 32)
+                            Text("\(stock.name) \(MoneyFormat.percent(bond.sharedReturn))")
+                                .font(.title3.bold())
+                        }
                     }
                 }
             }

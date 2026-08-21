@@ -43,11 +43,20 @@ struct InboxActionCard: View {
                         Text("살게요 · 아직 안 삼")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(KkanbuTheme.faint)
-                        Text("\(sender)가 추천한 \(stock.name)")
-                            .font(.body.weight(.semibold))
-                        Text(stock.ticker)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(KkanbuTheme.faint)
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(sender)가 추천한 \(stock.name)")
+                                    .font(.body.weight(.semibold))
+                                Text(stock.ticker)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KkanbuTheme.faint)
+                                Text(StockPulse.headline(ticker: stock.ticker))
+                                    .font(.caption)
+                                    .foregroundStyle(KkanbuTheme.muted)
+                                    .lineLimit(1)
+                            }
+                        }
                         Text("사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
@@ -64,11 +73,20 @@ struct InboxActionCard: View {
                         Text("추천")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(KkanbuTheme.faint)
-                        Text("\(sender)가 \(stock.name)를 추천함")
-                            .font(.body.weight(.semibold))
-                        Text(stock.ticker)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(KkanbuTheme.faint)
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(sender)가 \(stock.name)를 추천함")
+                                    .font(.body.weight(.semibold))
+                                Text(stock.ticker)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KkanbuTheme.faint)
+                                Text(StockPulse.headline(ticker: stock.ticker))
+                                    .font(.caption)
+                                    .foregroundStyle(KkanbuTheme.muted)
+                                    .lineLimit(1)
+                            }
+                        }
                         Text("살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
@@ -90,9 +108,12 @@ struct InboxActionCard: View {
                         .foregroundStyle(KkanbuTheme.faint)
                     Text("\(store.state.nickname(proposal.proposerId))가 그룹에 \(stock.name) 같이 사자고 함")
                         .font(.body.weight(.semibold))
-                    Text(stock.ticker)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(KkanbuTheme.faint)
+                    HStack(spacing: 8) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 28)
+                        Text(stock.ticker)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
                     Text("친구 한 명 추천이 아닙니다. 그룹 전체에 아직 안 산 종목을 제안한 겁니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
@@ -110,11 +131,16 @@ struct InboxActionCard: View {
                     Text("매수가 확인 요청")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text(stock.name)
-                        .font(.body.weight(.semibold))
-                    Text(stock.ticker)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(KkanbuTheme.faint)
+                    HStack(spacing: 10) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stock.name)
+                                .font(.body.weight(.semibold))
+                            Text(stock.ticker)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(KkanbuTheme.faint)
+                        }
+                    }
                     Text("\(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
@@ -129,11 +155,16 @@ struct InboxActionCard: View {
                     Text("약속 완료 · 보유 등록 전")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text(stock.name)
-                        .font(.body.weight(.semibold))
-                    Text(stock.ticker)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(KkanbuTheme.faint)
+                    HStack(spacing: 10) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stock.name)
+                                .font(.body.weight(.semibold))
+                            Text(stock.ticker)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(KkanbuTheme.faint)
+                        }
+                    }
                     Text("아직 매수한 것이 아닙니다. 내가 이 종목을 사면 내 주식에서 기록합니다.")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
@@ -149,7 +180,19 @@ struct InboxActionCard: View {
     private func threadButton(_ stock: Stock) -> some View {
         if let onOpenThread, let groupId = store.state.selectedGroupId {
             let count = store.commentCount(in: groupId, stockId: stock.id)
-            QuietButton(title: count == 0 ? "댓글 달기" : "댓글 \(count)", kind: .ghost) { onOpenThread(stock) }
+            Button {
+                onOpenThread(stock)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.right")
+                    Text(count == 0 ? "댓글" : "\(count)")
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(KkanbuTheme.ink)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -183,14 +226,35 @@ struct RecommendationThreadView: View {
     private var groupId: UUID? { store.state.selectedGroupId }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(stock.ticker)
-                .font(.caption.monospaced())
-                .foregroundStyle(KkanbuTheme.faint)
-            Text("이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.")
-                .font(.caption)
-                .foregroundStyle(KkanbuTheme.faint)
+        HStack(alignment: .top, spacing: 12) {
+            StockMark(ticker: stock.ticker, name: stock.name, size: 52)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(stock.ticker)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text(StockPulse.headline(ticker: stock.ticker))
+                    .font(.subheadline)
+                    .foregroundStyle(KkanbuTheme.ink)
+                Text(StockPulse.newsAge)
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text(vibeLine)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KkanbuTheme.muted)
+            }
         }
+    }
+
+    private var vibeLine: String {
+        let comments = groupId.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
+        let pending = store.state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = groupId.flatMap { gid in
+            KkangbuMath.bonds(in: gid, state: store.state, prices: store.currentPrices)
+                .first { $0.stockId == stock.id }?.sharedReturn
+        }
+        return StockPulse.vibe(commentCount: comments, pendingRecommendations: pending, sharedReturn: shared)
     }
 
     private var history: some View {

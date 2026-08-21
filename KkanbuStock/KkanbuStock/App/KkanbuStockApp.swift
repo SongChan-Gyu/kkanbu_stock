@@ -74,10 +74,10 @@ struct MainTabView: View {
             HoldingsView()
                 .tabItem { Label("내 주식", systemImage: "chart.line.uptrend.xyaxis") }
             ActivityView()
-                .tabItem { Label("활동", systemImage: "bell") }
+                .tabItem { Label("활동", systemImage: "heart") }
                 .badge(store.inboxItems(for: store.state.currentUserId).count)
             ProfileView()
-                .tabItem { Label("프로필", systemImage: "person") }
+                .tabItem { Label("프로필", systemImage: "person.crop.circle") }
         }
         .tint(KkanbuTheme.ink)
     }

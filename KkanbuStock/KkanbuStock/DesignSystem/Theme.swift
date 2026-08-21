@@ -1,10 +1,11 @@
 import SwiftUI
+import Foundation
 
 enum KkanbuTheme {
     static let radius: CGFloat = 10
     static let pagePadding: CGFloat = 20
 
-    static let bg = Color(red: 0.965, green: 0.969, blue: 0.973)
+    static let bg = Color(red: 0.980, green: 0.980, blue: 0.980)
     static let surface = Color.white
     static let ink = Color(red: 0.067, green: 0.067, blue: 0.067)
     static let muted = Color(red: 0.42, green: 0.447, blue: 0.502)
@@ -16,6 +17,16 @@ enum KkanbuTheme {
 extension Color {
     static let kkanbuUp = Color(red: 0.882, green: 0.114, blue: 0.282)
     static let kkanbuDown = Color(red: 0.145, green: 0.388, blue: 0.922)
+
+    init(hex: String) {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var value: UInt64 = 0
+        Scanner(string: cleaned).scanHexInt64(&value)
+        let r = Double((value >> 16) & 0xFF) / 255
+        let g = Double((value >> 8) & 0xFF) / 255
+        let b = Double(value & 0xFF) / 255
+        self.init(red: r, green: g, blue: b)
+    }
 }
 
 struct KkanbuBackground: View {
@@ -34,15 +45,15 @@ struct InitialsAvatar: View {
 
     private var tint: Color {
         let palettes: [Color] = [
-            Color(red: 0.247, green: 0.290, blue: 0.353),
-            Color(red: 0.294, green: 0.333, blue: 0.388),
-            Color(red: 0.341, green: 0.325, blue: 0.306),
-            Color(red: 0.267, green: 0.251, blue: 0.235),
-            Color(red: 0.322, green: 0.322, blue: 0.357),
-            Color(red: 0.247, green: 0.247, blue: 0.275)
+            Color(hex: "405DE6"),
+            Color(hex: "C13584"),
+            Color(hex: "F77737"),
+            Color(hex: "833AB4"),
+            Color(hex: "1FA2F1"),
+            Color(hex: "2BB673")
         ]
-        let idx = abs(name.hashValue) % palettes.count
-        return palettes[idx]
+        let sum = name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return palettes[sum % palettes.count]
     }
 
     var body: some View {
@@ -61,6 +72,38 @@ struct AvatarView: View {
 
     var body: some View {
         InitialsAvatar(name: name.isEmpty ? emoji : name, size: size)
+    }
+}
+
+struct StockMark: View {
+    var ticker: String
+    var name: String = ""
+    var size: CGFloat = 40
+
+    var body: some View {
+        let mark = StockIdentity.mark(ticker: ticker, name: name)
+        Text(mark.glyph)
+            .font(.system(size: size * (mark.glyph.count > 1 ? 0.32 : 0.42), weight: .bold, design: .rounded))
+            .foregroundStyle(Color(hex: mark.foregroundHex))
+            .frame(width: size, height: size)
+            .background(Color(hex: mark.backgroundHex), in: Circle())
+            .accessibilityLabel(name.isEmpty ? ticker : name)
+    }
+}
+
+struct CommentCountLabel: View {
+    var count: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "bubble.right")
+            if count > 0 {
+                Text("\(count)")
+                    .monospacedDigit()
+            }
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(KkanbuTheme.muted)
     }
 }
 
@@ -188,8 +231,22 @@ struct EventRow: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: 12) {
-            if !actorName.isEmpty {
-                InitialsAvatar(name: actorName, size: 32)
+            ZStack(alignment: .bottomTrailing) {
+                if actorName.isEmpty {
+                    Image(systemName: event.type.systemImage)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .frame(width: 32, height: 32)
+                        .background(KkanbuTheme.chip, in: Circle())
+                } else {
+                    InitialsAvatar(name: actorName, size: 32)
+                    Image(systemName: event.type.systemImage)
+                        .font(.system(size: 7, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .frame(width: 14, height: 14)
+                        .background(kickColor(for: event.type) == KkanbuTheme.muted ? KkanbuTheme.ink : kickColor(for: event.type), in: Circle())
+                        .offset(x: 1, y: 1)
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title)
@@ -250,7 +307,8 @@ struct HoldingCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                StockMark(ticker: stock.ticker, name: stock.name, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     if let ownerName {
                         Text(ownerName)
@@ -272,6 +330,10 @@ struct HoldingCardView: View {
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
                 .foregroundStyle(KkanbuTheme.muted)
+            Text(StockPulse.newsLine(ticker: stock.ticker))
+                .font(.caption)
+                .foregroundStyle(KkanbuTheme.muted)
+                .lineLimit(1)
             if showsQuantity, let qty = holding.quantity {
                 Text("수량 \(String(format: "%g", qty))")
                     .font(.caption)

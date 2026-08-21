@@ -149,7 +149,8 @@ struct GroupHomeView: View {
                             Button {
                                 threadStock = stock
                             } label: {
-                                HStack(alignment: .firstTextBaseline) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    StockMark(ticker: stock.ticker, name: stock.name, size: 40)
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(stock.name)
                                             .font(.subheadline.weight(.semibold))
@@ -157,14 +158,16 @@ struct GroupHomeView: View {
                                         Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
                                             .font(.caption)
                                             .foregroundStyle(KkanbuTheme.muted)
+                                        Text(StockPulse.newsLine(ticker: stock.ticker))
+                                            .font(.caption)
+                                            .foregroundStyle(KkanbuTheme.muted)
+                                            .lineLimit(1)
                                         Text(related.last.map { "“\($0.message)”" } ?? "")
                                             .font(.caption)
                                             .foregroundStyle(KkanbuTheme.ink)
                                     }
                                     Spacer()
-                                    Text(count == 0 ? "댓글" : "댓글 \(count)")
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(KkanbuTheme.muted)
+                                    CommentCountLabel(count: count)
                                 }
                                 .padding(.vertical, 10)
                                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
@@ -204,8 +207,8 @@ struct GroupHomeView: View {
                     NavigationLink {
                         FriendDetailView(user: user, group: group)
                     } label: {
-                        VStack(spacing: 8) {
-                            AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 40)
+                        VStack(spacing: 6) {
+                            AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 52)
                             Text(user.id == store.state.currentUserId ? "나" : user.nickname)
                                 .font(.caption)
                                 .foregroundStyle(.primary)
@@ -231,7 +234,8 @@ struct GroupHomeView: View {
                     }
                     ForEach(bonds) { bond in
                         if let stock = store.state.stock(bond.stockId) {
-                            HStack(alignment: .firstTextBaseline) {
+                            HStack(alignment: .center, spacing: 12) {
+                                StockMark(ticker: stock.ticker, name: stock.name, size: 36)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("\(store.state.nickname(bond.userA)) · \(store.state.nickname(bond.userB))")
                                         .font(.subheadline.weight(.semibold))
@@ -341,8 +345,21 @@ struct ProposalCard: View {
                 Text("그룹 제안 · \(store.state.nickname(proposal.proposerId))")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(KkanbuTheme.faint)
-                Text(stock?.name ?? "")
-                    .font(.subheadline.weight(.semibold))
+                HStack(spacing: 10) {
+                    if let stock {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stock?.name ?? "")
+                            .font(.subheadline.weight(.semibold))
+                        if let stock {
+                            Text(StockPulse.headline(ticker: stock.ticker))
+                                .font(.caption)
+                                .foregroundStyle(KkanbuTheme.muted)
+                                .lineLimit(1)
+                        }
+                    }
+                }
                 Text(proposal.message)
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.muted)

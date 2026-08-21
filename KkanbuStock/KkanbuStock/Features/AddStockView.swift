@@ -30,7 +30,7 @@ struct AddStockView: View {
                     Button {
                         showOCR = true
                     } label: {
-                        Label("📷 캡처로 추가", systemImage: "camera.viewfinder")
+                        Label("캡처로 추가", systemImage: "camera.viewfinder")
                     }
                 }
                 Section("종목") {
@@ -39,7 +39,8 @@ struct AddStockView: View {
                         Button {
                             selected = stock
                         } label: {
-                            HStack {
+                            HStack(spacing: 10) {
+                                StockMark(ticker: stock.ticker, name: stock.name, size: 32)
                                 VStack(alignment: .leading) {
                                     Text(stock.name).foregroundStyle(.primary)
                                     Text("\(stock.ticker) · \(stock.market.displayName)")

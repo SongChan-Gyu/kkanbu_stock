@@ -51,6 +51,73 @@ function gradeFor(shared) {
   return { title: "주식 깐부", kick: "plain" };
 }
 
+const MARKS = {
+  NVDA: { bg: "#76B900", fg: "#111", g: "N" },
+  AAPL: { bg: "#1C1C1E", fg: "#fff", g: "A" },
+  TSLA: { bg: "#CC0000", fg: "#fff", g: "T" },
+  AMD: { bg: "#000", fg: "#fff", g: "A" },
+  MSFT: { bg: "#00A4EF", fg: "#fff", g: "M" },
+  AMZN: { bg: "#FF9900", fg: "#111", g: "a" },
+  GOOGL: { bg: "#4285F4", fg: "#fff", g: "G" },
+  META: { bg: "#0668E1", fg: "#fff", g: "f" },
+  "005930": { bg: "#1428A0", fg: "#fff", g: "삼" },
+  "000660": { bg: "#EE1C25", fg: "#fff", g: "하" },
+  "035420": { bg: "#03C75A", fg: "#fff", g: "N" },
+  "035720": { bg: "#FEE500", fg: "#191919", g: "K" }
+};
+const HEADLINES = {
+  NVDA: "실적 발표 앞두고 거래량 늘었어요",
+  AAPL: "서비스 매출이 버텨 준다는 이야기",
+  TSLA: "인도량 숫자 가지고 말이 많아요",
+  AMD: "AI 칩 수주 이야기가 돌아요",
+  MSFT: "클라우드 실적 눈높이 이야기",
+  AMZN: "광고·AWS가 끌고 간다는 말",
+  "005930": "반도체 업황 이야기가 다시 나와요",
+  "000660": "HBM 수요 이야기가 나와요",
+  "035420": "광고·커머스 회복 속도 이야기",
+  "035720": "플랫폼 실적 눈높이 조정 중"
+};
+
+function stockMark(s, size) {
+  const mark = MARKS[s.ticker] || MARKS[s.id] || { bg: "#405DE6", fg: "#fff", g: (s.name || s.ticker || "?").slice(0, 1) };
+  return `<div class="stock-mark${size === "sm" ? " sm" : size === "lg" ? " lg" : ""}" style="background:${mark.bg};color:${mark.fg}">${esc(mark.g)}</div>`;
+}
+function newsLine(ticker) {
+  return (HEADLINES[ticker] || "그룹에서 이 종목 이야기 중") + " · 2시간 전 · 데모";
+}
+function pulseVibe(stockId) {
+  const n = commentsFor(stockId).length;
+  const pending = state.recs.filter((r) => r.stockId === stockId && (r.status === "pending" || r.status === "willBuy")).length;
+  const shared = bonds().find((b) => b.stockId === stockId)?.shared;
+  if (n >= 3) return "지금 말이 많은 종목";
+  if (pending > 0 && n > 0) return "추천이 왔고 댓글도 있음";
+  if (pending > 0) return "추천이 와 있음";
+  if (n > 0) return "댓글 있음";
+  if (shared <= -0.15) return "같이 물린 분위기";
+  if (shared >= 0.15) return "같이 웃는 분위기";
+  return "아직 말 없음";
+}
+function ico(name, filled) {
+  const solid = filled && (name === "heart" || name === "me" || name === "star");
+  const sw = solid
+    ? `fill="currentColor" stroke="none"`
+    : `fill="none" stroke="currentColor" stroke-width="${filled ? 2.15 : 1.7}" stroke-linecap="round" stroke-linejoin="round"`;
+  const paths = {
+    group: `<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+    chart: `<path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 6-7"/>`,
+    heart: `<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>`,
+    me: `<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>`,
+    comment: `<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5h.5a8.5 8.5 0 0 1 8 8.5z"/>`,
+    plane: `<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>`,
+    star: `<path d="M12 2l2.6 6.6L22 10l-5 4.9L18.2 22 12 18.3 5.8 22 7 14.9 2 10l7.4-1.4L12 2z"/>`
+  };
+  return `<svg viewBox="0 0 24 24" ${sw}>${paths[name] || ""}</svg>`;
+}
+function commentMeta(stockId) {
+  const n = commentsFor(stockId).length;
+  return `<span class="icon-meta">${ico("comment")}${n ? `<span>${n}</span>` : ""}</span>`;
+}
+
 function emptyState(me) {
   return {
     me,
@@ -479,11 +546,13 @@ function holdingRow(h, isMine) {
   const suspect = h.verification === "suspected" ? `<div class="caption">매수가 의심 중</div>` : "";
   return `
     <div class="row">
+      ${stockMark(s)}
       <div class="grow">
         ${!isMine ? `<div class="caption">${esc(owner.nickname)}</div>` : ""}
         <div class="stock-name">${esc(s.name)}${verifyMark(h.verification)}</div>
         <div class="ticker">${esc(s.ticker)}</div>
         <div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · 현재가 ${formatPrice(priceOf(s), s.market)}</div>
+        <div class="news">${esc(newsLine(s.ticker))}</div>
         ${partnerLine ? `<div class="caption">${partnerLine}</div>` : ""}
         ${h.status === "sold" ? `<div class="caption">매도 · ${formatPct(ret(h.averagePrice, h.sellPrice))}</div>` : ""}
         ${suspect}
@@ -497,7 +566,7 @@ function holdingRow(h, isMine) {
 
 function threadBtn(stockId) {
   const n = commentsFor(stockId).length;
-  return `<div style="height:8px"></div>${btn(n ? `댓글 ${n}` : "댓글 달기", "ghost", `thread:${stockId}`)}`;
+  return `<div style="height:8px"></div><button class="btn ghost" data-act="thread:${stockId}"><span class="icon-meta">${ico("comment")}<span>${n ? n : "댓글"}</span></span></button>`;
 }
 
 function inboxBlock(item) {
@@ -507,8 +576,14 @@ function inboxBlock(item) {
     if (rec.status === "willBuy") {
       return `<div class="action-block">
         <div class="kind">살게요 · 아직 안 삼</div>
-        <div class="stock-name">${esc(nickname(rec.senderId))}가 추천한 ${esc(s.name)}</div>
-        <div class="ticker">${esc(s.ticker)}</div>
+        <div class="row" style="border:0;padding:0 0 8px">
+          ${stockMark(s)}
+          <div class="grow">
+            <div class="stock-name">${esc(nickname(rec.senderId))}가 추천한 ${esc(s.name)}</div>
+            <div class="ticker">${esc(s.ticker)}</div>
+            <div class="news">${esc(newsLine(s.ticker))}</div>
+          </div>
+        </div>
         <p class="caption">사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.</p>
         ${btn("샀어요 · 매수가 적기", "primary", `bought:${rec.id}`)}
         <div style="height:8px"></div>
@@ -518,8 +593,14 @@ function inboxBlock(item) {
     }
     return `<div class="action-block">
       <div class="kind">추천</div>
-      <div class="stock-name">${esc(nickname(rec.senderId))}가 ${esc(s.name)}를 추천함</div>
-      <div class="ticker">${esc(s.ticker)}</div>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(nickname(rec.senderId))}가 ${esc(s.name)}를 추천함</div>
+          <div class="ticker">${esc(s.ticker)}</div>
+          <div class="news">${esc(newsLine(s.ticker))}</div>
+        </div>
+      </div>
       <p class="caption">살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.</p>
       ${btn("살게요", "primary", `accept:${rec.id}`)}
       <div style="height:8px"></div>
@@ -533,8 +614,13 @@ function inboxBlock(item) {
     const kind = item.kind === "nag" ? "그룹이 다시 조름" : "그룹 제안";
     return `<div class="action-block">
       <div class="kind">${kind}</div>
-      <div class="stock-name">${esc(nickname(p.proposerId))}가 그룹에 ${esc(s.name)} 같이 사자고 함</div>
-      <div class="ticker">${esc(s.ticker)}</div>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s, "sm")}
+        <div class="grow">
+          <div class="stock-name">${esc(nickname(p.proposerId))}가 그룹에 ${esc(s.name)} 같이 사자고 함</div>
+          <div class="ticker">${esc(s.ticker)}</div>
+        </div>
+      </div>
       <p class="caption">친구 한 명 추천이 아닙니다. 그룹 전체에 아직 안 산 종목을 제안한 겁니다.</p>
       ${btn("관심 있음", "primary", `promise:${p.id}`)}
       <div style="height:8px"></div>
@@ -546,8 +632,13 @@ function inboxBlock(item) {
     const s = stock(h.stockId);
     return `<div class="action-block">
       <div class="kind">매수가 확인 요청</div>
-      <div class="stock-name">${esc(s.name)}</div>
-      <div class="ticker">${esc(s.ticker)}</div>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s, "sm")}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+          <div class="ticker">${esc(s.ticker)}</div>
+        </div>
+      </div>
       <p class="caption">${formatPrice(h.averagePrice, s.market)}에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.</p>
       ${btn("캡처로 인증", "primary", `verify:${h.id}`)}
     </div>`;
@@ -561,8 +652,13 @@ function eventRow(e) {
     : /최악|공동묘지|마음|혼자/.test(e.title) || e.type === "worst" || e.type === "solo" ? "roast"
     : "plain";
   const open = e.stockId && (e.type === "rec" || e.type === "cmt") ? ` data-act="thread:${e.stockId}"` : "";
+  const badgeIco = e.type === "cmt" ? "comment" : e.type === "rec" ? "plane" : /황금|신의/.test(e.title) ? "star" : "plane";
+  const badgeColor = kick === "glory" ? "var(--up)" : kick === "roast" ? "var(--down)" : "#262626";
   return `<div class="feed-item"${open} style="${open ? "cursor:pointer" : ""}">
-    ${actor ? avatarHTML(actor, "sm") : `<div class="avatar sm c0">·</div>`}
+    <div class="avatar-wrap">
+      ${actor ? avatarHTML(actor, "sm") : `<div class="avatar sm c0">·</div>`}
+      <span class="feed-badge" style="background:${badgeColor}">${ico(badgeIco, true)}</span>
+    </div>
     <div class="grow">
       <div class="kind ${kick}">${esc(e.title)}</div>
       ${actor ? `<b>${esc(actor.nickname)}</b>` : ""}
@@ -594,15 +690,16 @@ function recommendedSection() {
   return `<div class="section"><div class="section-title">추천 종목</div>${ids.map((id) => {
     const s = stock(id);
     const related = recs.filter((r) => r.stockId === id);
-    const n = commentsFor(id).length;
     const last = related[related.length - 1];
     return `<button class="row btn" data-act="thread:${id}">
+      ${stockMark(s)}
       <div class="grow">
         <div class="stock-name">${esc(s.name)}</div>
         <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
+        <div class="news">${esc(newsLine(s.ticker))}</div>
         <div class="meta">“${esc(last.message)}”</div>
       </div>
-      <div class="right"><div class="status">${n ? `댓글 ${n}` : "댓글"}</div></div>
+      <div class="right">${commentMeta(id)}</div>
     </button>`;
   }).join("")}</div>`;
 }
@@ -647,7 +744,8 @@ function renderGroup() {
           const moodLine = mood ? `<p class="mood ${mood.grade.kick}">지금 분위기 · ${esc(nickname(mood.a))} · ${esc(nickname(mood.b))}, ${esc(mood.grade.title)}</p>` : "";
           return moodLine + kk.map((b) => `
           <div class="pair-row">
-            <div>
+            ${stockMark(stock(b.stockId), "sm")}
+            <div class="grow">
               <div class="names">${esc(nickname(b.a))} · ${esc(nickname(b.b))}</div>
               <div class="grade ${b.grade.kick}">${esc(b.grade.title)}</div>
               <div class="stock">${esc(stock(b.stockId).name)}</div>
@@ -700,7 +798,7 @@ function renderActivity() {
     ${mine.length ? `<div class="row-list">${mine.map(inboxBlock).join("")}</div>` : `<p class="empty">대기 중인 일이 없습니다.</p>`}
     <div class="section">
       <div class="section-title">추천 기록</div>
-      ${recs.length ? recs.map((r) => `<div class="pair-row"><div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div><div class="stock">${esc(stock(r.stockId).name)} · ${recStatus[r.status] || r.status}</div></div>`).join("") : `<p class="empty">기록이 없습니다.</p>`}
+      ${recs.length ? recs.map((r) => `<div class="pair-row">${stockMark(stock(r.stockId), "sm")}<div class="grow"><div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div><div class="stock">${esc(stock(r.stockId).name)} · ${recStatus[r.status] || r.status}</div></div></div>`).join("") : `<p class="empty">기록이 없습니다.</p>`}
     </div>
   </div>`;
 }
@@ -795,7 +893,15 @@ function sheetHTML() {
       </div>
     </div>`;
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
-      <h2>${esc(s.name)}</h2>
+      <div class="thread-head">
+        ${stockMark(s, "lg")}
+        <div class="grow">
+          <h2 style="margin:0">${esc(s.name)}</h2>
+          <div class="ticker">${esc(s.ticker)}</div>
+          <div class="news">${esc(newsLine(s.ticker))}</div>
+          <div class="vibe">${esc(pulseVibe(s.id))}</div>
+        </div>
+      </div>
       <p class="note">이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
       <div class="kind">추천 히스토리</div>
       ${recs.length ? recs.map((r) => `<div class="history-item">
@@ -818,8 +924,13 @@ function sheetHTML() {
 
 function tabs() {
   if (state.onboarding) return "";
-  const items = [["group", "그룹"], ["hold", "내 주식"], ["act", "활동"], ["me", "프로필"]];
-  return `<nav class="tabs">${items.map(([id, label]) => `<button class="${state.tab === id ? "on" : ""}" data-act="tab:${id}">${label}</button>`).join("")}</nav>`;
+  const items = [
+    ["group", "그룹", "group"],
+    ["hold", "내 주식", "chart"],
+    ["act", "활동", "heart"],
+    ["me", "프로필", "me"]
+  ];
+  return `<nav class="tabs">${items.map(([id, label, icon]) => `<button class="${state.tab === id ? "on" : ""}" data-act="tab:${id}">${ico(icon, state.tab === id)}<span>${label}</span></button>`).join("")}</nav>`;
 }
 
 function render() {
