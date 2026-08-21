@@ -56,15 +56,45 @@ const MARKS = {
   AAPL: { bg: "#1C1C1E", fg: "#fff", g: "A" },
   TSLA: { bg: "#CC0000", fg: "#fff", g: "T" },
   AMD: { bg: "#000", fg: "#fff", g: "A" },
-  MSFT: { bg: "#00A4EF", fg: "#fff", g: "M" },
+  MSFT: { bg: "#F5F5F5", fg: "#111", g: "M" },
   AMZN: { bg: "#FF9900", fg: "#111", g: "a" },
-  GOOGL: { bg: "#4285F4", fg: "#fff", g: "G" },
+  GOOGL: { bg: "#fff", fg: "#4285F4", g: "G" },
   META: { bg: "#0668E1", fg: "#fff", g: "f" },
   "005930": { bg: "#1428A0", fg: "#fff", g: "삼" },
   "000660": { bg: "#EE1C25", fg: "#fff", g: "하" },
   "035420": { bg: "#03C75A", fg: "#fff", g: "N" },
   "035720": { bg: "#FEE500", fg: "#191919", g: "K" }
 };
+const SIMPLE_ICONS = {
+  NVDA: "nvidia/111111",
+  AAPL: "apple/ffffff",
+  TSLA: "tesla/ffffff",
+  AMD: "amd/ffffff",
+  MSFT: "microsoft",
+  AMZN: "amazon/111111",
+  GOOGL: "google",
+  META: "meta/ffffff",
+  "005930": "samsung/ffffff",
+  "035420": "naver/ffffff",
+  "035720": "kakaotalk/191919"
+};
+const LOGO_DOMAINS = {
+  "000660": "skhynix.com"
+};
+
+function logoSrc(ticker) {
+  if (SIMPLE_ICONS[ticker]) return "https://cdn.simpleicons.org/" + SIMPLE_ICONS[ticker];
+  if (LOGO_DOMAINS[ticker]) return "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(LOGO_DOMAINS[ticker]);
+  return "";
+}
+function stockMark(s, size) {
+  const mark = MARKS[s.ticker] || MARKS[s.id] || { bg: "#405DE6", fg: "#fff", g: (s.name || s.ticker || "?").slice(0, 1) };
+  const src = logoSrc(s.ticker);
+  const cls = `stock-mark${size === "sm" ? " sm" : size === "lg" ? " lg" : ""}${src ? " has-logo" : ""}`;
+  const glyph = `<span class="stock-glyph">${esc(mark.g)}</span>`;
+  const img = src ? `<img alt="" src="${esc(src)}" onerror="this.parentNode.classList.add('logo-failed')">` : "";
+  return `<div class="${cls}" style="background:${mark.bg};color:${mark.fg}">${img}${glyph}</div>`;
+}
 const HEADLINES = {
   NVDA: "실적 발표 앞두고 거래량 늘었어요",
   AAPL: "서비스 매출이 버텨 준다는 이야기",
@@ -78,10 +108,6 @@ const HEADLINES = {
   "035720": "플랫폼 실적 눈높이 조정 중"
 };
 
-function stockMark(s, size) {
-  const mark = MARKS[s.ticker] || MARKS[s.id] || { bg: "#405DE6", fg: "#fff", g: (s.name || s.ticker || "?").slice(0, 1) };
-  return `<div class="stock-mark${size === "sm" ? " sm" : size === "lg" ? " lg" : ""}" style="background:${mark.bg};color:${mark.fg}">${esc(mark.g)}</div>`;
-}
 function newsLine(ticker) {
   return (HEADLINES[ticker] || "그룹에서 이 종목 이야기 중") + " · 2시간 전 · 데모";
 }
@@ -833,14 +859,18 @@ function renderProfile() {
   </div>`;
 }
 
+function sheetWrap(inner) {
+  return `<div class="sheet"><button type="button" class="sheet-dismiss" data-act="close" aria-label="닫기"></button><div class="panel">${inner}</div></div>`;
+}
+
 function sheetHTML() {
   if (!state.sheet) return "";
   if (state.sheet.startsWith("add") || state.sheet.startsWith("register:")) {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name} (${s.ticker})</option>`).join("");
-    return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
+    return sheetWrap(`
       <h2>주식 추가</h2>
-      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "내가 산 종목을 기록합니다. 버튼을 눌러도 주문이 나가지 않습니다."}</p>
+      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "웹 데모는 목록에서 종목을 고릅니다. 캡처·차트 검색은 iOS 앱에 있습니다."}</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       <label>매수가</label>
@@ -848,24 +878,24 @@ function sheetHTML() {
       ${btn("등록", "primary full", "do-add")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
-    </div></div>`;
+    `);
   }
   if (state.sheet.startsWith("open-rec:")) {
     const hid = state.sheet.split(":")[1];
     const others = memberUsers().filter((u) => u.id !== state.me.id);
-    return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
+    return sheetWrap(`
       <h2>친구에게 추천</h2>
       <p class="note">이미 내가 보유한 종목을 친구에게 알립니다. 한마디를 적으면 추천 히스토리에 남습니다.</p>
       <label>한마디</label>
       <input id="rec-msg" value="같이 들어가 봐." />
       ${others.map((u) => `<div style="margin-bottom:8px">${btn(u.nickname + "에게", "secondary full", `send-rec:${hid}:${u.id}`)}</div>`).join("")}
       ${btn("닫기", "ghost full", "close")}
-    </div></div>`;
+    `);
   }
   if (state.sheet.startsWith("open-prop")) {
     const pre = state.sheet.split(":")[1] || "AMD";
     const options = state.stocks.map((s) => `<option value="${s.id}" ${s.id === pre ? "selected" : ""}>${s.name}</option>`).join("");
-    return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
+    return sheetWrap(`
       <h2>그룹에 같이 사자</h2>
       <p class="note">아직 안 산 종목을 그룹 전체에 제안합니다. 친구 한 명 추천이 아닙니다.</p>
       <label>종목</label>
@@ -875,11 +905,12 @@ function sheetHTML() {
       ${btn("보내기", "primary full", "do-prop")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
-    </div></div>`;
+    `);
   }
   if (state.sheet.startsWith("thread:")) {
     const stockId = state.sheet.split(":")[1];
     const s = stock(stockId);
+    if (!s) return "";
     const recs = state.recs.filter((r) => r.stockId === stockId && r.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
     const comments = commentsFor(stockId);
     const roots = comments.filter((c) => !c.parentId);
@@ -892,7 +923,7 @@ function sheetHTML() {
         <div class="time">${relative(c.createdAt)}${!c.parentId ? ` · <button class="btn text" data-act="reply:${c.id}">답글</button>` : ""}</div>
       </div>
     </div>`;
-    return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
+    return sheetWrap(`
       <div class="thread-head">
         ${stockMark(s, "lg")}
         <div class="grow">
@@ -917,7 +948,7 @@ function sheetHTML() {
       ${btn("보내기", "primary full", "do-comment")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
-    </div></div>`;
+    `);
   }
   return "";
 }
@@ -945,9 +976,10 @@ function render() {
 }
 
 document.addEventListener("click", (e) => {
-  const btnEl = e.target.closest("[data-act]");
-  if (!btnEl) return;
-  handle(btnEl.getAttribute("data-act"));
+  const actEl = e.target.closest("[data-act]");
+  if (!actEl) return;
+  if (actEl.classList.contains("sheet-dismiss") && e.target.closest(".panel")) return;
+  handle(actEl.getAttribute("data-act"));
 });
 
 function handle(act) {
