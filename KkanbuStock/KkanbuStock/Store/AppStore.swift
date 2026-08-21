@@ -416,6 +416,45 @@ final class AppStore {
         toast = "그룹에 추천을 보냈습니다"
     }
 
+    func addComment(stockId: UUID, parentId: UUID? = nil, body: String) {
+        guard let groupId = state.selectedGroupId else { return }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            lastError = "내용을 적어 주세요."
+            return
+        }
+        if let parentId {
+            guard state.comments.contains(where: { $0.id == parentId && $0.parentId == nil && $0.stockId == stockId && $0.groupId == groupId }) else { return }
+        }
+        let comment = StockComment(
+            groupId: groupId,
+            stockId: stockId,
+            authorId: state.currentUserId,
+            parentId: parentId,
+            body: trimmed
+        )
+        let before = state
+        state.comments.append(comment)
+        emit(.commentPosted(id: comment.id), before: before)
+        toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+    }
+
+    func comments(in groupId: UUID, stockId: UUID) -> [StockComment] {
+        state.comments
+            .filter { $0.groupId == groupId && $0.stockId == stockId }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func commentCount(in groupId: UUID, stockId: UUID) -> Int {
+        comments(in: groupId, stockId: stockId).count
+    }
+
+    func recommendations(in groupId: UUID, stockId: UUID) -> [StockRecommendation] {
+        state.recommendations
+            .filter { $0.groupId == groupId && $0.stockId == stockId }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
     func copyInviteCode(_ code: String) {
         #if canImport(UIKit)
         UIPasteboard.general.string = code

@@ -62,6 +62,7 @@ enum EventType: String, Codable, CaseIterable, Sendable {
     case destinyPartners = "DESTINY_PARTNERS"
     case godsMovePartners = "GODS_MOVE_PARTNERS"
     case graveyardPartners = "GRAVEYARD_PARTNERS"
+    case commentPosted = "COMMENT_POSTED"
 
     var emoji: String {
         switch self {
@@ -98,6 +99,7 @@ enum EventType: String, Codable, CaseIterable, Sendable {
         case .destinyPartners: "💎"
         case .godsMovePartners: "🚀"
         case .graveyardPartners: "🪦"
+        case .commentPosted: "💬"
         }
     }
 }
@@ -139,6 +141,15 @@ struct FeedEvent: Identifiable, Codable, Hashable, Sendable {
         self.message = message
         self.metadata = metadata
         self.createdAt = createdAt
+    }
+
+    var opensRecommendationThread: Bool {
+        switch type {
+        case .recommendStock, .recommendAccepted, .recommendWillBuy, .recommendRejected, .commentPosted:
+            true
+        default:
+            false
+        }
     }
 }
 

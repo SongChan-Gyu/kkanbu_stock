@@ -16,7 +16,11 @@ struct PersistenceStore {
 
     func load() -> AppState? {
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? decoder.decode(AppState.self, from: data)
+        if let state = try? decoder.decode(AppState.self, from: data) { return state }
+        guard var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        if object["comments"] == nil { object["comments"] = [] }
+        guard let patched = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return try? decoder.decode(AppState.self, from: patched)
     }
 
     func save(_ state: AppState) {

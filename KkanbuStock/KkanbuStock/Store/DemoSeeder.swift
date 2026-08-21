@@ -161,6 +161,32 @@ enum DemoSeeder {
         )
         state.recommendations.append(rec)
 
+        let cheolsuComment = StockComment(
+            groupId: group.id,
+            stockId: nvda.id,
+            authorId: cheolsu.id,
+            body: "지금 들어가도 늦었나",
+            createdAt: Date().addingTimeInterval(-3600 * 2)
+        )
+        state.comments.append(contentsOf: [
+            cheolsuComment,
+            StockComment(
+                groupId: group.id,
+                stockId: nvda.id,
+                authorId: currentUser.id,
+                parentId: cheolsuComment.id,
+                body: "평단만 적어둘게",
+                createdAt: Date().addingTimeInterval(-3600)
+            ),
+            StockComment(
+                groupId: group.id,
+                stockId: nvda.id,
+                authorId: minsu.id,
+                body: "나는 패스ㅋㅋ 물리면 니 탓이다",
+                createdAt: Date().addingTimeInterval(-1800)
+            )
+        ])
+
         let proposal = StockProposal(
             groupId: group.id,
             proposerId: minsu.id,
@@ -176,7 +202,8 @@ enum DemoSeeder {
 
         state.events = [
             FeedEvent(groupId: group.id, type: .memberJoined, actorId: currentUser.id, title: "멤버 참여", message: "\(currentUser.nickname)님이 그룹에 참여했습니다.", createdAt: Date().addingTimeInterval(-120)),
-            FeedEvent(groupId: group.id, type: .recommendStock, actorId: younghee.id, targetUserId: currentUser.id, stockId: nvda.id, title: "추천", message: "영희가 \(currentUser.nickname)에게 NVIDIA를 추천했습니다.", createdAt: Date().addingTimeInterval(-3600 * 3)),
+            FeedEvent(groupId: group.id, type: .commentPosted, actorId: cheolsu.id, stockId: nvda.id, title: "댓글", message: "철수가 NVIDIA 추천에 댓글을 남겼습니다. “지금 들어가도 늦었나”", createdAt: Date().addingTimeInterval(-3600 * 2)),
+            FeedEvent(groupId: group.id, type: .commentPosted, actorId: currentUser.id, stockId: nvda.id, title: "대댓글", message: "\(currentUser.nickname)가 NVIDIA 추천에 답글을 남겼습니다. “평단만 적어둘게”", createdAt: Date().addingTimeInterval(-3600)),
             FeedEvent(groupId: group.id, type: .proposalCreated, actorId: minsu.id, stockId: amd.id, title: "그룹 제안", message: "민수가 그룹에 AMD 같이 사자고 제안했습니다.", createdAt: Date().addingTimeInterval(-3600 * 8)),
             FeedEvent(groupId: group.id, type: .persistentNagging, actorId: minsu.id, targetUserId: currentUser.id, stockId: amd.id, title: "조르기", message: "민수가 \(currentUser.nickname)에게 AMD를 같이 사자고 조르는 중", createdAt: Date().addingTimeInterval(-3600)),
             FeedEvent(groupId: group.id, type: .newKkangbu, actorId: currentUser.id, targetUserId: cheolsu.id, stockId: aapl.id, title: "깐부", message: "\(currentUser.nickname) · 철수 · Apple", createdAt: Date().addingTimeInterval(-86400 * 14)),

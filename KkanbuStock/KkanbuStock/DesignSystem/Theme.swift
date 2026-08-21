@@ -173,8 +173,20 @@ struct EventRow: View {
     var event: FeedEvent
     var relative: String
     var actorName: String = ""
+    var onTap: (() -> Void)? = nil
 
     var body: some View {
+        Group {
+            if let onTap {
+                Button(action: onTap) { content }
+                    .buttonStyle(.plain)
+            } else {
+                content
+            }
+        }
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: 12) {
             if !actorName.isEmpty {
                 InitialsAvatar(name: actorName, size: 32)

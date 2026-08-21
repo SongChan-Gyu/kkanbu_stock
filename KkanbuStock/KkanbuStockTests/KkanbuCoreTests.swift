@@ -265,7 +265,7 @@ final class EventEngineTests: XCTestCase {
         var engine = EventEngine(rules: [])
         engine.register(ExtraRule())
         XCTAssertEqual(engine.rules.count, 1)
-        XCTAssertEqual(EventEngine.defaultRules().count, 16)
+        XCTAssertEqual(EventEngine.defaultRules().count, 17)
     }
 }
 
@@ -439,5 +439,33 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertFalse(bonds.isEmpty)
         XCTAssertTrue(bonds.contains { $0.grade.isGlory })
         XCTAssertTrue(bonds.contains { $0.grade.isRoast })
+    }
+
+    func testRecommendationThreadKeepsCommentsAndReplies() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-comment-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "영희")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(stock: nvda, averagePrice: 140, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(holding: store.state.activeHoldings(of: store.state.currentUserId)[0], to: friend.id, message: "같이 들어가 봐.")
+
+        store.addComment(stockId: nvda.id, body: "   ")
+        XCTAssertTrue(store.state.comments.isEmpty)
+
+        store.addComment(stockId: nvda.id, body: "지금 들어가도 늦었나")
+        XCTAssertEqual(store.state.comments.count, 1)
+        XCTAssertTrue(store.state.events.contains { $0.type == .commentPosted })
+
+        let parent = store.state.comments[0]
+        store.playAs(friend.id)
+        store.addComment(stockId: nvda.id, parentId: parent.id, body: "평단만 적어둘게")
+        XCTAssertEqual(store.commentCount(in: store.state.groups[0].id, stockId: nvda.id), 2)
+        XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
+        XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
     }
 }

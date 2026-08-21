@@ -56,12 +56,14 @@ struct GroupHomeView: View {
     @State private var showPropose = false
     @State private var addPrefill: Stock?
     @State private var verifyHolding: Holding?
+    @State private var threadStock: Stock?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 myTurn
+                recommendedThreads
                 hero
                 members
                 kkangbuStrip
@@ -78,6 +80,7 @@ struct GroupHomeView: View {
         .sheet(isPresented: $showPropose) { ProposalSheet() }
         .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
         .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
+        .sheet(item: $threadStock) { RecommendationThreadView(stock: $0) }
     }
 
     private var header: some View {
@@ -116,7 +119,58 @@ struct GroupHomeView: View {
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in
-                        InboxActionCard(item: item, onVerify: { verifyHolding = $0 }, onRegister: { addPrefill = $0 })
+                        InboxActionCard(
+                            item: item,
+                            onVerify: { verifyHolding = $0 },
+                            onRegister: { addPrefill = $0 },
+                            onOpenThread: { threadStock = $0 }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var recommendedThreads: some View {
+        let recs = store.state.recommendations.filter { $0.groupId == group.id }
+        let stockIds = recs.reduce(into: [UUID]()) { result, rec in
+            if !result.contains(rec.stockId) { result.append(rec.stockId) }
+        }
+        return Group {
+            if !stockIds.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("추천 종목")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.muted)
+                    ForEach(stockIds, id: \.self) { stockId in
+                        if let stock = store.state.stock(stockId) {
+                            let related = recs.filter { $0.stockId == stockId }
+                            let count = store.commentCount(in: group.id, stockId: stockId)
+                            Button {
+                                threadStock = stock
+                            } label: {
+                                HStack(alignment: .firstTextBaseline) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(stock.name)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(KkanbuTheme.ink)
+                                        Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
+                                            .font(.caption)
+                                            .foregroundStyle(KkanbuTheme.muted)
+                                        Text(related.last.map { "“\($0.message)”" } ?? "")
+                                            .font(.caption)
+                                            .foregroundStyle(KkanbuTheme.ink)
+                                    }
+                                    Spacer()
+                                    Text(count == 0 ? "댓글" : "댓글 \(count)")
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(KkanbuTheme.muted)
+                                }
+                                .padding(.vertical, 10)
+                                .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
@@ -264,7 +318,8 @@ struct GroupHomeView: View {
                     EventRow(
                         event: event,
                         relative: MoneyFormat.relative(event.createdAt),
-                        actorName: event.actorId.map { store.state.nickname($0) } ?? ""
+                        actorName: event.actorId.map { store.state.nickname($0) } ?? "",
+                                onTap: event.opensRecommendationThread ? event.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
                     )
                 }
             }

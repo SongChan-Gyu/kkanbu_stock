@@ -31,6 +31,7 @@ struct InboxActionCard: View {
     var item: InboxItem
     var onVerify: (Holding) -> Void
     var onRegister: (Stock) -> Void
+    var onOpenThread: ((Stock) -> Void)? = nil
 
     var body: some View {
         switch item.kind {
@@ -53,6 +54,7 @@ struct InboxActionCard: View {
                         VStack(spacing: 8) {
                             QuietButton(title: "샀어요 · 매수가 적기") { onRegister(stock) }
                             QuietButton(title: "마음 바뀜", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                            threadButton(stock)
                         }
                     }
                     .padding(.vertical, 12)
@@ -73,6 +75,7 @@ struct InboxActionCard: View {
                         VStack(spacing: 8) {
                             QuietButton(title: "살게요") { store.resolveRecommendation(rec.id, accept: true) }
                             QuietButton(title: "안 살게", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                            threadButton(stock)
                         }
                     }
                     .padding(.vertical, 12)
@@ -140,5 +143,162 @@ struct InboxActionCard: View {
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
             }
         }
+    }
+
+    @ViewBuilder
+    private func threadButton(_ stock: Stock) -> some View {
+        if let onOpenThread, let groupId = store.state.selectedGroupId {
+            let count = store.commentCount(in: groupId, stockId: stock.id)
+            QuietButton(title: count == 0 ? "댓글 달기" : "댓글 \(count)", kind: .ghost) { onOpenThread(stock) }
+        }
+    }
+}
+
+struct RecommendationThreadView: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    var stock: Stock
+    @State private var draft = ""
+    @State private var replyTo: StockComment?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    history
+                    comments
+                }
+                .padding(16)
+            }
+            .safeAreaInset(edge: .bottom) { composer }
+            .navigationTitle(stock.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+            }
+        }
+    }
+
+    private var groupId: UUID? { store.state.selectedGroupId }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(stock.ticker)
+                .font(.caption.monospaced())
+                .foregroundStyle(KkanbuTheme.faint)
+            Text("이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.")
+                .font(.caption)
+                .foregroundStyle(KkanbuTheme.faint)
+        }
+    }
+
+    private var history: some View {
+        let recs = groupId.map { store.recommendations(in: $0, stockId: stock.id) } ?? []
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("추천 히스토리")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(KkanbuTheme.muted)
+            if recs.isEmpty {
+                Text("아직 이 종목을 추천한 기록이 없습니다.")
+                    .font(.footnote)
+                    .foregroundStyle(KkanbuTheme.faint)
+            } else {
+                ForEach(recs) { rec in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(store.state.nickname(rec.senderId)) → \(store.state.nickname(rec.receiverId))")
+                            .font(.subheadline.weight(.semibold))
+                        Text("“\(rec.message)”")
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.ink)
+                        Text("\(rec.status.threadLabel) · \(MoneyFormat.relative(rec.createdAt))")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    .padding(.vertical, 10)
+                    .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                }
+            }
+        }
+    }
+
+    private var comments: some View {
+        let items = groupId.map { store.comments(in: $0, stockId: stock.id) } ?? []
+        let roots = items.filter { $0.parentId == nil }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("댓글 \(items.count)")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(KkanbuTheme.muted)
+            if items.isEmpty {
+                Text("아직 댓글이 없습니다. 이 추천에 한마디 남겨 보세요.")
+                    .font(.footnote)
+                    .foregroundStyle(KkanbuTheme.faint)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(roots) { comment in
+                    commentBlock(comment)
+                    ForEach(items.filter { $0.parentId == comment.id }) { reply in
+                        commentBlock(reply, isReply: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func commentBlock(_ comment: StockComment, isReply: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            if isReply { Color.clear.frame(width: 18) }
+            InitialsAvatar(name: store.state.nickname(comment.authorId), size: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(store.state.nickname(comment.authorId))
+                    .font(.caption.weight(.semibold))
+                Text(comment.body)
+                    .font(.subheadline)
+                HStack(spacing: 10) {
+                    Text(MoneyFormat.relative(comment.createdAt))
+                        .font(.caption)
+                        .foregroundStyle(KkanbuTheme.faint)
+                    if !isReply {
+                        Button("답글") { replyTo = comment }
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(KkanbuTheme.ink)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let replyTo {
+                HStack {
+                    Text("\(store.state.nickname(replyTo.authorId))에게 답글")
+                        .font(.caption)
+                        .foregroundStyle(KkanbuTheme.muted)
+                    Spacer()
+                    Button("취소") { self.replyTo = nil }
+                        .font(.caption.weight(.medium))
+                }
+            }
+            HStack(spacing: 8) {
+                TextField(replyTo == nil ? "이 추천에 한마디" : "답글 적기", text: $draft, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .padding(.vertical, 10)
+                Button("보내기") { send() }
+                    .font(.subheadline.weight(.semibold))
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(KkanbuTheme.bg)
+    }
+
+    private func send() {
+        store.addComment(stockId: stock.id, parentId: replyTo?.id, body: draft)
+        draft = ""
+        replyTo = nil
     }
 }

@@ -65,12 +65,15 @@ function emptyState(me) {
     suspicions: [],
     events: [],
     badges: [],
+    comments: [],
     stocks: makeStocks(),
     onboarding: true,
     tab: "group",
     sheet: null,
     toast: null,
-    error: null
+    error: null,
+    replyTo: null,
+    threadDraft: ""
   };
 }
 
@@ -123,6 +126,11 @@ function seed(state) {
     stockId: "NVDA", holdingId: youngheeNVDA.id, message: "같이 들어가 봐.",
     status: "pending", createdAt: now() - hours(3)
   });
+  state.comments.push(
+    { id: "cm1", groupId: group.id, stockId: "NVDA", authorId: "cheolsu", parentId: null, body: "지금 들어가도 늦었나", createdAt: now() - hours(2) },
+    { id: "cm2", groupId: group.id, stockId: "NVDA", authorId: state.me.id, parentId: "cm1", body: "평단만 적어둘게", createdAt: now() - hours(1) },
+    { id: "cm3", groupId: group.id, stockId: "NVDA", authorId: "minsu", parentId: null, body: "나는 패스ㅋㅋ 물리면 니 탓이다", createdAt: now() - hours(0.5) }
+  );
   const proposal = {
     id: "p1", groupId: group.id, proposerId: "minsu", stockId: "AMD",
     message: "이번에 같이 들어갈 사람?", createdAt: now() - hours(8)
@@ -137,7 +145,9 @@ function seed(state) {
   const nick = state.me.nickname;
   state.events = [
     ev(group.id, "멤버 참여", `${nick}님이 그룹에 참여했습니다.`, now() - 120000, "member", state.me.id),
-    ev(group.id, "추천", `NVIDIA를 추천했습니다.`, now() - hours(3), "rec", "younghee"),
+    ev(group.id, "추천", `영희가 ${nick}에게 NVIDIA를 추천했습니다.`, now() - hours(3), "rec", "younghee", "NVDA"),
+    ev(group.id, "댓글", `철수가 NVIDIA 추천에 댓글을 남겼습니다. “지금 들어가도 늦었나”`, now() - hours(2), "cmt", "cheolsu", "NVDA"),
+    ev(group.id, "대댓글", `${nick}가 NVIDIA 추천에 답글을 남겼습니다. “평단만 적어둘게”`, now() - hours(1), "cmt", state.me.id, "NVDA"),
     ev(group.id, "그룹 제안", `민수가 그룹에 AMD 같이 사자고 제안했습니다.`, now() - hours(8), "prop", "minsu"),
     ev(group.id, "조르기", `${nick}에게 AMD를 같이 사자고 조르는 중`, now() - hours(1), "nag", "minsu"),
     ev(group.id, "깐부", `${nick} · 철수 · Apple`, now() - days(14), "kk", state.me.id),
@@ -157,8 +167,8 @@ function seed(state) {
   state.onboarding = false;
 }
 
-function ev(groupId, title, message, createdAt, type, actorId) {
-  return { id: uid(), groupId, title, message, createdAt, type, actorId };
+function ev(groupId, title, message, createdAt, type, actorId, stockId) {
+  return { id: uid(), groupId, title, message, createdAt, type, actorId, stockId: stockId || null };
 }
 
 let state = emptyState({ id: "me", nickname: "나" });
@@ -212,9 +222,9 @@ function toast(msg) {
   clearTimeout(toast._t);
   toast._t = setTimeout(() => { el.hidden = true; }, 2200);
 }
-function pushEvent(title, message, type, actorId) {
+function pushEvent(title, message, type, actorId, stockId) {
   const g = group();
-  state.events.unshift(ev(g.id, title, message, now(), type, actorId || state.me.id));
+  state.events.unshift(ev(g.id, title, message, now(), type, actorId || state.me.id, stockId));
 }
 
 function inbox() {
@@ -325,14 +335,39 @@ function promiseCoBuy(proposalId) {
   render();
 }
 
-function recommend(holdingId, toUserId) {
+function recStatusLabel(status) {
+  return { pending: "아직 대답 없음", willBuy: "살게요 · 아직 안 삼", accepted: "사서 기록", rejected: "마음 바뀜" }[status] || status;
+}
+function commentsFor(stockId) {
+  return (state.comments || []).filter((c) => c.stockId === stockId && c.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
+}
+function addComment(stockId, body, parentId) {
+  const text = (body || "").trim();
+  if (!text) {
+    toast("내용을 적어 주세요.");
+    return;
+  }
+  const comment = {
+    id: uid(), groupId: group().id, stockId, authorId: state.me.id,
+    parentId: parentId || null, body: text, createdAt: now()
+  };
+  state.comments.push(comment);
+  const title = parentId ? "대댓글" : "댓글";
+  const kind = parentId ? "답글" : "댓글";
+  pushEvent(title, `${stock(stockId).name} 추천에 ${kind}을 남겼습니다. “${text.slice(0, 40)}”`, "cmt", state.me.id, stockId);
+  toast(parentId ? "대댓글을 남겼습니다" : "댓글을 남겼습니다");
+  state.replyTo = null;
+  render();
+}
+
+function recommend(holdingId, toUserId, message) {
   const h = state.holdings.find((x) => x.id === holdingId);
   const rec = {
     id: uid(), groupId: group().id, senderId: state.me.id, receiverId: toUserId,
-    stockId: h.stockId, holdingId, message: "같이 들어가 봐.", status: "pending", createdAt: now()
+    stockId: h.stockId, holdingId, message: (message || "").trim() || "같이 들어가 봐.", status: "pending", createdAt: now()
   };
   state.recs.push(rec);
-  pushEvent("추천", `${stock(h.stockId).name}를 ${nickname(toUserId)}에게 추천했습니다.`, "rec");
+  pushEvent("추천", `${stock(h.stockId).name}를 ${nickname(toUserId)}에게 추천했습니다.`, "rec", state.me.id, h.stockId);
   toast("추천을 보냈습니다");
   state.sheet = null;
   render();
@@ -460,6 +495,11 @@ function holdingRow(h, isMine) {
     </div>`;
 }
 
+function threadBtn(stockId) {
+  const n = commentsFor(stockId).length;
+  return `<div style="height:8px"></div>${btn(n ? `댓글 ${n}` : "댓글 달기", "ghost", `thread:${stockId}`)}`;
+}
+
 function inboxBlock(item) {
   if (item.kind === "recommend") {
     const rec = item.rec;
@@ -473,6 +513,7 @@ function inboxBlock(item) {
         ${btn("샀어요 · 매수가 적기", "primary", `bought:${rec.id}`)}
         <div style="height:8px"></div>
         ${btn("마음 바뀜", "secondary", `reject:${rec.id}`)}
+        ${threadBtn(s.id)}
       </div>`;
     }
     return `<div class="action-block">
@@ -483,6 +524,7 @@ function inboxBlock(item) {
       ${btn("살게요", "primary", `accept:${rec.id}`)}
       <div style="height:8px"></div>
       ${btn("안 살게", "secondary", `reject:${rec.id}`)}
+      ${threadBtn(s.id)}
     </div>`;
   }
   if (item.kind === "proposal" || item.kind === "nag") {
@@ -518,7 +560,8 @@ function eventRow(e) {
   const kick = /황금|신의|사서|살게요/.test(e.title) || e.type === "gold" ? "glory"
     : /최악|공동묘지|마음|혼자/.test(e.title) || e.type === "worst" || e.type === "solo" ? "roast"
     : "plain";
-  return `<div class="feed-item">
+  const open = e.stockId && (e.type === "rec" || e.type === "cmt") ? ` data-act="thread:${e.stockId}"` : "";
+  return `<div class="feed-item"${open} style="${open ? "cursor:pointer" : ""}">
     ${actor ? avatarHTML(actor, "sm") : `<div class="avatar sm c0">·</div>`}
     <div class="grow">
       <div class="kind ${kick}">${esc(e.title)}</div>
@@ -541,6 +584,27 @@ function renderOnboarding() {
       <div style="height:8px"></div>
       ${btn("빈 그룹으로 시작", "secondary full", "empty-start")}
     </div>`;
+}
+
+function recommendedSection() {
+  const recs = state.recs.filter((r) => r.groupId === group()?.id);
+  const ids = [];
+  recs.forEach((r) => { if (!ids.includes(r.stockId)) ids.push(r.stockId); });
+  if (!ids.length) return "";
+  return `<div class="section"><div class="section-title">추천 종목</div>${ids.map((id) => {
+    const s = stock(id);
+    const related = recs.filter((r) => r.stockId === id);
+    const n = commentsFor(id).length;
+    const last = related[related.length - 1];
+    return `<button class="row btn" data-act="thread:${id}">
+      <div class="grow">
+        <div class="stock-name">${esc(s.name)}</div>
+        <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
+        <div class="meta">“${esc(last.message)}”</div>
+      </div>
+      <div class="right"><div class="status">${n ? `댓글 ${n}` : "댓글"}</div></div>
+    </button>`;
+  }).join("")}</div>`;
 }
 
 function renderGroup() {
@@ -568,6 +632,8 @@ function renderGroup() {
       </div>
 
       ${items.length ? `<div class="section"><div class="section-title">내 차례</div><div class="row-list">${items.map(inboxBlock).join("")}</div></div>` : ""}
+
+      ${recommendedSection()}
 
       <div class="section">
         <div class="section-title">멤버</div>
@@ -691,7 +757,9 @@ function sheetHTML() {
     const others = memberUsers().filter((u) => u.id !== state.me.id);
     return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
       <h2>친구에게 추천</h2>
-      <p class="note">이미 내가 보유한 종목을 친구에게 알립니다. 친구가 같은 종목을 등록하면 깐부가 됩니다.</p>
+      <p class="note">이미 내가 보유한 종목을 친구에게 알립니다. 한마디를 적으면 추천 히스토리에 남습니다.</p>
+      <label>한마디</label>
+      <input id="rec-msg" value="같이 들어가 봐." />
       ${others.map((u) => `<div style="margin-bottom:8px">${btn(u.nickname + "에게", "secondary full", `send-rec:${hid}:${u.id}`)}</div>`).join("")}
       ${btn("닫기", "ghost full", "close")}
     </div></div>`;
@@ -707,6 +775,40 @@ function sheetHTML() {
       <label>메시지</label>
       <input id="prop-msg" value="이번에 같이 들어갈 사람?" />
       ${btn("보내기", "primary full", "do-prop")}
+      <div style="height:8px"></div>
+      ${btn("닫기", "secondary full", "close")}
+    </div></div>`;
+  }
+  if (state.sheet.startsWith("thread:")) {
+    const stockId = state.sheet.split(":")[1];
+    const s = stock(stockId);
+    const recs = state.recs.filter((r) => r.stockId === stockId && r.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
+    const comments = commentsFor(stockId);
+    const roots = comments.filter((c) => !c.parentId);
+    const reply = state.replyTo ? comments.find((c) => c.id === state.replyTo) : null;
+    const commentHTML = (c, isReply) => `<div class="comment ${isReply ? "reply" : ""}">
+      ${avatarHTML(user(c.authorId) || { nickname: "?" }, "sm")}
+      <div class="grow">
+        <div class="names">${esc(nickname(c.authorId))}</div>
+        <div class="body">${esc(c.body)}</div>
+        <div class="time">${relative(c.createdAt)}${!c.parentId ? ` · <button class="btn text" data-act="reply:${c.id}">답글</button>` : ""}</div>
+      </div>
+    </div>`;
+    return `<div class="sheet" data-act="close"><div class="panel" onclick="event.stopPropagation()">
+      <h2>${esc(s.name)}</h2>
+      <p class="note">이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
+      <div class="kind">추천 히스토리</div>
+      ${recs.length ? recs.map((r) => `<div class="history-item">
+        <div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div>
+        <div class="body">“${esc(r.message)}”</div>
+        <div class="time">${esc(recStatusLabel(r.status))} · ${relative(r.createdAt)}</div>
+      </div>`).join("") : `<p class="empty">아직 이 종목을 추천한 기록이 없습니다.</p>`}
+      <div class="kind" style="margin-top:16px">댓글 ${comments.length}</div>
+      ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 이 추천에 한마디 남겨 보세요.</p>`}
+      ${reply ? `<div class="caption">${esc(nickname(reply.authorId))}에게 답글 · <button class="btn text" data-act="cancel-reply">취소</button></div>` : ""}
+      <label>${reply ? "답글" : "댓글"}</label>
+      <input id="thread-text" placeholder="${reply ? "답글 적기" : "이 추천에 한마디"}" value="${esc(state.threadDraft || "")}" />
+      ${btn("보내기", "primary full", "do-comment")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
     </div></div>`;
@@ -789,7 +891,36 @@ function handle(act) {
   if (act.startsWith("open-prop")) { state.sheet = act; render(); return; }
   if (act.startsWith("send-rec:")) {
     const parts = act.split(":");
-    return recommend(parts[1], parts[2]);
+    const msg = document.getElementById("rec-msg")?.value;
+    return recommend(parts[1], parts[2], msg);
+  }
+  if (act.startsWith("thread:")) {
+    state.sheet = act;
+    state.replyTo = null;
+    state.threadDraft = "";
+    render();
+    return;
+  }
+  if (act.startsWith("reply:")) {
+    const input = document.getElementById("thread-text");
+    if (input) state.threadDraft = input.value;
+    state.replyTo = act.split(":")[1];
+    render();
+    return;
+  }
+  if (act === "cancel-reply") {
+    const input = document.getElementById("thread-text");
+    if (input) state.threadDraft = input.value;
+    state.replyTo = null;
+    render();
+    return;
+  }
+  if (act === "do-comment") {
+    const stockId = (state.sheet || "").split(":")[1];
+    const text = document.getElementById("thread-text")?.value || "";
+    state.threadDraft = "";
+    addComment(stockId, text, state.replyTo);
+    return;
   }
   if (act === "do-prop") {
     propose(document.getElementById("prop-ticker").value, document.getElementById("prop-msg").value);

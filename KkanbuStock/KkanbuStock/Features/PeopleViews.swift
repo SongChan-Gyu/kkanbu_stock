@@ -4,6 +4,7 @@ struct ActivityView: View {
     @Environment(AppStore.self) private var store
     @State private var verifyHolding: Holding?
     @State private var addPrefill: Stock?
+    @State private var threadStock: Stock?
 
     var body: some View {
         NavigationStack {
@@ -19,7 +20,12 @@ struct ActivityView: View {
                             EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 같이 사기 제안이 오면 여기에 모입니다.")
                         }
                         ForEach(items) { item in
-                            InboxActionCard(item: item, onVerify: { verifyHolding = $0 }, onRegister: { addPrefill = $0 })
+                            InboxActionCard(
+                                item: item,
+                                onVerify: { verifyHolding = $0 },
+                                onRegister: { addPrefill = $0 },
+                                onOpenThread: { threadStock = $0 }
+                            )
                         }
                         Text("최근 기록")
                             .font(.footnote.weight(.semibold))
@@ -29,7 +35,8 @@ struct ActivityView: View {
                             EventRow(
                                 event: event,
                                 relative: MoneyFormat.relative(event.createdAt),
-                                actorName: event.actorId.map { store.state.nickname($0) } ?? ""
+                                actorName: event.actorId.map { store.state.nickname($0) } ?? "",
+                                onTap: event.opensRecommendationThread ? event.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
                             )
                         }
                     }
@@ -39,6 +46,7 @@ struct ActivityView: View {
             .navigationTitle("활동")
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
+            .sheet(item: $threadStock) { RecommendationThreadView(stock: $0) }
         }
     }
 }

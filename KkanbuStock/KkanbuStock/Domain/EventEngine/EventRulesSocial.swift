@@ -229,3 +229,24 @@ struct VerificationRule: EventRule {
         }
     }
 }
+
+struct CommentRule: EventRule {
+    let ruleId = "CommentRule"
+
+    func evaluate(context: EventContext) -> [FeedEvent] {
+        guard case let .commentPosted(id) = context.trigger,
+              let comment = context.after.comments.first(where: { $0.id == id }) else { return [] }
+        let clipped = comment.body.count > 40 ? String(comment.body.prefix(40)) + "…" : comment.body
+        let isReply = comment.parentId != nil
+        return [
+            FeedEvent(
+                groupId: comment.groupId,
+                type: .commentPosted,
+                actorId: comment.authorId,
+                stockId: comment.stockId,
+                title: isReply ? "대댓글" : "댓글",
+                message: "\(context.after.nickname(comment.authorId))가 \(context.stockName(comment.stockId)) 추천에 \(isReply ? "답글" : "댓글")을 남겼습니다. “\(clipped)”"
+            )
+        ]
+    }
+}
