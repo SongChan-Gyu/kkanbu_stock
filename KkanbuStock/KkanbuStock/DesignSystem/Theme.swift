@@ -575,6 +575,7 @@ struct HoldingCardView: View {
     var isMine: Bool
     var ownerName: String? = nil
     var onRecommend: (() -> Void)?
+    var onAddOn: (() -> Void)?
     var onSell: (() -> Void)?
     var onVerify: (() -> Void)?
     var showsPulse: Bool = true
@@ -632,6 +633,7 @@ struct HoldingCardView: View {
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
                     small("친구에게 추천", action: onRecommend)
+                    small("추매", action: onAddOn)
                     small("매도", action: onSell)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {

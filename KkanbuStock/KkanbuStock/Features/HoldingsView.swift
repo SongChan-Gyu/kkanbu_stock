@@ -5,6 +5,7 @@ struct HoldingsView: View {
     @State private var showAdd = false
     @State private var recommendHolding: Holding?
     @State private var sellHolding: Holding?
+    @State private var addOnHolding: Holding?
     @State private var verifyHolding: Holding?
     @State private var showPropose = false
 
@@ -65,6 +66,7 @@ struct HoldingsView: View {
             .sheet(isPresented: $showAdd) { AddStockView() }
             .sheet(item: $recommendHolding) { RecommendSheet(holding: $0) }
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
+            .sheet(item: $addOnHolding) { AverageEditSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(isPresented: $showPropose) { ProposalSheet() }
         }
@@ -79,9 +81,10 @@ struct HoldingsView: View {
                 currentPrice: store.price(for: stock.id),
                 partners: partners(for: holding),
                 grade: grade(for: holding),
-                showsQuantity: store.state.currentUser.shareQuantity,
+                showsQuantity: true,
                 isMine: true,
                 onRecommend: { recommendHolding = holding },
+                onAddOn: holding.status == .holding ? { addOnHolding = holding } : nil,
                 onSell: holding.status == .holding ? { sellHolding = holding } : nil,
                 onVerify: { verifyHolding = holding }
             )
@@ -116,6 +119,131 @@ struct HoldingsView: View {
         return KkangbuMath.bonds(in: groupId, state: store.state, prices: store.currentPrices)
             .first { $0.stockId == holding.stockId && $0.members.contains(store.state.currentUserId) }?
             .grade
+    }
+}
+
+struct AverageEditSheet: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    var holding: Holding
+    @State private var addPriceText = ""
+    @State private var addQtyText = ""
+    @State private var existingQtyText = ""
+    @State private var directPriceText = ""
+    @State private var qtyText = ""
+    @State private var date = Date()
+    @State private var showChart = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let stock = store.state.stock(holding.stockId) {
+                    Section("종목") {
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(stock.name)
+                                Text("지금 평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market))")
+                                    .font(.footnote)
+                                    .foregroundStyle(KkanbuTheme.muted)
+                                if let qty = holding.quantity {
+                                    Text("수량 \(formatQty(qty))")
+                                        .font(.caption)
+                                        .foregroundStyle(KkanbuTheme.faint)
+                                }
+                            }
+                        }
+                    }
+                    Section("추매") {
+                        Text("더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 현재가로 채우지 않습니다.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        TextField(stock.market == .krx ? "추가 매수가 예: 72300" : "추가 매수가 예: 163.40", text: $addPriceText)
+                            .keyboardType(.decimalPad)
+                        Button("차트에서 고르기") { showChart = true }
+                        if holding.quantity == nil {
+                            TextField("기존 수량", text: $existingQtyText)
+                                .keyboardType(.decimalPad)
+                        }
+                        TextField("추가 수량", text: $addQtyText)
+                            .keyboardType(.decimalPad)
+                        if let preview {
+                            Text("새 평단 \(MoneyFormat.price(preview, market: stock.market))")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    Section("직접") {
+                        TextField("새 평단", text: $directPriceText)
+                            .keyboardType(.decimalPad)
+                        TextField("수량 (선택)", text: $qtyText)
+                            .keyboardType(.decimalPad)
+                    }
+                }
+            }
+            .navigationTitle("추매 · 평단")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("반영") { save() }
+                        .disabled(!canSave)
+                }
+            }
+            .sheet(isPresented: $showChart) {
+                if let stock = store.state.stock(holding.stockId) {
+                    ChartPricePickerView(stock: stock, date: $date, priceText: $addPriceText)
+                }
+            }
+            .onAppear {
+                let stock = store.state.stock(holding.stockId)
+                let krx = stock?.market == .krx
+                directPriceText = String(format: krx ? "%.0f" : "%.2f", holding.averagePrice)
+                if let qty = holding.quantity {
+                    qtyText = formatQty(qty)
+                    existingQtyText = formatQty(qty)
+                }
+            }
+        }
+    }
+
+    private var parsedAddPrice: Double? { number(addPriceText) }
+    private var parsedAddQty: Double? { number(addQtyText) }
+    private var parsedExistingQty: Double? { holding.quantity ?? number(existingQtyText) }
+    private var parsedDirect: Double? { number(directPriceText) }
+    private var parsedQty: Double? { number(qtyText) }
+
+    private var preview: Double? {
+        guard let addPrice = parsedAddPrice, let addQty = parsedAddQty, let oldQty = parsedExistingQty else { return nil }
+        return Holding.blendedAverage(
+            oldAverage: holding.averagePrice,
+            oldQuantity: oldQty,
+            addPrice: addPrice,
+            addQuantity: addQty
+        )
+    }
+
+    private var canSave: Bool {
+        preview != nil || ((parsedDirect ?? 0) > 0)
+    }
+
+    private func save() {
+        if let addPrice = parsedAddPrice, let addQty = parsedAddQty, let oldQty = parsedExistingQty, addQty > 0, oldQty > 0 {
+            store.addToPosition(id: holding.id, addPrice: addPrice, addQuantity: addQty, existingQuantity: oldQty)
+            dismiss()
+            return
+        }
+        if let direct = parsedDirect, direct > 0 {
+            store.updateHoldingPrice(id: holding.id, price: direct, quantity: parsedQty)
+            dismiss()
+        }
+    }
+
+    private func number(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "$", with: ""))
+    }
+
+    private func formatQty(_ value: Double) -> String {
+        String(format: value.rounded() == value ? "%.0f" : "%g", value)
     }
 }
 

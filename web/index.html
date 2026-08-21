@@ -1474,9 +1474,49 @@ function inbox() {
   return items;
 }
 
+function blendedAverage(oldAvg, oldQty, addPrice, addQty) {
+  const total = oldQty + addQty;
+  if (!(oldAvg > 0) || !(addPrice > 0) || !(oldQty > 0) || !(addQty > 0) || !(total > 0)) return null;
+  return (oldAvg * oldQty + addPrice * addQty) / total;
+}
+
+function addToPosition(id) {
+  const h = state.holdings.find((x) => x.id === id && x.userId === state.me.id);
+  if (!h || h.status !== "holding") return;
+  const s = stock(h.stockId);
+  const addPrice = Number(document.getElementById("add-price")?.value);
+  const addQty = Number(document.getElementById("add-qty")?.value);
+  const oldQty = h.quantity || Number(document.getElementById("old-qty")?.value);
+  const direct = Number(document.getElementById("new-avg")?.value);
+  const directQty = Number(document.getElementById("new-qty")?.value);
+  const blended = blendedAverage(h.averagePrice, oldQty, addPrice, addQty);
+  if (blended != null) {
+    h.averagePrice = blended;
+    h.quantity = oldQty + addQty;
+  } else if (direct > 0) {
+    if (Math.abs(direct - h.averagePrice) < 1e-9 && !(directQty > 0 && directQty !== h.quantity)) {
+      toast("바꿀 값이 없습니다.");
+      return;
+    }
+    h.averagePrice = direct;
+    if (directQty > 0) h.quantity = directQty;
+  } else {
+    toast("추가 매수가와 수량을 적거나, 새 평단을 적어 주세요.");
+    return;
+  }
+  if (h.verification === "mismatch") h.verification = "unverified";
+  pushEvent("평단 수정", `${nickname(state.me.id)}가 ${s.name} 평단을 ${formatPrice(h.averagePrice, s.market)}로 고쳤습니다.`, "rec", state.me.id, h.stockId);
+  toast("평단 " + formatPrice(h.averagePrice, s.market) + "로 바꿨습니다");
+  state.sheet = null;
+  state.addTicker = null;
+  state.addPrice = "";
+  state.chartIndex = null;
+  render();
+}
+
 function addHolding(ticker, avg, method = "manual") {
   if (activeHoldings(state.me.id).some((h) => h.stockId === ticker)) {
-    toast("이미 보유 중인 종목입니다.");
+    toast("이미 보유 중인 종목입니다. 추매에서 평단을 고치세요.");
     return;
   }
   const s = stock(ticker);
@@ -1709,7 +1749,7 @@ function holdingRow(h, isMine) {
   const owner = user(h.userId);
   let actions = "";
   if (isMine && h.status === "holding") {
-    actions = sm("친구에게 추천", `open-rec:${h.id}`) + sm("매도", `sell:${h.id}`);
+    actions = sm("친구에게 추천", `open-rec:${h.id}`) + sm("추매", `addon:${h.id}`) + sm("매도", `sell:${h.id}`);
     if (h.verification !== "screenshot") actions += sm("캡처 인증", `verify:${h.id}`);
   }
   const partnerLine = partners.length && g
@@ -2074,7 +2114,7 @@ function sheetWrap(inner) {
 
 function sheetHTML() {
   if (!state.sheet) return "";
-  if (state.sheet.startsWith("add") || state.sheet.startsWith("register:")) {
+  if (state.sheet === "add" || state.sheet.startsWith("register:")) {
     const pre = state.sheet.startsWith("register:") ? state.sheet.split(":")[1] : "";
     const selectedId = state.addTicker || pre || state.stocks[0]?.id;
     const selected = stock(selectedId) || state.stocks[0];
@@ -2089,6 +2129,39 @@ function sheetHTML() {
       <label>매수가</label>
       <input id="add-price" type="number" step="0.01" placeholder="내가 산 가격" value="${esc(priceVal)}" />
       ${btn("등록", "primary full", "do-add")}
+      <div style="height:8px"></div>
+      ${btn("닫기", "secondary full", "close")}
+    `);
+  }
+  if (state.sheet.startsWith("addon:")) {
+    const hid = state.sheet.split(":")[1];
+    const h = state.holdings.find((x) => x.id === hid);
+    const s = h ? stock(h.stockId) : null;
+    if (!h || !s) return "";
+    const priceVal = state.addPrice || "";
+    const avgVal = String(s.market === "krx" ? Math.round(h.averagePrice) : h.averagePrice);
+    return sheetWrap(`
+      <h2>추매 · 평단</h2>
+      <p class="note">더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 평단만 고쳐도 됩니다. 현재가로 채우지 않습니다.</p>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+          <div class="meta">지금 평단 ${formatPrice(h.averagePrice, s.market)}${h.quantity ? " · 수량 " + h.quantity : ""}</div>
+        </div>
+      </div>
+      <input type="hidden" id="add-ticker" value="${esc(s.id)}" />
+      ${chartPickHTML(s)}
+      <label>추가 매수가</label>
+      <input id="add-price" type="number" step="0.01" placeholder="더 산 가격" value="${esc(priceVal)}" />
+      ${h.quantity ? "" : `<label>기존 수량</label><input id="old-qty" type="number" step="0.0001" placeholder="지금 몇 주인지" />`}
+      <label>추가 수량</label>
+      <input id="add-qty" type="number" step="0.0001" placeholder="몇 주 더 샀나요" />
+      <label>또는 새 평단</label>
+      <input id="new-avg" type="number" step="0.01" value="${esc(avgVal)}" />
+      <label>수량 (선택)</label>
+      <input id="new-qty" type="number" step="0.0001" value="${h.quantity ? esc(String(h.quantity)) : ""}" />
+      ${btn("반영", "primary full", "do-addon")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
     `);
@@ -2355,6 +2428,19 @@ function handle(act) {
     state.addPrice = "";
     state.chartIndex = null;
     openSheet(act);
+    return;
+  }
+  if (act.startsWith("addon:")) {
+    const h = state.holdings.find((x) => x.id === act.split(":")[1]);
+    state.addTicker = h ? h.stockId : null;
+    state.addPrice = "";
+    state.chartIndex = null;
+    openSheet(act);
+    return;
+  }
+  if (act === "do-addon") {
+    const id = (state.sheet || "").split(":")[1];
+    addToPosition(id);
     return;
   }
   if (act.startsWith("sell:")) return sellHolding(act.split(":")[1]);

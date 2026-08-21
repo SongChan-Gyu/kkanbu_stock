@@ -186,6 +186,17 @@ struct Holding: Identifiable, Codable, Hashable, Sendable {
         guard status == .sold, let sellPrice, sellPrice > 0 else { return nil }
         return (currentPrice - sellPrice) / sellPrice
     }
+
+    static func blendedAverage(
+        oldAverage: Double,
+        oldQuantity: Double,
+        addPrice: Double,
+        addQuantity: Double
+    ) -> Double? {
+        let total = oldQuantity + addQuantity
+        guard oldAverage > 0, addPrice > 0, oldQuantity > 0, addQuantity > 0, total > 0 else { return nil }
+        return (oldAverage * oldQuantity + addPrice * addQuantity) / total
+    }
 }
 
 struct PricePoint: Identifiable, Codable, Hashable, Sendable {

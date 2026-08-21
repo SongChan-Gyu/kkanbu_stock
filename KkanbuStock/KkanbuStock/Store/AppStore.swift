@@ -128,7 +128,7 @@ final class AppStore {
         verification: VerificationState
     ) {
         if let existing = state.activeHoldings(of: state.currentUserId).first(where: { $0.stockId == stock.id }) {
-            lastError = "이미 \(stock.name)를 보유 중이에요. 매수가를 수정하거나 매도 후 다시 등록해 주세요."
+            lastError = "이미 \(stock.name)를 보유 중이에요. 추매하거나 평단을 고친 다음, 매도 후 다시 등록해 주세요."
             return
         }
         let holding = Holding(
@@ -174,15 +174,52 @@ final class AppStore {
         toast = "매도 처리됨"
     }
 
-    func updateHoldingPrice(id: UUID, price: Double) {
+    func updateHoldingPrice(id: UUID, price: Double, quantity: Double? = nil) {
         guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        guard price > 0 else {
+            lastError = "평단을 확인해 주세요."
+            return
+        }
         let before = state
         state.holdings[index].averagePrice = price
+        if let quantity, quantity > 0 {
+            state.holdings[index].quantity = quantity
+        }
         state.holdings[index].updatedAt = Date()
         if state.holdings[index].verificationState == .mismatch {
             state.holdings[index].verificationState = .unverified
         }
         emit(.priceEdited(holdingId: id), before: before)
+        toast = "평단을 고쳤습니다"
+    }
+
+    func addToPosition(id: UUID, addPrice: Double, addQuantity: Double, existingQuantity: Double? = nil) {
+        guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        let holding = state.holdings[index]
+        guard holding.status == .holding else { return }
+        let oldQty = existingQuantity ?? holding.quantity ?? 0
+        guard let avg = Holding.blendedAverage(
+            oldAverage: holding.averagePrice,
+            oldQuantity: oldQty,
+            addPrice: addPrice,
+            addQuantity: addQuantity
+        ) else {
+            lastError = "추가 매수가와 수량을 확인해 주세요."
+            return
+        }
+        let before = state
+        state.holdings[index].averagePrice = avg
+        state.holdings[index].quantity = oldQty + addQuantity
+        state.holdings[index].updatedAt = Date()
+        if state.holdings[index].verificationState == .mismatch {
+            state.holdings[index].verificationState = .unverified
+        }
+        emit(.priceEdited(holdingId: id), before: before)
+        if let stock = state.stock(holding.stockId) {
+            toast = "평단 \(MoneyFormat.price(avg, market: stock.market))로 바꿨습니다"
+        } else {
+            toast = "평단을 고쳤습니다"
+        }
     }
 
     func recommend(holding: Holding, to userId: UUID, message: String) {

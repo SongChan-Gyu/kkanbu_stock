@@ -220,8 +220,8 @@ struct VerificationRule: EventRule {
                     actorId: holding.userId,
                     stockId: holding.stockId,
                     holdingId: holding.id,
-                    title: "매수가 수정",
-                    message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매수가를 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))로 고쳤습니다."
+                    title: "평단 수정",
+                    message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 평단을 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))로 고쳤습니다."
                 )
             }
         default:

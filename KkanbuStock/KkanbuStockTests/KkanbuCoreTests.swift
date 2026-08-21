@@ -471,6 +471,25 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
         XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
     }
+
+    func testAddToPositionRecalculatesAverage() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-addon-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let aapl = StockCatalog.stock(ticker: "AAPL")!
+        store.addHolding(stock: aapl, averagePrice: 200, quantity: 1, purchaseDate: Date(), method: .manual, verification: .unverified)
+        let id = store.state.activeHoldings(of: store.state.currentUserId)[0].id
+        store.addToPosition(id: id, addPrice: 100, addQuantity: 1)
+        let holding = store.state.holding(id)
+        XCTAssertEqual(holding?.averagePrice ?? 0, 150, accuracy: 0.01)
+        XCTAssertEqual(holding?.quantity ?? 0, 2, accuracy: 0.01)
+        XCTAssertTrue(store.state.events.contains { $0.type == .holdingPriceUpdated })
+        store.updateHoldingPrice(id: id, price: 180, quantity: 3)
+        XCTAssertEqual(store.state.holding(id)?.averagePrice ?? 0, 180, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.quantity ?? 0, 3, accuracy: 0.01)
+    }
 }
 
 final class StockIdentityPulseTests: XCTestCase {
@@ -567,5 +586,15 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2), "같이 물린 분위기")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: 0.2), "같이 웃는 분위기")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 평가 없음")
+    }
+
+    func testBlendedAverageFromAddOn() {
+        XCTAssertEqual(
+            Holding.blendedAverage(oldAverage: 100, oldQuantity: 2, addPrice: 50, addQuantity: 2) ?? 0,
+            75,
+            accuracy: 0.0001
+        )
+        XCTAssertNil(Holding.blendedAverage(oldAverage: 100, oldQuantity: 0, addPrice: 50, addQuantity: 2))
+        XCTAssertNil(Holding.blendedAverage(oldAverage: 100, oldQuantity: 1, addPrice: 0, addQuantity: 1))
     }
 }
