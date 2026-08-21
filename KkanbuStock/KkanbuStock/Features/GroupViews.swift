@@ -99,7 +99,7 @@ struct GroupHomeView: View {
             }
             HStack(spacing: 8) {
                 QuietButton(title: "내 주식 등록") { showAdd = true }
-                QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
+                QuietButton(title: "매수 제안", kind: .secondary) { showPropose = true }
             }
             Button("칭호 랭킹") { showRank = true }
                 .font(.caption.weight(.medium))
@@ -116,7 +116,7 @@ struct GroupHomeView: View {
                     Text("내 차례")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
-                    Text("친구 추천 / 그룹 제안")
+                    Text("추천 / 매수 제안")
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
                     ForEach(items) { item in
@@ -314,7 +314,7 @@ struct GroupHomeView: View {
         return Group {
             if !open.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("그룹 제안")
+                    Text("매수 제안")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.muted)
                     ForEach(open) { proposal in
@@ -393,7 +393,7 @@ struct ProposalCard: View {
         let mine = promised.contains { $0.userId == store.state.currentUserId }
         KkanbuCard(padding: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("그룹 제안 · \(store.state.nickname(proposal.proposerId))")
+                Text("매수 제안 · \(store.state.nickname(proposal.proposerId))")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(KkanbuTheme.faint)
                 HStack(spacing: 10) {
@@ -416,7 +416,7 @@ struct ProposalCard: View {
                     .foregroundStyle(KkanbuTheme.faint)
                 VStack(spacing: 8) {
                     if mine, proposal.proposerId == store.state.currentUserId {
-                        QuietButton(title: "그룹에 조르기", kind: .secondary) { store.nag(proposalId: proposal.id) }
+                        QuietButton(title: "다시 제안", kind: .secondary) { store.nag(proposalId: proposal.id) }
                     } else if !mine {
                         QuietButton(title: "관심 있음") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "패스", kind: .secondary) { store.declineProposal(proposal.id) }

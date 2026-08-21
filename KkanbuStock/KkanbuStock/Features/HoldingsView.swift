@@ -22,7 +22,7 @@ struct HoldingsView: View {
                         if mine.isEmpty {
                             EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
                             QuietButton(title: "내 주식 등록") { showAdd = true }
-                            QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
+                            QuietButton(title: "매수 제안", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")
@@ -252,12 +252,12 @@ struct ProposalSheet: View {
                 }
                 Section("메시지") {
                     TextField("제안", text: $message, axis: .vertical)
-                    Text("추천은 내가 산 종목을 친구에게, 같이 사기는 아직 안 산 종목을 그룹 전체에 제안합니다.")
+                    Text("추천은 보유 종목, 매수 제안은 아직 안 산 종목입니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("그룹에 같이 사자")
+            .navigationTitle("매수 제안")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

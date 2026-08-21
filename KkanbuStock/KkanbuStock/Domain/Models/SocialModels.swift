@@ -9,10 +9,10 @@ enum RecommendationStatus: String, Codable, Sendable {
 
     var threadLabel: String {
         switch self {
-        case .pending: "아직 대답 없음"
-        case .willBuy: "살게요 · 아직 안 삼"
-        case .accepted: "사서 기록"
-        case .later, .rejected: "마음 바뀜"
+        case .pending: "대기"
+        case .willBuy: "매수 예정"
+        case .accepted: "매수 기록"
+        case .later, .rejected: "거절"
         }
     }
 }

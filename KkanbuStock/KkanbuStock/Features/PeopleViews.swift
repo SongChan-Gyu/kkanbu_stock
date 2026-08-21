@@ -17,7 +17,7 @@ struct ActivityView: View {
                             .foregroundStyle(KkanbuTheme.muted)
                         let items = store.inboxItems(for: store.state.currentUserId)
                         if items.isEmpty {
-                            EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 같이 사기 제안이 오면 여기에 모입니다.")
+                            EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 매수 제안이 오면 여기에 모입니다.")
                         }
                         ForEach(items) { item in
                             InboxActionCard(
@@ -337,7 +337,7 @@ struct FriendDetailView: View {
         return VStack(alignment: .leading, spacing: 14) {
             historyBlock("내가 추천한 종목", records.recommendedByMe)
             historyBlock("\(user.nickname)가 제안한 종목", records.proposedByFriend)
-            historyBlock("같이 사기로 한 종목", records.coBuys)
+            historyBlock("매수 제안 종목", records.coBuys)
             historyBlock("\(user.nickname)가 매도한 기록", records.escapes)
             historyBlock("\(user.nickname)의 선견지명", records.foresights)
             historyBlock("너무 이른 매도", records.soldTooEarly)

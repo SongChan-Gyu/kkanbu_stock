@@ -28,8 +28,8 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "살게요",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 사겠다고 했습니다. 아직 산 건 아닙니다."
+                        title: "매수 예정",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 매수 예정으로 남겼습니다."
                     )
                 ]
             }
@@ -41,7 +41,7 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "사서 기록",
+                        title: "매수 기록",
                         message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId))를 사서 기록했습니다."
                     )
                 ]
@@ -54,8 +54,8 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "마음 바뀜",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 거절했습니다. 안 사기로 마음 바꿨습니다."
+                        title: "거절",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 거절했습니다."
                     )
                 ]
             }
@@ -79,8 +79,8 @@ struct ProposalRule: EventRule {
                     type: .proposalCreated,
                     actorId: proposal.proposerId,
                     stockId: proposal.stockId,
-                    title: "그룹 제안",
-                    message: "\(context.after.nickname(proposal.proposerId))가 그룹에 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
+                    title: "매수 제안",
+                    message: "\(context.after.nickname(proposal.proposerId))가 \(context.stockName(proposal.stockId)) 매수를 제안했습니다.\n“\(proposal.message)”"
                 )
             ]
         case let .proposalDeclined(id):
@@ -93,7 +93,7 @@ struct ProposalRule: EventRule {
                     targetUserId: proposal.proposerId,
                     stockId: proposal.stockId,
                     title: "제안 거절",
-                    message: "\(context.after.nickname(context.after.currentUserId))가 \(context.stockName(proposal.stockId)) 같이 사기를 일단 패스했습니다."
+                    message: "\(context.after.nickname(context.after.currentUserId))가 \(context.stockName(proposal.stockId)) 매수 제안을 거절했습니다."
                 )
             ]
         default:
@@ -116,8 +116,8 @@ struct CoBuyRule: EventRule {
                     type: .coBuyAccepted,
                     actorId: cobuy.userId,
                     stockId: cobuy.stockId,
-                    title: "같이 사기 약속",
-                    message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId)) 같이 사기에 손을 올렸습니다. 현재 \(promised)명."
+                    title: "관심",
+                    message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId)) 매수 제안에 관심을 남겼습니다. 현재 \(promised)명."
                 )
             ]
         case let .coBuyCompleted(id):
@@ -128,8 +128,8 @@ struct CoBuyRule: EventRule {
                     type: .coBuyCompleted,
                     actorId: cobuy.userId,
                     stockId: cobuy.stockId,
-                    title: "같이 사기 완료",
-                    message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId))를 실제로 등록했습니다. 약속이 깐부가 되는 순간."
+                    title: "매수 기록",
+                    message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId))를 기록했습니다."
                 )
             ]
         default:
@@ -147,9 +147,9 @@ struct NagRule: EventRule {
         let targetName = targetUserId.map { context.after.nickname($0) }
         let message: String
         if let targetName {
-            message = "\(context.after.nickname(actorId))가 \(targetName)에게 \(context.stockName(proposal.stockId))를 \(count)번째로 같이 사자고 조르고 있습니다."
+            message = "\(context.after.nickname(actorId))가 \(targetName)에게 \(context.stockName(proposal.stockId)) 매수를 \(count)번째로 다시 제안했습니다."
         } else {
-            message = "\(context.after.nickname(actorId))가 \(context.stockName(proposal.stockId))를 \(count)번째로 같이 사자고 조르고 있습니다."
+            message = "\(context.after.nickname(actorId))가 \(context.stockName(proposal.stockId)) 매수를 \(count)번째로 다시 제안했습니다."
         }
         return [
             FeedEvent(
@@ -158,7 +158,7 @@ struct NagRule: EventRule {
                 actorId: actorId,
                 targetUserId: targetUserId,
                 stockId: proposal.stockId,
-                title: "같이 사자고 조르는 중",
+                title: "매수 제안 · 재요청",
                 message: message
             )
         ]

@@ -209,7 +209,7 @@ final class AppStore {
             state.recommendations[index].status = .willBuy
             state.recommendations[index].resolvedAt = nil
             emit(.recommendationResolved(id: rec.id), before: before)
-            toast = "살게요. 사면 매수가를 적으세요."
+            toast = "매수 예정으로 남겼습니다"
             return
         }
         state.recommendations[index].status = accept ? .accepted : .rejected
@@ -231,7 +231,7 @@ final class AppStore {
             }
         }
         emit(triggers, before: before)
-        toast = accept ? "사서 기록했습니다" : "안 사기로 했습니다"
+        toast = accept ? "매수를 기록했습니다" : "거절했습니다"
     }
 
     func propose(stock: Stock, message: String) {
@@ -242,7 +242,7 @@ final class AppStore {
         state.proposals.append(proposal)
         state.coBuys.append(mine)
         emit([.proposalCreated(id: proposal.id), .coBuyPromised(id: mine.id)], before: before)
-        toast = "그룹에 같이 사자고 제안했습니다"
+        toast = "매수를 제안했습니다"
     }
 
     func promiseCoBuy(proposalId: UUID) {
@@ -253,14 +253,14 @@ final class AppStore {
             if let index = state.coBuys.firstIndex(where: { $0.id == existing.id }) {
                 state.coBuys[index].status = .promised
                 emit(.coBuyPromised(id: existing.id), before: before)
-                toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+                toast = "관심을 남겼습니다"
             }
             return
         }
         let cobuy = CoBuyRequest(proposalId: proposalId, groupId: proposal.groupId, userId: state.currentUserId, stockId: proposal.stockId)
         state.coBuys.append(cobuy)
         emit(.coBuyPromised(id: cobuy.id), before: before)
-        toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+        toast = "관심을 남겼습니다"
     }
 
     func declineProposal(_ proposalId: UUID) {
@@ -289,11 +289,11 @@ final class AppStore {
         let mine = state.coBuys.first(where: { $0.proposalId == proposalId && $0.userId == state.currentUserId })
         let count = (mine?.nagCount ?? 0) + 1
         if let last = mine?.lastNagAt, Date().timeIntervalSince(last) < SocialLimits.nagCooldown {
-            lastError = "조금 뒤에 다시 조를 수 있어요."
+            lastError = "조금 뒤에 다시 제안할 수 있습니다."
             return
         }
         if count > SocialLimits.maxNagsPerProposal {
-            lastError = "조르기는 제안당 3번까지예요."
+            lastError = "재요청은 제안당 3번까지입니다."
             return
         }
         let before = state
@@ -305,7 +305,7 @@ final class AppStore {
         let holdouts = state.members(of: proposal.groupId).map(\.userId).filter { !responded.contains($0) && $0 != state.currentUserId }
         let targets = holdouts.isEmpty ? [nil] : holdouts.map(Optional.some)
         emit(targets.map { .nagged(proposalId: proposalId, actorId: state.currentUserId, targetUserId: $0, count: count) }, before: before)
-        toast = "같이 사자고 한 번 더 찔렀어요"
+        toast = "다시 제안했습니다"
     }
 
     func suspectHolding(_ holdingId: UUID) {

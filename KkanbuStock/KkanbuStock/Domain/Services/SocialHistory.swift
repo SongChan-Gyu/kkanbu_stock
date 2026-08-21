@@ -30,10 +30,10 @@ enum SocialHistory {
                 let current = currentMove(stockId: rec.stockId, userId: rec.receiverId, fallbackPrice: prices[rec.stockId], state: state, prices: prices)
                 let result: String
                 switch rec.status {
-                case .pending: result = "아직 대답 없음"
-                case .willBuy: result = "살게라고 함"
-                case .accepted: result = "사서 기록"
-                case .later, .rejected: result = "마음 바뀜"
+                case .pending: result = "대기"
+                case .willBuy: result = "매수 예정"
+                case .accepted: result = "매수 기록"
+                case .later, .rejected: result = "거절"
                 }
                 return HistoryRecord(
                     id: rec.id,
@@ -59,7 +59,7 @@ enum SocialHistory {
                 }
                 let result: String
                 if related.contains(where: { $0.status == .completed }) {
-                    result = "같이 사기 성공"
+                    result = "매수 완료"
                 } else if declined {
                     result = "거절 있음"
                 } else {
@@ -89,7 +89,7 @@ enum SocialHistory {
                 emoji: "🤝",
                 title: state.stock(proposal.stockId)?.name ?? "종목",
                 detail: names.joined(separator: " · "),
-                result: done ? "같이 사기 성공" : "약속 중",
+                result: done ? "매수 완료" : "진행 중",
                 currentReturn: currentMove(stockId: proposal.stockId, userId: me, fallbackPrice: prices[proposal.stockId], state: state, prices: prices)
             )
         }
