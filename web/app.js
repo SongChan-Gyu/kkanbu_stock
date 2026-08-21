@@ -270,7 +270,8 @@ function ico(name, filled) {
     me: `<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>`,
     comment: `<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5h.5a8.5 8.5 0 0 1 8 8.5z"/>`,
     plane: `<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>`,
-    star: `<path d="M12 2l2.6 6.6L22 10l-5 4.9L18.2 22 12 18.3 5.8 22 7 14.9 2 10l7.4-1.4L12 2z"/>`
+    star: `<path d="M12 2l2.6 6.6L22 10l-5 4.9L18.2 22 12 18.3 5.8 22 7 14.9 2 10l7.4-1.4L12 2z"/>`,
+    down: `<path d="M6 9l6 6 6-6"/>`
   };
   return `<svg viewBox="0 0 24 24" ${sw}>${paths[name] || ""}</svg>`;
 }
@@ -304,7 +305,9 @@ function emptyState(me) {
     threadDraft: "",
     addTicker: null,
     addPrice: "",
-    chartIndex: null
+    chartIndex: null,
+    groupOpen: { turn: true },
+    inboxPage: 0
   };
 }
 
@@ -846,12 +849,64 @@ function renderOnboarding() {
     </div>`;
 }
 
+function isOpen(id, fallback) {
+  if (state.groupOpen && state.groupOpen[id] === true) return true;
+  if (state.groupOpen && state.groupOpen[id] === false) return false;
+  return !!fallback;
+}
+function foldSection(id, title, count, preview, body, fallbackOpen) {
+  const open = isOpen(id, fallbackOpen);
+  const extra = !open && preview
+    ? `<span class="preview">${esc(preview)}</span>`
+    : `<span class="count">${count || ""}</span>`;
+  return `<div class="section ${open ? "open" : ""}">
+    <button type="button" class="section-head" data-act="fold:${id}" aria-expanded="${open}">
+      <span class="label">${esc(title)}</span>
+      ${extra}
+      <span class="chev${open ? " up" : ""}">${ico("down")}</span>
+    </button>
+    ${open ? `<div class="section-body">${body}</div>` : ""}
+  </div>`;
+}
+function turnPager(items) {
+  if (!items.length) return "";
+  const page = Math.max(0, Math.min(state.inboxPage || 0, items.length - 1));
+  const body = `<div class="pager" id="turn-pager">
+      ${items.map((it) => `<div class="pager-slide">${inboxBlock(it)}</div>`).join("")}
+    </div>
+    ${items.length > 1 ? `<div class="pager-nav">
+      <span class="pager-idx">${page + 1} / ${items.length}</span>
+      <div class="pager-dots">${items.map((_, i) => `<button type="button" class="${i === page ? "on" : ""}" data-act="page:${i}"></button>`).join("")}</div>
+    </div>` : ""}`;
+  return foldSection("turn", "내 차례", items.length, "", body, true);
+}
+function bindPager() {
+  const pager = document.getElementById("turn-pager");
+  if (!pager) return;
+  const slides = pager.querySelectorAll(".pager-slide");
+  const n = slides.length;
+  if (!n) return;
+  const sync = () => {
+    const i = Math.max(0, Math.min(n - 1, Math.round(pager.scrollLeft / Math.max(pager.clientWidth, 1))));
+    state.inboxPage = i;
+    const idx = document.querySelector(".pager-idx");
+    if (idx) idx.textContent = (i + 1) + " / " + n;
+    document.querySelectorAll(".pager-dots button").forEach((d, k) => d.classList.toggle("on", k === i));
+  };
+  pager.addEventListener("scroll", sync, { passive: true });
+  requestAnimationFrame(() => {
+    pager.scrollLeft = (state.inboxPage || 0) * pager.clientWidth;
+    sync();
+  });
+}
+
 function recommendedSection() {
   const recs = state.recs.filter((r) => r.groupId === group()?.id);
   const ids = [];
   recs.forEach((r) => { if (!ids.includes(r.stockId)) ids.push(r.stockId); });
   if (!ids.length) return "";
-  return `<div class="section"><div class="section-title">추천 종목</div>${ids.map((id) => {
+  const lastName = stock(ids[0])?.name || "";
+  const body = ids.map((id) => {
     const s = stock(id);
     const related = recs.filter((r) => r.stockId === id);
     const last = related[related.length - 1];
@@ -865,7 +920,8 @@ function recommendedSection() {
       </div>
       <div class="right">${commentMeta(id)}</div>
     </button>`;
-  }).join("")}</div>`;
+  }).join("");
+  return foldSection("recs", "추천 종목", ids.length, lastName, body);
 }
 
 function moodSection() {
@@ -874,7 +930,9 @@ function moodSection() {
   const ids = [];
   recIds.concat(bondIds).forEach((id) => { if (!ids.includes(id)) ids.push(id); });
   if (!ids.length) return "";
-  return `<div class="section"><div class="section-title">종목 평가</div>${ids.slice(0, 3).map((id) => {
+  const first = stock(ids[0]);
+  const preview = first ? first.name : "";
+  const body = ids.slice(0, 3).map((id) => {
     const s = stock(id);
     return `<button class="row btn" data-act="thread:${id}">
       ${stockMark(s)}
@@ -883,7 +941,8 @@ function moodSection() {
         ${pulseStrip(id, false)}
       </div>
     </button>`;
-  }).join("")}</div>`;
+  }).join("");
+  return foldSection("mood", "종목 평가", ids.length, preview, body);
 }
 
 function renderGroup() {
@@ -910,19 +969,16 @@ function renderGroup() {
         ${btn("매수 제안", "secondary", "open-prop:")}
       </div>
 
-      ${items.length ? `<div class="section"><div class="section-title">내 차례</div><div class="row-list">${items.map(inboxBlock).join("")}</div></div>` : ""}
-
-      ${recommendedSection()}
-      ${moodSection()}
-
-      <div class="section">
+      <div class="section members-sec">
         <div class="section-title">멤버</div>
         <div class="members">${memberUsers().map((u) => `<button class="member" data-act="play:${u.id}">${avatarHTML(u)}${`<span>${esc(u.id === state.me.id ? "나" : u.nickname)}</span>`}</button>`).join("")}</div>
       </div>
 
-      <div class="section">
-        <div class="section-title">깐부</div>
-        ${kk.length ? (() => {
+      ${turnPager(items)}
+      ${recommendedSection()}
+      ${moodSection()}
+
+      ${kk.length ? foldSection("kk", "깐부", kk.length, (kk.find((b) => b.grade.kick === "roast") || kk.find((b) => b.grade.kick === "glory") || kk[0]).grade.title, (() => {
           const mood = kk.find((b) => b.grade.kick === "roast") || kk.find((b) => b.grade.kick === "glory");
           const moodLine = mood ? `<p class="mood ${mood.grade.kick}">지금 분위기 · ${esc(nickname(mood.a))} · ${esc(nickname(mood.b))}, ${esc(mood.grade.title)}</p>` : "";
           return moodLine + kk.map((b) => `
@@ -935,18 +991,11 @@ function renderGroup() {
             </div>
             <div class="pct ${b.shared >= 0 ? "up" : "down"}">${formatPct(b.shared)}</div>
           </div>`).join("");
-        })() : `<p class="empty">아직 깐부가 없습니다.</p>`}
-      </div>
+        })()) : ""}
 
-      <div class="section">
-        <div class="section-title">친구 주식</div>
-        <div class="row-list">${friendsHoldings.map((h) => holdingRow(h, false)).join("") || `<p class="empty">표시할 보유가 없습니다.</p>`}</div>
-      </div>
+      ${friendsHoldings.length ? foldSection("friends", "친구 주식", friendsHoldings.length, "", `<div class="row-list">${friendsHoldings.map((h) => holdingRow(h, false)).join("")}</div>`) : ""}
 
-      <div class="section">
-        <div class="section-title">활동</div>
-        ${state.events.map(eventRow).join("")}
-      </div>
+      ${foldSection("feed", "활동", state.events.length, state.events[0]?.title || "", state.events.length ? state.events.slice(0, 12).map(eventRow).join("") : `<p class="empty">아직 기록이 없습니다.</p>`)}
     </div>`;
 }
 
@@ -1133,6 +1182,7 @@ function render() {
   else if (state.tab === "me") body = renderProfile();
   else body = renderGroup();
   root.innerHTML = body + tabs() + sheetHTML();
+  bindPager();
 }
 
 let sheetGuard = 0;
@@ -1220,6 +1270,25 @@ function handle(act) {
     return;
   }
   if (act.startsWith("tab:")) { state.tab = act.split(":")[1]; render(); return; }
+  if (act.startsWith("fold:")) {
+    if (!state.groupOpen) state.groupOpen = { turn: true };
+    const id = act.slice(5);
+    const fallback = id === "turn";
+    state.groupOpen[id] = !isOpen(id, fallback);
+    render();
+    return;
+  }
+  if (act.startsWith("page:")) {
+    const pager = document.getElementById("turn-pager");
+    const i = Number(act.split(":")[1]);
+    state.inboxPage = i;
+    if (pager) pager.scrollTo({ left: i * pager.clientWidth, behavior: "smooth" });
+    document.querySelectorAll(".pager-dots button").forEach((d, k) => d.classList.toggle("on", k === i));
+    const idx = document.querySelector(".pager-idx");
+    const n = pager ? pager.querySelectorAll(".pager-slide").length : 0;
+    if (idx && n) idx.textContent = (i + 1) + " / " + n;
+    return;
+  }
   if (act === "copy") { navigator.clipboard?.writeText("KKANBU"); toast("초대 코드 복사됨"); return; }
   if (act === "open-add") {
     state.addTicker = null;

@@ -192,6 +192,65 @@ struct PulseStrip: View {
     }
 }
 
+struct FoldSection<Content: View>: View {
+    var title: String
+    var count: Int
+    var preview: String?
+    @Binding var isOpen: Bool
+    var content: Content
+
+    init(
+        title: String,
+        count: Int = 0,
+        preview: String? = nil,
+        isOpen: Binding<Bool>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.count = count
+        self.preview = preview
+        self._isOpen = isOpen
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.muted)
+                    Spacer(minLength: 8)
+                    if !isOpen, let preview, !preview.isEmpty {
+                        Text(preview)
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                            .lineLimit(1)
+                    } else if count > 0 {
+                        Text("\(count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.faint)
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                }
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if isOpen {
+                content
+                    .padding(.bottom, 10)
+            }
+            KkanbuTheme.line.frame(height: 1)
+        }
+    }
+}
+
 struct QuietButton: View {
     var title: String
     var kind: Kind = .primary

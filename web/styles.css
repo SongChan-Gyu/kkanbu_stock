@@ -72,7 +72,11 @@ body {
 }
 
 .section {
-  margin: 28px 0 0;
+  margin: 20px 0 0;
+}
+.section:has(.section-head) {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
 }
 .section-title {
   font-size: 13px;
@@ -81,6 +85,98 @@ body {
   margin: 0 0 8px;
   letter-spacing: -0.01em;
 }
+.section-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 14px 0;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+.section-head .label { flex-shrink: 0; }
+.section-head .count,
+.section-head .preview {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 48%;
+  font-variant-numeric: tabular-nums;
+}
+.section-head .chev {
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+.section-head .chev svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.section-head .chev.up { transform: rotate(180deg); }
+.section-body { padding-bottom: 12px; }
+.members-sec {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0 8px;
+}
+.members-sec .section-title { margin: 0 0 10px; }
+
+.pager {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.pager::-webkit-scrollbar { display: none; }
+.pager-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.pager-slide .action-block {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+}
+.pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+.pager-idx {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.pager-dots {
+  display: flex;
+  gap: 5px;
+}
+.pager-dots button {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+}
+.pager-dots button.on { background: var(--text); }
 
 .row-list { border-top: 1px solid var(--line); }
 .row {

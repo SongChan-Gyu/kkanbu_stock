@@ -57,20 +57,45 @@ struct GroupHomeView: View {
     @State private var addPrefill: Stock?
     @State private var verifyHolding: Holding?
     @State private var threadStock: Stock?
+    @State private var openSections: Set<String> = ["turn"]
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
                 header
-                myTurn
-                recommendedThreads
-                todayPulse
-                hero
                 members
-                kkangbuStrip
-                pending
-                friendsStocks
-                feed
+                myTurn
+                if recCount > 0 {
+                    FoldSection(title: "추천 종목", count: recCount, isOpen: openBinding("recs")) {
+                        recommendedThreads
+                    }
+                }
+                if pulseCount > 0 {
+                    FoldSection(title: "종목 평가", count: pulseCount, isOpen: openBinding("mood")) {
+                        todayPulse
+                    }
+                }
+                if bondCount > 0 {
+                    FoldSection(title: "깐부", count: bondCount, preview: kkPreview, isOpen: openBinding("kk")) {
+                        kkangbuStrip
+                    }
+                }
+                if pendingCount > 0 {
+                    FoldSection(title: "매수 제안", count: pendingCount, isOpen: openBinding("pending")) {
+                        pending
+                    }
+                }
+                if friendCount > 0 {
+                    FoldSection(title: "친구 주식", count: friendCount, isOpen: openBinding("friends")) {
+                        friendsStocks
+                    }
+                }
+                FoldSection(title: "활동", count: eventCount, preview: feedPreview, isOpen: openBinding("feed")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        hero
+                        feed
+                    }
+                }
             }
             .padding(16)
             .padding(.bottom, 24)
@@ -82,6 +107,45 @@ struct GroupHomeView: View {
         .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
         .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
         .sheet(item: $threadStock) { RecommendationThreadView(stock: $0) }
+    }
+
+    private func openBinding(_ id: String) -> Binding<Bool> {
+        Binding(
+            get: { openSections.contains(id) },
+            set: { on in
+                if on { openSections.insert(id) } else { openSections.remove(id) }
+            }
+        )
+    }
+
+    private var recCount: Int {
+        Set(store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)).count
+    }
+    private var pulseCount: Int {
+        let recIds = store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)
+        let bondIds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).map(\.stockId)
+        return Set(recIds + bondIds).count
+    }
+    private var bondCount: Int {
+        KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).count
+    }
+    private var kkPreview: String? {
+        let bonds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices)
+        let mood = bonds.first(where: { $0.grade.isRoast }) ?? bonds.first(where: { $0.grade.isGlory })
+        return mood?.grade.title
+    }
+    private var pendingCount: Int {
+        store.state.proposals.filter { $0.groupId == group.id && $0.status == .open }.count
+    }
+    private var friendCount: Int {
+        GroupSocial.memberHoldings(in: group.id, state: store.state)
+            .filter { $0.1.status == .holding && $0.0.id != store.state.currentUserId }.count
+    }
+    private var eventCount: Int {
+        store.state.events.filter { $0.groupId == group.id }.count
+    }
+    private var feedPreview: String? {
+        store.state.events.first(where: { $0.groupId == group.id })?.title
     }
 
     private var header: some View {
@@ -112,21 +176,20 @@ struct GroupHomeView: View {
         let items = store.inboxItems(for: store.state.currentUserId)
         return Group {
             if !items.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("내 차례")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
-                    Text("추천 / 매수 제안")
-                        .font(.caption)
-                        .foregroundStyle(KkanbuTheme.faint)
-                    ForEach(items) { item in
-                        InboxActionCard(
-                            item: item,
-                            onVerify: { verifyHolding = $0 },
-                            onRegister: { addPrefill = $0 },
-                            onOpenThread: { threadStock = $0 }
-                        )
+                FoldSection(title: "내 차례", count: items.count, isOpen: openBinding("turn")) {
+                    TabView {
+                        ForEach(items) { item in
+                            InboxActionCard(
+                                item: item,
+                                onVerify: { verifyHolding = $0 },
+                                onRegister: { addPrefill = $0 },
+                                onOpenThread: { threadStock = $0 }
+                            )
+                            .padding(.bottom, 28)
+                        }
                     }
+                    .tabViewStyle(.page(indexDisplayMode: .automatic))
+                    .frame(minHeight: 280, idealHeight: 320, maxHeight: 360)
                 }
             }
         }
@@ -139,10 +202,7 @@ struct GroupHomeView: View {
         }
         return Group {
             if !stockIds.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("추천 종목")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(stockIds, id: \.self) { stockId in
                         if let stock = store.state.stock(stockId) {
                             let related = recs.filter { $0.stockId == stockId }
@@ -186,10 +246,7 @@ struct GroupHomeView: View {
         }
         return Group {
             if !ids.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("종목 평가")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(ids.prefix(3), id: \.self) { stockId in
                         if let stock = store.state.stock(stockId) {
                             let snap = pulse(for: stock)
@@ -252,22 +309,28 @@ struct GroupHomeView: View {
     }
 
     private var members: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(store.state.memberUsers(of: group.id)) { user in
-                    NavigationLink {
-                        FriendDetailView(user: user, group: group)
-                    } label: {
-                        VStack(spacing: 6) {
-                            AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 52)
-                            Text(user.id == store.state.currentUserId ? "나" : user.nickname)
-                                .font(.caption)
-                                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("멤버")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(KkanbuTheme.muted)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(store.state.memberUsers(of: group.id)) { user in
+                        NavigationLink {
+                            FriendDetailView(user: user, group: group)
+                        } label: {
+                            VStack(spacing: 6) {
+                                AvatarView(emoji: user.avatarEmoji, name: user.nickname, size: 52)
+                                Text(user.id == store.state.currentUserId ? "나" : user.nickname)
+                                    .font(.caption)
+                                    .foregroundStyle(.primary)
+                            }
                         }
                     }
                 }
             }
         }
+        .padding(.top, 8)
     }
 
     private var kkangbuStrip: some View {
@@ -275,9 +338,6 @@ struct GroupHomeView: View {
         return Group {
             if !bonds.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("깐부")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
                     if let mood = bonds.first(where: { $0.grade.isRoast }) ?? bonds.first(where: { $0.grade.isGlory }) {
                         Text("지금 분위기 · \(store.state.nickname(mood.userA)) · \(store.state.nickname(mood.userB)), \(mood.grade.title)")
                             .font(.caption)
@@ -314,9 +374,6 @@ struct GroupHomeView: View {
         return Group {
             if !open.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("매수 제안")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
                     ForEach(open) { proposal in
                         ProposalCard(proposal: proposal, onRegister: { stock in
                             addPrefill = stock
@@ -333,9 +390,6 @@ struct GroupHomeView: View {
         return Group {
             if !rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("친구 주식")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(KkanbuTheme.muted)
                     ForEach(rows.prefix(8), id: \.1.id) { user, holding in
                         if let stock = store.state.stock(holding.stockId) {
                             NavigationLink {
@@ -362,14 +416,11 @@ struct GroupHomeView: View {
 
     private var feed: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("활동")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(KkanbuTheme.muted)
             let events = store.state.events.filter { $0.groupId == group.id }
             if events.isEmpty {
                 EmptyStateView(title: "아직 기록이 없습니다", message: "주식을 넣거나 친구를 초대하면 시작됩니다.")
             } else {
-                ForEach(events) { event in
+                ForEach(Array(events.prefix(12))) { event in
                     EventRow(
                         event: event,
                         relative: MoneyFormat.relative(event.createdAt),
