@@ -8,17 +8,31 @@
 
 | 환경 | iPhone 앱 (`KkanbuStock.xcodeproj`) | 웹 데모 (`web/index.html`) |
 | --- | --- | --- |
+| 아이폰만 | **불가** (설치 빌드가 없음) | **가능** — Safari 주소 |
 | macOS + Xcode | 가능 | 가능 |
 | Windows | **불가** (Xcode/시뮬레이터는 Mac 전용) | **가능** — 브라우저에서 연다 |
 | Linux / Cursor 클라우드 | 불가 | 가능 |
 
-Windows에서 Visual Studio로 iOS SwiftUI 앱을 Run할 수는 없습니다. 윈도우에서 핵심 루프를 보려면 웹 데모를 여세요.
+아이폰만 있어도 **소스에서 네이티브 앱을 설치할 수는 없습니다.** 아이폰에는 컴파일러가 없고, App Store / TestFlight / Mac에서 서명한 빌드가 있어야 홈 화면에 깔립니다.
 
-### 웹 데모 (Windows 포함)
+| 하고 싶은 것 | 아이폰만 | 필요한 것 |
+| --- | --- | --- |
+| Safari에서 핵심 루프 플레이 | 가능 | 아래 웹 데모 주소 |
+| 홈 화면의 네이티브 앱으로 내부테스트 | 불가 | Mac + Xcode로 한 번 빌드 (이후 TestFlight 테스터는 아이폰만으로 가능) |
+| 실친구와 각자 폰에서 멀티플레이 | 불가 | 서버 + 계정. MVP는 한 기기/브라우저 로컬 |
 
-1. `web/index.html`을 Chrome / Edge에서 연다. (파일 더블클릭도 됩니다)
-2. **데모 주식팟으로 시작**을 고른다.
-3. 그룹 맨 위 **나한테 온 일**에서 영희의 NVIDIA 너도 사, 민수의 AMD 조르기를 처리한다.
+### 웹 데모 (아이폰 Safari / Windows 포함)
+
+아이폰에서 바로 열려면 Safari에 **이 주소**를 붙여넣습니다. (jsDelivr 주소는 HTML을 소스 코드로만 보여 주니 쓰지 마세요.)
+
+https://htmlpreview.github.io/?https://github.com/SongChan-Gyu/kkanbu_stock/blob/play/web/index.html
+
+공유 시트 → **홈 화면에 추가** 하면 앱처럼 열립니다. (Safari 웹 데모입니다. 앱스토어 앱이 아닙니다.)
+
+PC에서는 `web/index.html`을 Chrome / Edge에서 열어도 됩니다.
+
+1. **데모 주식팟으로 시작**을 고른다.
+2. 그룹 맨 위 **나한테 온 일**에서 영희의 NVIDIA 너도 사, 민수의 AMD 조르기를 처리한다.
 
 웹 데모는 같은 사건 루프를 브라우저에서 돌립니다. OCR·로컬 푸시·실기기 카메라는 iOS 앱에만 있습니다.
 

@@ -265,7 +265,7 @@ final class EventEngineTests: XCTestCase {
         var engine = EventEngine(rules: [])
         engine.register(ExtraRule())
         XCTAssertEqual(engine.rules.count, 1)
-        XCTAssertEqual(EventEngine.defaultRules().count, 16)
+        XCTAssertEqual(EventEngine.defaultRules().count, 17)
     }
 }
 
@@ -354,7 +354,7 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.state.proposals.count, 1)
         store.playAs(younghee.id)
         store.promiseCoBuy(proposalId: store.state.proposals[0].id)
-        XCTAssertTrue(store.inboxItems(for: younghee.id).contains { $0.kind == .cobuyRegister })
+        XCTAssertTrue(store.state.coBuys.contains { $0.userId == younghee.id && $0.status == .promised })
         store.addHolding(stock: tsla, averagePrice: 241, quantity: nil, purchaseDate: Date(), method: .chart, verification: .unverified)
         store.playAs(me.id)
         store.addHolding(stock: tsla, averagePrice: 240, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
@@ -390,6 +390,43 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertFalse(store.state.events.contains { $0.message.contains("사기꾼") })
     }
 
+    func testRecommendationBuyRecordsEnteredPriceAndChangedMindDoesNotBuy() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "영희"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-rec-buy-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "나", avatarEmoji: "🐣")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(stock: nvda, averagePrice: 163.4, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(holding: store.state.activeHoldings(of: store.state.currentUserId)[0], to: friend.id, message: "사봐")
+
+        store.playAs(friend.id)
+        let recId = store.state.recommendations[0].id
+        let quote = store.price(for: nvda.id)
+
+        store.resolveRecommendation(recId, accept: true)
+        XCTAssertEqual(store.state.recommendations[0].status, .willBuy)
+        XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendWillBuy })
+
+        store.resolveRecommendation(recId, accept: false)
+        XCTAssertEqual(store.state.recommendations[0].status, .rejected)
+        XCTAssertTrue(store.state.activeHoldings(of: friend.id).isEmpty)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendRejected })
+
+        store.state.recommendations[0].status = .willBuy
+        store.state.recommendations[0].resolvedAt = nil
+        store.addHolding(stock: nvda, averagePrice: 99.01, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        XCTAssertEqual(store.state.recommendations[0].status, .accepted)
+        XCTAssertEqual(store.state.activeHoldings(of: friend.id).first?.averagePrice, 99.01)
+        XCTAssertNotEqual(99.01, quote)
+        XCTAssertTrue(store.state.events.contains { $0.type == .recommendAccepted })
+    }
+
     func testDemoPutsCurrentUserInTheLoop() {
         let me = User(nickname: "나", avatarEmoji: "🐣")
         var state = AppState.empty(user: me, stocks: StockCatalog.all)
@@ -398,6 +435,71 @@ final class AppStoreFlowTests: XCTestCase {
         store.refreshDerived()
         XCTAssertFalse(store.inboxItems(for: me.id).isEmpty)
         XCTAssertFalse(store.state.activeHoldings(of: me.id).isEmpty)
-        XCTAssertFalse(KkangbuMath.bonds(in: store.state.groups[0].id, state: store.state, prices: store.currentPrices).isEmpty)
+        let bonds = KkangbuMath.bonds(in: store.state.groups[0].id, state: store.state, prices: store.currentPrices)
+        XCTAssertFalse(bonds.isEmpty)
+        XCTAssertTrue(bonds.contains { $0.grade.isGlory })
+        XCTAssertTrue(bonds.contains { $0.grade.isRoast })
+        XCTAssertFalse(store.state.comments.isEmpty)
+    }
+
+    func testRecommendationThreadKeepsCommentsAndReplies() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-comment-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "영희")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(stock: nvda, averagePrice: 140, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(holding: store.state.activeHoldings(of: store.state.currentUserId)[0], to: friend.id, message: "같이 들어가 봐.")
+
+        store.addComment(stockId: nvda.id, body: "   ")
+        XCTAssertTrue(store.state.comments.isEmpty)
+
+        store.addComment(stockId: nvda.id, body: "지금 들어가도 늦었나")
+        XCTAssertEqual(store.state.comments.count, 1)
+        XCTAssertTrue(store.state.events.contains { $0.type == .commentPosted })
+
+        let parent = store.state.comments[0]
+        store.playAs(friend.id)
+        store.addComment(stockId: nvda.id, parentId: parent.id, body: "평단만 적어둘게")
+        XCTAssertEqual(store.commentCount(in: store.state.groups[0].id, stockId: nvda.id), 2)
+        XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
+        XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
+    }
+}
+
+final class StockIdentityPulseTests: XCTestCase {
+    func testKnownTickersHaveBrandMarks() {
+        XCTAssertEqual(StockIdentity.mark(ticker: "NVDA").glyph, "N")
+        XCTAssertEqual(StockIdentity.mark(ticker: "NVDA").backgroundHex, "76B900")
+        XCTAssertEqual(StockIdentity.mark(ticker: "AAPL").glyph, "A")
+        XCTAssertEqual(StockIdentity.mark(ticker: "035720").glyph, "K")
+        XCTAssertEqual(StockIdentity.mark(ticker: "005930").glyph, "삼")
+    }
+
+    func testCatalogTickersAllHaveGlyphs() {
+        for stock in StockCatalog.all {
+            let mark = StockIdentity.mark(ticker: stock.ticker, name: stock.name)
+            XCTAssertFalse(mark.glyph.isEmpty, stock.ticker)
+            XCTAssertEqual(mark.backgroundHex.count, 6, stock.ticker)
+        }
+    }
+
+    func testHeadlineIsOneLineDemoCopy() {
+        XCTAssertTrue(StockPulse.headline(ticker: "NVDA").contains("거래량"))
+        XCTAssertTrue(StockPulse.newsLine(ticker: "NVDA").contains("데모"))
+        XCTAssertEqual(StockPulse.headline(ticker: "UNKNOWN"), "그룹에서 이 종목 이야기 중")
+    }
+
+    func testVibeStaysLight() {
+        XCTAssertEqual(StockPulse.vibe(commentCount: 4, pendingRecommendations: 1, sharedReturn: 0.4), "지금 말이 많은 종목")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 1, pendingRecommendations: 1, sharedReturn: nil), "추천이 왔고 댓글도 있음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 1, sharedReturn: nil), "추천이 와 있음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2), "같이 물린 분위기")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: 0.2), "같이 웃는 분위기")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 말 없음")
     }
 }

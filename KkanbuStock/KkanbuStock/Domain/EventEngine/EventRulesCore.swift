@@ -10,8 +10,8 @@ struct MemberJoinedRule: EventRule {
                 groupId: groupId,
                 type: .memberJoined,
                 actorId: userId,
-                title: "👋 새 멤버",
-                message: "\(context.after.nickname(userId))님이 그룹에 들어왔습니다. 이제 같이 놀 사람 한 명 늘었어요."
+                title: "멤버 참여",
+                message: "\(context.after.nickname(userId))님이 그룹에 참여했습니다."
             )
         ]
     }
@@ -30,7 +30,7 @@ struct HoldingAddedRule: EventRule {
                 actorId: holding.userId,
                 stockId: holding.stockId,
                 holdingId: holding.id,
-                title: "✨ 새 종목",
+                title: "종목 등록",
                 message: "\(context.after.nickname(holding.userId))님이 \(context.stockName(holding.stockId))를 추가했습니다."
             )
         }
@@ -63,8 +63,8 @@ struct NewKkangbuRule: EventRule {
                     targetUserId: partner,
                     stockId: holding.stockId,
                     holdingId: holding.id,
-                    title: isRecruit ? "🎉 깐부 영입 성공" : "🤝 새로운 주식 깐부",
-                    message: "\(context.after.nickname(holding.userId)) × \(context.after.nickname(partner))\n\(context.stockName(holding.stockId)) 깐부가 탄생했습니다."
+                    title: isRecruit ? "깐부 영입" : "새로운 깐부",
+                    message: "\(context.after.nickname(holding.userId)) · \(context.after.nickname(partner)) · \(context.stockName(holding.stockId))"
                 )
             }
         }
@@ -96,7 +96,7 @@ struct GradeChangeRule: EventRule {
                     type: type,
                     actorId: pair.userA,
                     targetUserId: pair.userB,
-                    title: "\(pair.grade.emoji) \(pair.grade.title)",
+                    title: pair.grade.title,
                     message: "\(context.after.nickname(pair.userA))와 \(context.after.nickname(pair.userB))가 \(pair.grade.title)가 되었습니다. 공동 수익률 \(MoneyFormat.percent(pair.averageReturn))"
                 )
             }
@@ -122,8 +122,8 @@ struct SoloEscapeRule: EventRule {
                 actorId: sold.userId,
                 stockId: sold.stockId,
                 holdingId: sold.id,
-                title: "🏃 혼자 튐",
-                message: "\(context.after.nickname(sold.userId))가 \(context.stockName(sold.stockId))를 팔고 혼자 튀었습니다.\n\(leftover)는 아직 남아 있습니다."
+                title: "혼자 매도",
+                message: "\(context.after.nickname(sold.userId))가 \(context.stockName(sold.stockId))를 매도했습니다.\n\(leftover)는 아직 보유 중."
             )
         }
     }
@@ -146,7 +146,7 @@ struct KkangbuBreakupRule: EventRule {
                     type: .kkangbuBreakup,
                     actorId: pair.userA,
                     targetUserId: pair.userB,
-                    title: "💔 깐부 결별",
+                    title: "깐부 종료",
                     message: "\(context.after.nickname(pair.userA))와 \(context.after.nickname(pair.userB))의 공동 보유 종목이 사라져 깐부가 끝났습니다."
                 )
             }
@@ -173,7 +173,7 @@ struct DiamondHandsRule: EventRule {
                 targetUserId: sold.userId,
                 stockId: sold.stockId,
                 holdingId: last.id,
-                title: "💎 끝까지 존버",
+                title: "존버",
                 message: "친구들이 \(context.stockName(sold.stockId))에서 다 떠났는데 \(context.after.nickname(last.userId))만 남아 있습니다."
             )
         }
@@ -204,8 +204,8 @@ struct PostSellMoveRule: EventRule {
                         actorId: holding.userId,
                         stockId: holding.stockId,
                         holdingId: holding.id,
-                        title: "🧠 선견지명",
-                        message: "\(context.after.nickname(holding.userId))의 선견지명!\n\(context.stockName(holding.stockId)) 매도 후 \(MoneyFormat.percent(move))",
+                        title: "선견지명",
+                        message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId))를 매도한 뒤 \(MoneyFormat.percent(move))",
                         metadata: ["key": "FORESIGHT-\(group.id)", "holdingId": holding.id.uuidString]
                     )
                 }
@@ -217,8 +217,8 @@ struct PostSellMoveRule: EventRule {
                         actorId: holding.userId,
                         stockId: holding.stockId,
                         holdingId: holding.id,
-                        title: "🤡 너무 일찍 튐",
-                        message: "\(context.after.nickname(holding.userId))야 조금만 더 기다리지...\n매도 후 \(context.stockName(holding.stockId)) \(MoneyFormat.percent(move))",
+                        title: "너무 이른 매도",
+                        message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId))를 너무 일찍 매도했습니다. 매도 후 \(MoneyFormat.percent(move))",
                         metadata: ["key": "SOLD_TOO_EARLY-\(group.id)", "holdingId": holding.id.uuidString]
                     )
                 }
@@ -243,7 +243,7 @@ struct TogetherMoveRule: EventRule {
                         actorId: bond.userA,
                         targetUserId: bond.userB,
                         stockId: bond.stockId,
-                        title: "🚀 같이 떡상",
+                        title: "같이 상승",
                         message: "\(context.after.nickname(bond.userA))와 \(context.after.nickname(bond.userB))의 \(context.stockName(bond.stockId))가 \(MoneyFormat.percent(bond.sharedReturn))!",
                         metadata: ["key": "MOON-\(bond.id)"]
                     )
@@ -256,7 +256,7 @@ struct TogetherMoveRule: EventRule {
                         actorId: bond.userA,
                         targetUserId: bond.userB,
                         stockId: bond.stockId,
-                        title: "🪦 같이 묻힘",
+                        title: "같이 하락",
                         message: "\(context.after.nickname(bond.userA))와 \(context.after.nickname(bond.userB))가 \(context.stockName(bond.stockId))에서 함께 묻혔습니다. \(MoneyFormat.percent(bond.sharedReturn))",
                         metadata: ["key": "BURIED-\(bond.id)"]
                     )
@@ -285,7 +285,7 @@ struct RecordMoveRule: EventRule {
                         actorId: holding.userId,
                         stockId: holding.stockId,
                         holdingId: holding.id,
-                        title: "🏆 기록 갱신",
+                        title: "기록 갱신",
                         message: "\(context.after.nickname(holding.userId))의 \(context.stockName(holding.stockId))가 \(MoneyFormat.percent(value))까지 갔습니다.",
                         metadata: ["key": "HIGH-\(group.id)", "holdingId": holding.id.uuidString]
                     )
@@ -298,7 +298,7 @@ struct RecordMoveRule: EventRule {
                         actorId: holding.userId,
                         stockId: holding.stockId,
                         holdingId: holding.id,
-                        title: "📉 최악의 한 수",
+                        title: "큰 하락",
                         message: "\(context.after.nickname(holding.userId))의 \(context.stockName(holding.stockId))가 \(MoneyFormat.percent(value)). 이번 주 흑역사 후보입니다.",
                         metadata: ["key": "LOW-\(group.id)", "holdingId": holding.id.uuidString]
                     )
@@ -324,7 +324,7 @@ struct RankChangeRule: EventRule {
                 groupId: group.id,
                 type: .groupRankChanged,
                 actorId: afterLead,
-                title: "👑 이번 주 1위가 바뀌었습니다",
+                title: "이번 주 1위가 바뀌었습니다",
                 message: "\(context.after.nickname(afterLead))가 이번 주 분위기 1위입니다."
             )
         }

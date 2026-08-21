@@ -39,6 +39,7 @@ enum EventType: String, Codable, CaseIterable, Sendable {
     case moonTogether = "MOON_TOGETHER"
     case recommendStock = "RECOMMEND_STOCK"
     case recommendAccepted = "RECOMMEND_ACCEPTED"
+    case recommendWillBuy = "RECOMMEND_WILL_BUY"
     case recommendRejected = "RECOMMEND_REJECTED"
     case proposalCreated = "PROPOSAL_CREATED"
     case coBuyRequest = "CO_BUY_REQUEST"
@@ -61,6 +62,7 @@ enum EventType: String, Codable, CaseIterable, Sendable {
     case destinyPartners = "DESTINY_PARTNERS"
     case godsMovePartners = "GODS_MOVE_PARTNERS"
     case graveyardPartners = "GRAVEYARD_PARTNERS"
+    case commentPosted = "COMMENT_POSTED"
 
     var emoji: String {
         switch self {
@@ -76,6 +78,7 @@ enum EventType: String, Codable, CaseIterable, Sendable {
         case .moonTogether: "🚀"
         case .recommendStock: "📣"
         case .recommendAccepted: "🎉"
+        case .recommendWillBuy: "✋"
         case .recommendRejected: "📭"
         case .proposalCreated: "🤔"
         case .coBuyRequest, .coBuyAccepted: "🤝"
@@ -96,6 +99,26 @@ enum EventType: String, Codable, CaseIterable, Sendable {
         case .destinyPartners: "💎"
         case .godsMovePartners: "🚀"
         case .graveyardPartners: "🪦"
+        case .commentPosted: "💬"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .newKkangbu, .kkangbuRecruited, .destinyPartners: "person.2.fill"
+        case .goldenKkangbu, .godsMovePartners, .moonTogether: "star.fill"
+        case .worstPartner, .graveyardPartners, .buriedTogether: "arrow.down.right"
+        case .soloEscape, .holdingSold, .kkangbuBreakup: "arrow.right"
+        case .recommendStock, .recommendWillBuy, .recommendAccepted, .recommendRejected: "paperplane.fill"
+        case .commentPosted: "bubble.right.fill"
+        case .proposalCreated, .coBuyRequest, .coBuyAccepted, .coBuyCompleted, .persistentNagging: "person.3.fill"
+        case .holdingAdded: "plus"
+        case .screenshotVerified, .verificationRequested, .verificationSuccess, .verificationMismatch: "checkmark.seal.fill"
+        case .memberJoined: "person.badge.plus"
+        case .recordHigh: "arrow.up.right"
+        case .recordLow: "arrow.down.right"
+        case .foresight, .soldTooEarly, .diamondHands: "eye"
+        default: "circle.fill"
         }
     }
 }
@@ -137,6 +160,15 @@ struct FeedEvent: Identifiable, Codable, Hashable, Sendable {
         self.message = message
         self.metadata = metadata
         self.createdAt = createdAt
+    }
+
+    var opensRecommendationThread: Bool {
+        switch type {
+        case .recommendStock, .recommendAccepted, .recommendWillBuy, .recommendRejected, .commentPosted:
+            true
+        default:
+            false
+        }
     }
 }
 

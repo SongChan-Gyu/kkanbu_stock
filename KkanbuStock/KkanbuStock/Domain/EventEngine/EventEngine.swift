@@ -15,6 +15,7 @@ enum Trigger: Equatable {
     case verified(holdingId: UUID, matched: Bool)
     case priceEdited(holdingId: UUID)
     case proposalDeclined(id: UUID)
+    case commentPosted(id: UUID)
 }
 
 struct EventContext {
@@ -75,7 +76,8 @@ struct EventEngine {
             ProposalRule(),
             CoBuyRule(),
             NagRule(),
-            VerificationRule()
+            VerificationRule(),
+            CommentRule()
         ]
     }
 }

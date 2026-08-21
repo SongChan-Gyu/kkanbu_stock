@@ -14,12 +14,25 @@ struct RecommendRule: EventRule {
                     actorId: rec.senderId,
                     targetUserId: rec.receiverId,
                     stockId: rec.stockId,
-                    title: "📣 너도 사!",
+                    title: "추천",
                     message: "\(context.after.nickname(rec.senderId))가 \(context.after.nickname(rec.receiverId))에게 \(context.stockName(rec.stockId))를 추천했습니다.\n“\(rec.message)”"
                 )
             ]
         case let .recommendationResolved(id):
             guard let rec = context.after.recommendations.first(where: { $0.id == id }) else { return [] }
+            if rec.status == .willBuy {
+                return [
+                    FeedEvent(
+                        groupId: rec.groupId,
+                        type: .recommendWillBuy,
+                        actorId: rec.receiverId,
+                        targetUserId: rec.senderId,
+                        stockId: rec.stockId,
+                        title: "살게요",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 사겠다고 했습니다. 아직 산 건 아닙니다."
+                    )
+                ]
+            }
             if rec.status == .accepted {
                 return [
                     FeedEvent(
@@ -28,8 +41,8 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "🎉 추천 수락",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 받았습니다. 주식 흑역사에 한 줄 추가될지도..."
+                        title: "사서 기록",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId))를 사서 기록했습니다."
                     )
                 ]
             }
@@ -41,8 +54,8 @@ struct RecommendRule: EventRule {
                         actorId: rec.receiverId,
                         targetUserId: rec.senderId,
                         stockId: rec.stockId,
-                        title: "📭 제안 거절",
-                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId))를 일단 패스했습니다. 나중에 재미있는 흑역사가 될 수 있어요."
+                        title: "마음 바뀜",
+                        message: "\(context.after.nickname(rec.receiverId))가 \(context.stockName(rec.stockId)) 추천을 거절했습니다. 안 사기로 마음 바꿨습니다."
                     )
                 ]
             }
@@ -66,8 +79,8 @@ struct ProposalRule: EventRule {
                     type: .proposalCreated,
                     actorId: proposal.proposerId,
                     stockId: proposal.stockId,
-                    title: "🤔 이거 어때?",
-                    message: "\(context.after.nickname(proposal.proposerId))가 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
+                    title: "그룹 제안",
+                    message: "\(context.after.nickname(proposal.proposerId))가 그룹에 \(context.stockName(proposal.stockId)) 같이 사자고 제안했습니다.\n“\(proposal.message)”"
                 )
             ]
         case let .proposalDeclined(id):
@@ -79,7 +92,7 @@ struct ProposalRule: EventRule {
                     actorId: context.after.currentUserId,
                     targetUserId: proposal.proposerId,
                     stockId: proposal.stockId,
-                    title: "📭 제안 거절",
+                    title: "제안 거절",
                     message: "\(context.after.nickname(context.after.currentUserId))가 \(context.stockName(proposal.stockId)) 같이 사기를 일단 패스했습니다."
                 )
             ]
@@ -103,7 +116,7 @@ struct CoBuyRule: EventRule {
                     type: .coBuyAccepted,
                     actorId: cobuy.userId,
                     stockId: cobuy.stockId,
-                    title: "🤝 같이 사기 약속",
+                    title: "같이 사기 약속",
                     message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId)) 같이 사기에 손을 올렸습니다. 현재 \(promised)명."
                 )
             ]
@@ -115,7 +128,7 @@ struct CoBuyRule: EventRule {
                     type: .coBuyCompleted,
                     actorId: cobuy.userId,
                     stockId: cobuy.stockId,
-                    title: "🎉 같이 사기 성공",
+                    title: "같이 사기 완료",
                     message: "\(context.after.nickname(cobuy.userId))가 \(context.stockName(cobuy.stockId))를 실제로 등록했습니다. 약속이 깐부가 되는 순간."
                 )
             ]
@@ -145,7 +158,7 @@ struct NagRule: EventRule {
                 actorId: actorId,
                 targetUserId: targetUserId,
                 stockId: proposal.stockId,
-                title: "😂 같이 사자고 조르기",
+                title: "같이 사자고 조르는 중",
                 message: message
             )
         ]
@@ -167,7 +180,7 @@ struct VerificationRule: EventRule {
                     targetUserId: holding.userId,
                     stockId: holding.stockId,
                     holdingId: holding.id,
-                    title: "🕵️ 구라핑 의혹",
+                    title: "구라핑 의심",
                     message: "친구들이 \(context.after.nickname(holding.userId))의 \(context.stockName(holding.stockId)) 매수가를 의심하고 있습니다. “진짜 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))에 산 거 맞아?”"
                 )
             }
@@ -178,13 +191,13 @@ struct VerificationRule: EventRule {
             let message: String
             switch type {
             case .verificationSuccess:
-                title = "😎 의혹 해명"
+                title = "의혹 해명"
                 message = "\(context.after.nickname(holding.userId))가 캡처 인증으로 구라핑 의혹을 깔끔하게 해명했습니다."
             case .screenshotVerified:
-                title = "📸 매수가 인증 완료"
+                title = "매수가 인증"
                 message = "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매수가를 인증했습니다."
             default:
-                title = "🚨 정보 불일치"
+                title = "정보 불일치"
                 message = "\(context.after.nickname(holding.userId))의 입력 정보와 캡처 정보가 다릅니다. 사기라고 단정하지 않고, 확인이 필요하다는 뜻이에요."
             }
             return context.after.groups(for: holding.userId).map { group in
@@ -207,12 +220,33 @@ struct VerificationRule: EventRule {
                     actorId: holding.userId,
                     stockId: holding.stockId,
                     holdingId: holding.id,
-                    title: "😂 매수가 수정됨",
+                    title: "매수가 수정",
                     message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매수가를 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))로 고쳤습니다."
                 )
             }
         default:
             return []
         }
+    }
+}
+
+struct CommentRule: EventRule {
+    let ruleId = "CommentRule"
+
+    func evaluate(context: EventContext) -> [FeedEvent] {
+        guard case let .commentPosted(id) = context.trigger,
+              let comment = context.after.comments.first(where: { $0.id == id }) else { return [] }
+        let clipped = comment.body.count > 40 ? String(comment.body.prefix(40)) + "…" : comment.body
+        let isReply = comment.parentId != nil
+        return [
+            FeedEvent(
+                groupId: comment.groupId,
+                type: .commentPosted,
+                actorId: comment.authorId,
+                stockId: comment.stockId,
+                title: isReply ? "대댓글" : "댓글",
+                message: "\(context.after.nickname(comment.authorId))가 \(context.stockName(comment.stockId)) 추천에 \(isReply ? "답글" : "댓글")을 남겼습니다. “\(clipped)”"
+            )
+        ]
     }
 }

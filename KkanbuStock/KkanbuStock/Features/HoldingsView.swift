@@ -4,7 +4,6 @@ struct HoldingsView: View {
     @Environment(AppStore.self) private var store
     @State private var showAdd = false
     @State private var recommendHolding: Holding?
-    @State private var proposeStock: Stock?
     @State private var sellHolding: Holding?
     @State private var verifyHolding: Holding?
     @State private var showPropose = false
@@ -21,9 +20,9 @@ struct HoldingsView: View {
                         let active = mine.filter { $0.status == .holding }
                         let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
-                            EmptyStateView(emoji: "✨", title: "아직 주식이 없어요", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
-                            PillButton(title: "주식 추가") { showAdd = true }
-                            PillButton(title: "🤔 이거 어때?", kind: .secondary) { showPropose = true }
+                            EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
+                            QuietButton(title: "내 주식 등록") { showAdd = true }
+                            QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")
@@ -46,7 +45,7 @@ struct HoldingsView: View {
             .navigationTitle("내 주식")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("🤔 이거 어때?") { showPropose = true }
+                    Button("그룹에 제안") { showPropose = true }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -54,13 +53,12 @@ struct HoldingsView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundStyle(KkanbuTheme.coral)
+                            .foregroundStyle(KkanbuTheme.ink)
                     }
                 }
             }
             .sheet(isPresented: $showAdd) { AddStockView() }
             .sheet(item: $recommendHolding) { RecommendSheet(holding: $0) }
-            .sheet(item: $proposeStock) { ProposalSheet(preselected: $0) }
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(isPresented: $showPropose) { ProposalSheet() }
@@ -79,7 +77,6 @@ struct HoldingsView: View {
                 showsQuantity: store.state.currentUser.shareQuantity,
                 isMine: true,
                 onRecommend: { recommendHolding = holding },
-                onPropose: nil,
                 onSell: holding.status == .holding ? { sellHolding = holding } : nil,
                 onVerify: { verifyHolding = holding }
             )
@@ -91,12 +88,13 @@ struct HoldingsView: View {
         let avg = mine.isEmpty ? 0 : mine.map { $0.returnRate(currentPrice: store.price(for: $0.stockId)) }.reduce(0, +) / Double(mine.count)
         return KkanbuCard {
             VStack(alignment: .leading, spacing: 8) {
-                Text("지금 분위기")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                ReturnText(value: avg, size: 44)
-                Text("보유 \(mine.count)종목 · 깐부는 그룹에서 자동으로 맺어져요")
-                    .foregroundStyle(.secondary)
+                Text("평균 수익률")
+                    .font(.footnote)
+                    .foregroundStyle(KkanbuTheme.muted)
+                ReturnText(value: avg, size: 28)
+                Text("보유 \(mine.count)종목")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
             }
         }
     }
@@ -127,7 +125,10 @@ struct SellSheet: View {
         NavigationStack {
             Form {
                 if let stock = store.state.stock(holding.stockId) {
-                    Text(stock.name)
+                    HStack(spacing: 10) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                        Text(stock.name)
+                    }
                     Text("현재가 \(MoneyFormat.price(store.price(for: stock.id), market: stock.market))")
                     TextField("매도가", text: $priceText)
                         .keyboardType(.decimalPad)
@@ -159,7 +160,7 @@ struct RecommendSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var holding: Holding
-    @State private var message = "나 이거 샀으니까 너도 사 ㅋㅋ"
+    @State private var message = "같이 들어가 봐."
     @State private var selected: UUID?
 
     var body: some View {
@@ -167,7 +168,10 @@ struct RecommendSheet: View {
             Form {
                 if let stock = store.state.stock(holding.stockId) {
                     Section("종목") {
-                        Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 32)
+                            Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
+                        }
                     }
                 }
                 Section("누구한테") {
@@ -179,8 +183,9 @@ struct RecommendSheet: View {
                         Button {
                             selected = user.id
                         } label: {
-                            HStack {
-                                Text("\(user.avatarEmoji) \(user.nickname)")
+                            HStack(spacing: 10) {
+                                InitialsAvatar(name: user.nickname, size: 28)
+                                Text(user.nickname)
                                 Spacer()
                                 if selected == user.id { Image(systemName: "checkmark") }
                             }
@@ -191,7 +196,7 @@ struct RecommendSheet: View {
                     TextField("한마디", text: $message, axis: .vertical)
                 }
             }
-            .navigationTitle("📣 너도 사!")
+            .navigationTitle("추천하기")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -227,21 +232,32 @@ struct ProposalSheet: View {
                 Section("아직 안 산 종목") {
                     TextField("종목 검색", text: $query)
                     ForEach(Array(store.searchStocks(query).prefix(8))) { item in
-                        Button("\(item.name) \(item.ticker)") { stock = item }
+                        Button {
+                            stock = item
+                        } label: {
+                            HStack(spacing: 10) {
+                                StockMark(ticker: item.ticker, name: item.name, size: 28)
+                                Text("\(item.name)")
+                                Spacer()
+                                Text(item.ticker)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KkanbuTheme.faint)
+                            }
+                        }
                     }
                     if let stock {
                         Text("선택됨: \(stock.name)")
-                            .foregroundStyle(KkanbuTheme.coral)
+                            .foregroundStyle(KkanbuTheme.ink)
                     }
                 }
                 Section("메시지") {
                     TextField("제안", text: $message, axis: .vertical)
-                    Text("너도 사! 는 내가 이미 보유한 종목, 이거 어때? 는 같이 살 사람을 찾는 제안이에요.")
+                    Text("추천은 내가 산 종목을 친구에게, 같이 사기는 아직 안 산 종목을 그룹 전체에 제안합니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("🤔 이거 어때?")
+            .navigationTitle("그룹에 같이 사자")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
