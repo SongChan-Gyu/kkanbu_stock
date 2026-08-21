@@ -128,7 +128,7 @@ final class AppStore {
         verification: VerificationState
     ) {
         if let existing = state.activeHoldings(of: state.currentUserId).first(where: { $0.stockId == stock.id }) {
-            lastError = "이미 \(stock.name)를 보유 중이에요. 매수가를 수정하거나 매도 후 다시 등록해 주세요."
+            lastError = "이미 \(stock.name)를 보유 중이에요. 추매하거나 평단을 고친 다음, 매도 후 다시 등록해 주세요."
             return
         }
         let holding = Holding(
@@ -174,15 +174,52 @@ final class AppStore {
         toast = "매도 처리됨"
     }
 
-    func updateHoldingPrice(id: UUID, price: Double) {
+    func updateHoldingPrice(id: UUID, price: Double, quantity: Double? = nil) {
         guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        guard price > 0 else {
+            lastError = "평단을 확인해 주세요."
+            return
+        }
         let before = state
         state.holdings[index].averagePrice = price
+        if let quantity, quantity > 0 {
+            state.holdings[index].quantity = quantity
+        }
         state.holdings[index].updatedAt = Date()
         if state.holdings[index].verificationState == .mismatch {
             state.holdings[index].verificationState = .unverified
         }
         emit(.priceEdited(holdingId: id), before: before)
+        toast = "평단을 고쳤습니다"
+    }
+
+    func addToPosition(id: UUID, addPrice: Double, addQuantity: Double, existingQuantity: Double? = nil) {
+        guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        let holding = state.holdings[index]
+        guard holding.status == .holding else { return }
+        let oldQty = existingQuantity ?? holding.quantity ?? 0
+        guard let avg = Holding.blendedAverage(
+            oldAverage: holding.averagePrice,
+            oldQuantity: oldQty,
+            addPrice: addPrice,
+            addQuantity: addQuantity
+        ) else {
+            lastError = "추가 매수가와 수량을 확인해 주세요."
+            return
+        }
+        let before = state
+        state.holdings[index].averagePrice = avg
+        state.holdings[index].quantity = oldQty + addQuantity
+        state.holdings[index].updatedAt = Date()
+        if state.holdings[index].verificationState == .mismatch {
+            state.holdings[index].verificationState = .unverified
+        }
+        emit(.priceEdited(holdingId: id), before: before)
+        if let stock = state.stock(holding.stockId) {
+            toast = "평단 \(MoneyFormat.price(avg, market: stock.market))로 바꿨습니다"
+        } else {
+            toast = "평단을 고쳤습니다"
+        }
     }
 
     func recommend(holding: Holding, to userId: UUID, message: String) {
@@ -209,7 +246,7 @@ final class AppStore {
             state.recommendations[index].status = .willBuy
             state.recommendations[index].resolvedAt = nil
             emit(.recommendationResolved(id: rec.id), before: before)
-            toast = "살게요. 사면 매수가를 적으세요."
+            toast = "매수 예정으로 남겼습니다"
             return
         }
         state.recommendations[index].status = accept ? .accepted : .rejected
@@ -231,7 +268,7 @@ final class AppStore {
             }
         }
         emit(triggers, before: before)
-        toast = accept ? "사서 기록했습니다" : "안 사기로 했습니다"
+        toast = accept ? "매수를 기록했습니다" : "거절했습니다"
     }
 
     func propose(stock: Stock, message: String) {
@@ -242,7 +279,7 @@ final class AppStore {
         state.proposals.append(proposal)
         state.coBuys.append(mine)
         emit([.proposalCreated(id: proposal.id), .coBuyPromised(id: mine.id)], before: before)
-        toast = "그룹에 같이 사자고 제안했습니다"
+        toast = "매수를 제안했습니다"
     }
 
     func promiseCoBuy(proposalId: UUID) {
@@ -253,14 +290,14 @@ final class AppStore {
             if let index = state.coBuys.firstIndex(where: { $0.id == existing.id }) {
                 state.coBuys[index].status = .promised
                 emit(.coBuyPromised(id: existing.id), before: before)
-                toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+                toast = "관심을 남겼습니다"
             }
             return
         }
         let cobuy = CoBuyRequest(proposalId: proposalId, groupId: proposal.groupId, userId: state.currentUserId, stockId: proposal.stockId)
         state.coBuys.append(cobuy)
         emit(.coBuyPromised(id: cobuy.id), before: before)
-        toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+        toast = "관심을 남겼습니다"
     }
 
     func declineProposal(_ proposalId: UUID) {
@@ -289,11 +326,11 @@ final class AppStore {
         let mine = state.coBuys.first(where: { $0.proposalId == proposalId && $0.userId == state.currentUserId })
         let count = (mine?.nagCount ?? 0) + 1
         if let last = mine?.lastNagAt, Date().timeIntervalSince(last) < SocialLimits.nagCooldown {
-            lastError = "조금 뒤에 다시 조를 수 있어요."
+            lastError = "조금 뒤에 다시 제안할 수 있습니다."
             return
         }
         if count > SocialLimits.maxNagsPerProposal {
-            lastError = "조르기는 제안당 3번까지예요."
+            lastError = "재요청은 제안당 3번까지입니다."
             return
         }
         let before = state
@@ -305,7 +342,7 @@ final class AppStore {
         let holdouts = state.members(of: proposal.groupId).map(\.userId).filter { !responded.contains($0) && $0 != state.currentUserId }
         let targets = holdouts.isEmpty ? [nil] : holdouts.map(Optional.some)
         emit(targets.map { .nagged(proposalId: proposalId, actorId: state.currentUserId, targetUserId: $0, count: count) }, before: before)
-        toast = "같이 사자고 한 번 더 찔렀어요"
+        toast = "다시 제안했습니다"
     }
 
     func suspectHolding(_ holdingId: UUID) {
@@ -449,6 +486,52 @@ final class AppStore {
         comments(in: groupId, stockId: stockId).count
     }
 
+    func setTake(stockId: UUID, level: TakeLevel) {
+        guard let groupId = state.selectedGroupId else { return }
+        if let index = state.takes.firstIndex(where: {
+            $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId
+        }) {
+            state.takes[index].level = level
+        } else {
+            state.takes.append(StockTake(groupId: groupId, userId: state.currentUserId, stockId: stockId, level: level))
+        }
+        persist()
+        toast = level.title
+    }
+
+    func takes(in groupId: UUID, stockId: UUID) -> [StockTake] {
+        state.takes.filter { $0.groupId == groupId && $0.stockId == stockId }
+    }
+
+    func myTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        state.takes.first { $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId }?.level
+    }
+
+    func groupTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        TakeLevel.consensus(takes(in: groupId, stockId: stockId).map(\.level))
+    }
+
+    func pulseSnapshot(for stock: Stock, in groupId: UUID?) -> StockPulse.Snapshot {
+        let comments = groupId.map { commentCount(in: $0, stockId: stock.id) } ?? 0
+        let pending = state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = groupId.flatMap { gid in
+            KkangbuMath.bonds(in: gid, state: state, prices: currentPrices)
+                .first { $0.stockId == stock.id }?.sharedReturn
+        }
+        let takeCount = groupId.map { takes(in: $0, stockId: stock.id).count } ?? 0
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared,
+            groupTake: groupId.flatMap { groupTake(in: $0, stockId: stock.id) },
+            takeCount: takeCount,
+            myTake: groupId.flatMap { myTake(in: $0, stockId: stock.id) }
+        )
+    }
+
     func recommendations(in groupId: UUID, stockId: UUID) -> [StockRecommendation] {
         state.recommendations
             .filter { $0.groupId == groupId && $0.stockId == stockId }
@@ -458,8 +541,9 @@ final class AppStore {
     func copyInviteCode(_ code: String) {
         #if canImport(UIKit)
         UIPasteboard.general.string = code
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         #endif
-        toast = "초대 코드 \(code) 복사됨"
+        toast = "초대 코드 복사됨"
     }
 
     func refreshDerived() {

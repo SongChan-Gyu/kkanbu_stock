@@ -17,7 +17,7 @@ struct ActivityView: View {
                             .foregroundStyle(KkanbuTheme.muted)
                         let items = store.inboxItems(for: store.state.currentUserId)
                         if items.isEmpty {
-                            EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 같이 사기 제안이 오면 여기에 모입니다.")
+                            EmptyStateView(title: "대기 중인 일이 없습니다", message: "추천이나 매수 제안이 오면 여기에 모입니다.", centered: true)
                         }
                         ForEach(items) { item in
                             InboxActionCard(
@@ -44,6 +44,7 @@ struct ActivityView: View {
                 }
             }
             .navigationTitle("활동")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
             .sheet(item: $threadStock) { RecommendationThreadView(stock: $0) }
@@ -61,33 +62,41 @@ struct ProfileView: View {
             ZStack {
                 KkanbuBackground()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        KkanbuCard {
-                            HStack(spacing: 14) {
-                                AvatarView(emoji: store.state.currentUser.avatarEmoji, name: store.state.currentUser.nickname, size: 48)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(store.state.currentUser.nickname)
-                                        .font(.title3.weight(.semibold))
-                                    Text("로컬 데모")
-                                        .font(.caption)
-                                        .foregroundStyle(KkanbuTheme.faint)
-                                }
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: 20) {
+                        profileHead
                         trust
                         privacy
-                        playground
                         badges
+                        playground
                     }
                     .padding(16)
                 }
             }
             .navigationTitle("프로필")
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 shareQty = store.state.currentUser.shareQuantity
                 shareAmount = store.state.currentUser.shareInvestedAmount
             }
         }
+    }
+
+    private var profileHead: some View {
+        let group = store.state.selectedGroup
+        let members = group.map { store.state.memberUsers(of: $0.id).count } ?? 0
+        return VStack(alignment: .leading, spacing: 10) {
+            AvatarView(
+                emoji: store.state.currentUser.avatarEmoji,
+                name: store.state.currentUser.nickname,
+                size: 72
+            )
+            Text(store.state.currentUser.nickname)
+                .font(.title2.weight(.semibold))
+            Text(group.map { "\($0.name) · 멤버 \(members)" } ?? "아직 그룹 없음")
+                .font(.subheadline)
+                .foregroundStyle(KkanbuTheme.muted)
+        }
+        .padding(.top, 8)
     }
 
     private var trust: some View {
@@ -129,11 +138,11 @@ struct ProfileView: View {
     private var playground: some View {
         KkanbuCard {
             VStack(alignment: .leading, spacing: 10) {
-                Text("놀이터 · 시장 흔들기")
+                Text("실험")
                     .font(.headline)
-                Text("지금은 데모 시세입니다.")
+                Text("시세를 흔들어 사건을 만들어 봅니다.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KkanbuTheme.faint)
                 Text("사건 기준")
                     .font(.subheadline.bold())
                 HStack {
@@ -178,8 +187,8 @@ struct ProfileView: View {
                 }
                 PillButton(title: "데모 파티 리셋", kind: .ghost) { store.resetDemo() }
                 if let groupId = store.state.selectedGroupId {
-                    Text("친구로 플레이 (테스트용)")
-                        .font(.subheadline.bold())
+                    Text("친구로 보기")
+                        .font(.subheadline.weight(.semibold))
                         .padding(.top, 6)
                     ForEach(store.state.memberUsers(of: groupId)) { user in
                     Button("\(user.nickname)으로 보기") {
@@ -248,6 +257,7 @@ struct RankingsView: View {
             }
             .background(KkanbuBackground())
             .navigationTitle("랭킹")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
@@ -272,6 +282,7 @@ struct FriendDetailView: View {
             }
         }
         .navigationTitle(user.nickname)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -337,7 +348,7 @@ struct FriendDetailView: View {
         return VStack(alignment: .leading, spacing: 14) {
             historyBlock("내가 추천한 종목", records.recommendedByMe)
             historyBlock("\(user.nickname)가 제안한 종목", records.proposedByFriend)
-            historyBlock("같이 사기로 한 종목", records.coBuys)
+            historyBlock("매수 제안 종목", records.coBuys)
             historyBlock("\(user.nickname)가 매도한 기록", records.escapes)
             historyBlock("\(user.nickname)의 선견지명", records.foresights)
             historyBlock("너무 이른 매도", records.soldTooEarly)

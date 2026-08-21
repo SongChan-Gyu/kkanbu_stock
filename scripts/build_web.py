@@ -16,6 +16,8 @@ html = f"""<!DOCTYPE html>
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" content="#FAFAFA" />
   <title>주식 깐부</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect fill='%23FAFAFA' width='64' height='64'/%3E%3Ccircle cx='26' cy='32' r='14' fill='%23111111'/%3E%3Ccircle cx='38' cy='32' r='14' fill='%23E11D48'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="icon.png" />
   <style>
 {css}
   </style>
@@ -32,4 +34,13 @@ html = f"""<!DOCTYPE html>
 </html>
 """
 (root / "index.html").write_text(html, encoding="utf-8")
-print(f"wrote {root / 'index.html'} ({len(html)} bytes)")
+docs = root.parent / "docs"
+docs.mkdir(exist_ok=True)
+(docs / "index.html").write_text(html, encoding="utf-8")
+(docs / ".nojekyll").write_text("", encoding="utf-8")
+icon = Path(__file__).resolve().parents[1] / "KkanbuStock/KkanbuStock/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+if icon.exists():
+    data = icon.read_bytes()
+    (root / "icon.png").write_bytes(data)
+    (docs / "icon.png").write_bytes(data)
+print(f"wrote {root / 'index.html'} and {docs / 'index.html'} ({len(html)} bytes)")

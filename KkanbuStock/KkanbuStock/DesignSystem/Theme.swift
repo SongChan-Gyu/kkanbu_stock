@@ -1,5 +1,16 @@
 import SwiftUI
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
+
+enum KkanbuHaptic {
+    static func tap() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+}
 
 enum KkanbuTheme {
     static let radius: CGFloat = 10
@@ -32,6 +43,26 @@ extension Color {
 struct KkanbuBackground: View {
     var body: some View {
         KkanbuTheme.bg.ignoresSafeArea()
+    }
+}
+
+struct BrandMark: View {
+    var size: CGFloat = 56
+
+    var body: some View {
+        let diameter = size * 0.62
+        ZStack {
+            Circle()
+                .fill(KkanbuTheme.ink)
+                .frame(width: diameter, height: diameter)
+                .offset(x: -diameter * 0.28)
+            Circle()
+                .fill(Color.kkanbuUp)
+                .frame(width: diameter, height: diameter)
+                .offset(x: diameter * 0.28)
+        }
+        .frame(width: size, height: size * 0.72)
+        .accessibilityHidden(true)
     }
 }
 
@@ -82,12 +113,32 @@ struct StockMark: View {
 
     var body: some View {
         let mark = StockIdentity.mark(ticker: ticker, name: name)
+        ZStack {
+            Circle().fill(Color(hex: mark.backgroundHex))
+            if let url = StockIdentity.logoURL(ticker: ticker) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(size * 0.22)
+                    default:
+                        glyph(mark)
+                    }
+                }
+            } else {
+                glyph(mark)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel(name.isEmpty ? ticker : name)
+    }
+
+    private func glyph(_ mark: StockIdentity.Mark) -> some View {
         Text(mark.glyph)
             .font(.system(size: size * (mark.glyph.count > 1 ? 0.32 : 0.42), weight: .bold, design: .rounded))
             .foregroundStyle(Color(hex: mark.foregroundHex))
-            .frame(width: size, height: size)
-            .background(Color(hex: mark.backgroundHex), in: Circle())
-            .accessibilityLabel(name.isEmpty ? ticker : name)
     }
 }
 
@@ -107,6 +158,194 @@ struct CommentCountLabel: View {
     }
 }
 
+struct PulseChip: View {
+    var snapshot: StockPulse.Snapshot
+
+    var body: some View {
+        Text(snapshot.rating)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(color)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+
+    private var color: Color {
+        switch snapshot.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.muted
+        }
+    }
+}
+
+struct TakeStepper: View {
+    var selected: TakeLevel?
+    var action: (TakeLevel) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(TakeLevel.allCases, id: \.self) { level in
+                Button {
+                    KkanbuHaptic.tap()
+                    action(level)
+                } label: {
+                    Text(level.shortTitle)
+                        .font(.caption2.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(selected == level ? color(level) : KkanbuTheme.muted)
+                        .background(
+                            (selected == level ? color(level).opacity(0.12) : KkanbuTheme.chip),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func color(_ level: TakeLevel) -> Color {
+        switch level.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.ink
+        }
+    }
+}
+
+struct NewsCard: View {
+    var item: StockPulse.NewsItem
+
+    var body: some View {
+        Link(destination: item.url) {
+            HStack(alignment: .top, spacing: 10) {
+                AsyncImage(url: item.imageURL) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image.resizable().scaledToFill()
+                    default:
+                        KkanbuTheme.chip
+                    }
+                }
+                .frame(width: 72, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text("\(item.source) · \(item.ago)")
+                        .font(.caption2)
+                        .foregroundStyle(KkanbuTheme.faint)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PulseStrip: View {
+    @Environment(AppStore.self) private var store
+    var snapshot: StockPulse.Snapshot
+    var compact: Bool = true
+    var stock: Stock? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                PulseChip(snapshot: snapshot)
+                Text(snapshot.take)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KkanbuTheme.muted)
+                    .lineLimit(1)
+            }
+            if !compact {
+                if let stock {
+                    TakeStepper(selected: snapshot.myTake ?? snapshot.groupTake) { level in
+                        store.setTake(stockId: stock.id, level: level)
+                    }
+                }
+                Text(snapshot.blurb)
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text("주요 뉴스")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.faint)
+                    .padding(.top, 2)
+                ForEach(snapshot.items.prefix(2)) { item in
+                    NewsCard(item: item)
+                }
+            } else if let first = snapshot.items.first {
+                NewsCard(item: first)
+            }
+        }
+    }
+}
+
+struct FoldSection<Content: View>: View {
+    var title: String
+    var count: Int
+    var preview: String?
+    @Binding var isOpen: Bool
+    var content: Content
+
+    init(
+        title: String,
+        count: Int = 0,
+        preview: String? = nil,
+        isOpen: Binding<Bool>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.count = count
+        self.preview = preview
+        self._isOpen = isOpen
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                KkanbuHaptic.tap()
+                withAnimation(.easeInOut(duration: 0.2)) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.muted)
+                    Spacer(minLength: 8)
+                    if !isOpen, let preview, !preview.isEmpty {
+                        Text(preview)
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                            .lineLimit(1)
+                    } else if count > 0 {
+                        Text("\(count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.faint)
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                }
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if isOpen {
+                content
+                    .padding(.bottom, 10)
+            }
+            KkanbuTheme.line.frame(height: 1)
+        }
+    }
+}
+
 struct QuietButton: View {
     var title: String
     var kind: Kind = .primary
@@ -115,13 +354,15 @@ struct QuietButton: View {
     enum Kind { case primary, secondary, ghost }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            KkanbuHaptic.tap()
+            action()
+        } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(foreground)
-                .background(background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -189,17 +430,48 @@ struct EmptyStateView: View {
     var emoji: String = ""
     var title: String
     var message: String
+    var centered: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: centered ? .center : .leading, spacing: 8) {
+            if centered {
+                BrandMark(size: 64)
+                    .padding(.bottom, 8)
+            }
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(centered ? .center : .leading)
             Text(message)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(KkanbuTheme.muted)
+                .multilineTextAlignment(centered ? .center : .leading)
+                .lineSpacing(2)
         }
-        .padding(.vertical, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, centered ? 28 : 20)
+        .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
+    }
+}
+
+struct InviteChip: View {
+    var code: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("초대")
+                    .foregroundStyle(KkanbuTheme.muted)
+                Text(code)
+                    .font(.caption.weight(.semibold).monospaced())
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(KkanbuTheme.chip, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("초대 코드 \(code) 복사")
     }
 }
 
@@ -293,6 +565,7 @@ struct GradeTitle: View {
 }
 
 struct HoldingCardView: View {
+    @Environment(AppStore.self) private var store
     var stock: Stock
     var holding: Holding
     var currentPrice: Double
@@ -302,8 +575,10 @@ struct HoldingCardView: View {
     var isMine: Bool
     var ownerName: String? = nil
     var onRecommend: (() -> Void)?
+    var onAddOn: (() -> Void)?
     var onSell: (() -> Void)?
     var onVerify: (() -> Void)?
+    var showsPulse: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -330,10 +605,9 @@ struct HoldingCardView: View {
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
                 .foregroundStyle(KkanbuTheme.muted)
-            Text(StockPulse.newsLine(ticker: stock.ticker))
-                .font(.caption)
-                .foregroundStyle(KkanbuTheme.muted)
-                .lineLimit(1)
+            if showsPulse {
+                PulseStrip(snapshot: rowPulse, stock: stock)
+            }
             if showsQuantity, let qty = holding.quantity {
                 Text("수량 \(String(format: "%g", qty))")
                     .font(.caption)
@@ -359,6 +633,7 @@ struct HoldingCardView: View {
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
                     small("친구에게 추천", action: onRecommend)
+                    small("추매", action: onAddOn)
                     small("매도", action: onSell)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {
@@ -370,6 +645,10 @@ struct HoldingCardView: View {
         .overlay(alignment: .bottom) {
             KkanbuTheme.line.frame(height: 1)
         }
+    }
+
+    private var rowPulse: StockPulse.Snapshot {
+        store.pulseSnapshot(for: stock, in: store.state.selectedGroupId)
     }
 
     @ViewBuilder

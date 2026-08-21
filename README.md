@@ -23,9 +23,19 @@
 
 ### 웹 데모 (아이폰 Safari / Windows 포함)
 
-아이폰에서 바로 열려면 Safari에 **이 주소**를 붙여넣습니다. (jsDelivr 주소는 HTML을 소스 코드로만 보여 주니 쓰지 마세요.)
+### 웹 데모 (아이폰 Safari)
 
-https://htmlpreview.github.io/?https://github.com/SongChan-Gyu/kkanbu_stock/blob/play/web/index.html
+**htmlpreview 주소는 아이폰 Safari에서 빈 화면이 됩니다.** Safari가 그 미리보기 방식(`document.write`)을 막아서, 앱이 아니라 빈 페이지로 보입니다.
+
+아이폰에서는 아래 주소를 쓰세요.
+
+https://raw.githack.com/SongChan-Gyu/kkanbu_stock/play/web/index.html
+
+안 열리면 이 주소:
+
+https://rawcdn.githack.com/SongChan-Gyu/kkanbu_stock/play/web/index.html
+
+GitHub Pages를 켜면 가장 안정적입니다. 저장소 → Settings → Pages → Deploy from a branch → `main` / `docs` → Save. 주소는 `https://songchan-gyu.github.io/kkanbu_stock/` 입니다.
 
 공유 시트 → **홈 화면에 추가** 하면 앱처럼 열립니다. (Safari 웹 데모입니다. 앱스토어 앱이 아닙니다.)
 

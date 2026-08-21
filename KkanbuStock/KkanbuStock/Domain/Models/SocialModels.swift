@@ -9,10 +9,10 @@ enum RecommendationStatus: String, Codable, Sendable {
 
     var threadLabel: String {
         switch self {
-        case .pending: "아직 대답 없음"
-        case .willBuy: "살게요 · 아직 안 삼"
-        case .accepted: "사서 기록"
-        case .later, .rejected: "마음 바뀜"
+        case .pending: "대기"
+        case .willBuy: "매수 예정"
+        case .accepted: "매수 기록"
+        case .later, .rejected: "거절"
         }
     }
 }
@@ -183,6 +183,31 @@ struct GurapingSuspicion: Identifiable, Codable, Hashable, Sendable {
         self.holdingId = holdingId
         self.actorId = actorId
         self.targetUserId = targetUserId
+        self.createdAt = createdAt
+    }
+}
+
+struct StockTake: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var groupId: UUID
+    var userId: UUID
+    var stockId: UUID
+    var level: TakeLevel
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        groupId: UUID,
+        userId: UUID,
+        stockId: UUID,
+        level: TakeLevel,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.groupId = groupId
+        self.userId = userId
+        self.stockId = stockId
+        self.level = level
         self.createdAt = createdAt
     }
 }
