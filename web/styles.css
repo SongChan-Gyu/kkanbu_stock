@@ -554,12 +554,44 @@ body {
   color: var(--text);
   cursor: pointer;
   touch-action: none;
-  min-height: 110px;
+  min-height: 200px;
 }
 .chart.static {
   cursor: default;
   touch-action: pan-y;
-  min-height: 132px;
+  min-height: 200px;
+}
+.cnd.on rect { stroke: var(--text); stroke-width: 1.2; }
+.tv-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  min-height: 40px;
+  line-height: 40px;
+}
+.signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.signal-chip {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+button.signal-chip { cursor: pointer; }
+.signal-chip.on {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
 }
 
 .feed-badge {

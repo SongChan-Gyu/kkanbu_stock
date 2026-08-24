@@ -138,18 +138,26 @@ struct ChartPricePickerView: View {
                 Text("언제 샀나요?")
                     .font(.largeTitle.bold())
                     .padding(.horizontal)
-                Text("차트를 터치해서 그날의 가격을 고르세요. 정확한 값은 아래에서 고쳐도 돼요.")
+                Text("차트를 눌러 그날 캔들 종가를 고르세요. 정확한 값은 아래에서 고쳐도 돼요. 데모 시세입니다.")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
-                Chart(store.history(for: stock)) { point in
-                    LineMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.ink)
-                    AreaMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.ink.opacity(0.12))
+                Chart(store.history(for: stock, days: 40)) { point in
+                    RuleMark(
+                        x: .value("날짜", point.date),
+                        yStart: .value("저", point.low),
+                        yEnd: .value("고", point.high)
+                    )
+                    .foregroundStyle(point.isBull ? Color.kkanbuUp : Color.kkanbuDown)
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    RectangleMark(
+                        x: .value("날짜", point.date),
+                        yStart: .value("시", min(point.open, point.close)),
+                        yEnd: .value("종", max(point.open, point.close))
+                    )
+                    .foregroundStyle(point.isBull ? Color.kkanbuUp : Color.kkanbuDown)
                     if let selected, Calendar.current.isDate(selected.date, inSameDayAs: point.date) {
-                        PointMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                            .foregroundStyle(KkanbuTheme.ink)
-                            .symbolSize(80)
+                        RuleMark(x: .value("선택", selected.date))
+                            .foregroundStyle(KkanbuTheme.ink.opacity(0.18))
                     }
                 }
                 .chartOverlay { proxy in
@@ -167,10 +175,22 @@ struct ChartPricePickerView: View {
                             )
                     }
                 }
-                .frame(height: 260)
+                .frame(height: 220)
                 .padding()
                 .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 24))
                 .padding(.horizontal)
+                Chart(store.history(for: stock, days: 40)) { point in
+                    BarMark(
+                        x: .value("날짜", point.date),
+                        y: .value("거래량", point.volume)
+                    )
+                    .foregroundStyle((point.isBull ? Color.kkanbuUp : Color.kkanbuDown).opacity(0.45))
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .frame(height: 56)
+                .padding(.horizontal)
+                .accessibilityLabel("거래량")
 
                 if let selected {
                     VStack(alignment: .leading, spacing: 6) {
@@ -178,6 +198,11 @@ struct ChartPricePickerView: View {
                             .font(.headline)
                         Text(MoneyFormat.price(selected.price, market: stock.market))
                             .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        if let rsi = selectedRSI {
+                            Text("RSI \(Int(rsi.rounded())) · 종가를 매수가로 씁니다.")
+                                .font(.caption)
+                                .foregroundStyle(KkanbuTheme.muted)
+                        }
                     }
                     .padding(.horizontal)
                 }
@@ -199,7 +224,7 @@ struct ChartPricePickerView: View {
             .background(KkanbuBackground())
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
             .onAppear {
-                selected = store.history(for: stock).last
+                selected = store.history(for: stock, days: 40).last
             }
         }
     }
@@ -208,8 +233,15 @@ struct ChartPricePickerView: View {
         Double(priceText.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "$", with: ""))
     }
 
+    private var selectedRSI: Double? {
+        guard let selected else { return nil }
+        let pts = store.history(for: stock, days: 40)
+        guard let index = pts.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: selected.date) }) else { return nil }
+        return ChartMath.rsi(closes: pts.map(\.close), endingAt: index)
+    }
+
     private func nearest(to date: Date) -> PricePoint? {
-        store.history(for: stock).min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+        store.history(for: stock, days: 40).min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
     }
 }
 

@@ -245,7 +245,7 @@ final class AppStore {
         toast = "캡처 가격으로 맞추고 인증했습니다"
     }
 
-    func recommend(holding: Holding, to userId: UUID, message: String) {
+    func recommend(holding: Holding, to userId: UUID, message: String, signals: [String] = []) {
         guard let groupId = state.selectedGroupId else { return }
         let rec = StockRecommendation(
             groupId: groupId,
@@ -253,7 +253,8 @@ final class AppStore {
             receiverId: userId,
             stockId: holding.stockId,
             holdingId: holding.id,
-            message: message
+            message: message,
+            signals: signals
         )
         let before = state
         state.recommendations.append(rec)
@@ -470,7 +471,7 @@ final class AppStore {
         parser.analyze(text: text, catalog: state.stocks, now: Date())
     }
 
-    func recommendToGroup(holding: Holding, message: String) {
+    func recommendToGroup(holding: Holding, message: String, signals: [String] = []) {
         guard let groupId = state.selectedGroupId else { return }
         let friends = state.members(of: groupId).map(\.userId).filter { $0 != state.currentUserId }
         let before = state
@@ -482,7 +483,8 @@ final class AppStore {
                 receiverId: friend,
                 stockId: holding.stockId,
                 holdingId: holding.id,
-                message: message
+                message: message,
+                signals: signals
             )
             state.recommendations.append(rec)
             triggers.append(.recommendationSent(id: rec.id))

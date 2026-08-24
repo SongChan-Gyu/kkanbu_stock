@@ -150,6 +150,9 @@ enum DemoSeeder {
             )
         )
 
+        let recSignals = ChartMath.snapshot(
+            for: MockStockPriceService().historicalPrices(for: nvda, days: 40, now: Date())
+        ).tags.filter(\.suggested).map(\.label)
         let rec = StockRecommendation(
             groupId: group.id,
             senderId: younghee.id,
@@ -157,7 +160,8 @@ enum DemoSeeder {
             stockId: nvda.id,
             holdingId: youngheeNVDA.id,
             message: "같이 들어가 봐.",
-            createdAt: Date().addingTimeInterval(-3600 * 3)
+            createdAt: Date().addingTimeInterval(-3600 * 3),
+            signals: recSignals
         )
         state.recommendations.append(rec)
 

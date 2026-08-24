@@ -568,12 +568,44 @@ body {
   color: var(--text);
   cursor: pointer;
   touch-action: none;
-  min-height: 110px;
+  min-height: 200px;
 }
 .chart.static {
   cursor: default;
   touch-action: pan-y;
-  min-height: 132px;
+  min-height: 200px;
+}
+.cnd.on rect { stroke: var(--text); stroke-width: 1.2; }
+.tv-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  min-height: 40px;
+  line-height: 40px;
+}
+.signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.signal-chip {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+button.signal-chip { cursor: pointer; }
+.signal-chip.on {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
 }
 
 .feed-badge {
@@ -957,8 +989,8 @@ label {
   align-items: center;
   justify-content: center;
   margin: 0;
-  border: 1px solid #d4d4d4;
-  background: #f0f0f0;
+  border: 1px solid var(--text-3);
+  background: var(--chip);
   color: var(--text);
   font-size: 15px;
   font-weight: 600;
@@ -1309,55 +1341,160 @@ function seedValue(ticker) {
   return [...String(ticker)].reduce((a, c) => a + c.charCodeAt(0), 0);
 }
 function history(s, days) {
-  days = days || 14;
+  days = days || 30;
   const base = priceOf(s);
-  let price = base * 0.86;
+  let prev = base * 0.86;
   const seed = seedValue(s.ticker);
   const points = [];
+  const rnd = (v) => s.market === "krx" ? Math.round(v / 50) * 50 : Math.round(v * 100) / 100;
   for (let i = days; i >= 0; i--) {
     const wave = Math.sin((i + seed) / 6.5) * 0.018;
     const drift = ((seed % 7) - 3) * 0.0015;
-    price = Math.max(base * 0.55, price * (1 + wave + drift));
-    const rounded = s.market === "krx" ? Math.round(price / 50) * 50 : Math.round(price * 100) / 100;
-    points.push({ daysAgo: i, price: rounded });
+    const closeRaw = Math.max(base * 0.55, prev * (1 + wave + drift));
+    const close = i === 0 ? base : closeRaw;
+    const open = prev * (1 + Math.sin((i + seed) / 3.1) * 0.005);
+    const range = 0.008 + Math.abs(wave) * 1.4;
+    const high = Math.max(open, close) * (1 + range);
+    const low = Math.min(open, close) * (1 - range * 0.85);
+    const volBase = 800000 + (seed % 11) * 90000;
+    const volWave = 0.7 + Math.abs(Math.sin((i * 3 + seed) / 2.4));
+    const spike = i <= 1 ? 2.15 : 1;
+    const c = rnd(close);
+    points.push({
+      daysAgo: i,
+      open: rnd(open),
+      high: rnd(high),
+      low: rnd(low),
+      close: c,
+      price: c,
+      volume: volBase * volWave * spike
+    });
+    prev = closeRaw;
   }
-  points[points.length - 1].price = s.market === "krx" ? Math.round(base / 50) * 50 : Math.round(base * 100) / 100;
   return points;
 }
+function rsiAt(closes, end, period) {
+  period = period || 14;
+  if (end < period) return null;
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) avgGain += d;
+    else avgLoss -= d;
+  }
+  avgGain /= period;
+  avgLoss /= period;
+  for (let i = period + 1; i <= end; i++) {
+    const d = closes[i] - closes[i - 1];
+    avgGain = (avgGain * (period - 1) + Math.max(d, 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + Math.max(-d, 0)) / period;
+  }
+  if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
+  return 100 - 100 / (1 + avgGain / avgLoss);
+}
+function chartSignals(s) {
+  const pts = history(s, 40);
+  const closes = pts.map((p) => p.close);
+  const rsi = rsiAt(closes, closes.length - 1);
+  const vols = pts.map((p) => p.volume);
+  const window = vols.slice(0, -1).slice(-20);
+  const avg = window.length ? window.reduce((a, b) => a + b, 0) / window.length : 0;
+  const last = vols[vols.length - 1] || 0;
+  const ratio = avg ? last / avg : 1;
+  const tags = [];
+  if (rsi != null) {
+    let label = "RSI " + Math.round(rsi);
+    let on = false;
+    if (rsi <= 30) { label += " 과매도"; on = true; }
+    else if (rsi >= 70) { label += " 과매수"; on = true; }
+    else if (rsi <= 35 || rsi >= 65) on = true;
+    tags.push({ id: "rsi", label, on });
+  }
+  if (ratio >= 1.8) tags.push({ id: "vol", label: "거래량 급증 " + ratio.toFixed(1) + "배", on: true });
+  else tags.push({ id: "vol", label: "거래량 " + ratio.toFixed(1) + "배", on: false });
+  return { rsi, ratio, tags, pts };
+}
+function tvURL(s) {
+  const sym = s.market === "krx" ? "KRX:" + s.ticker : "NASDAQ:" + s.ticker;
+  return "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(sym);
+}
+function tvLink(s) {
+  return `<a class="tv-link" href="${esc(tvURL(s))}" target="_blank" rel="noopener">트레이딩뷰에서 보기</a>`;
+}
+function signalChips(labels) {
+  if (!labels || !labels.length) return "";
+  return `<div class="signal-row">${labels.map((l) => `<span class="signal-chip">${esc(l)}</span>`).join("")}</div>`;
+}
 function chartPickHTML(s, readonly) {
-  const pts = history(s);
+  const pts = history(s, 30);
   const idx = readonly || state.chartIndex == null ? pts.length - 1 : Math.min(state.chartIndex, pts.length - 1);
-  const ys = pts.map((p) => p.price);
-  const min = Math.min.apply(null, ys);
-  const max = Math.max.apply(null, ys);
-  const span = max - min || 1;
-  const w = 320;
-  const h = readonly ? 132 : 110;
-  const coords = pts.map((p, i) => {
-    const x = 8 + (i / (pts.length - 1)) * (w - 16);
-    const y = 10 + (1 - (p.price - min) / span) * (h - 20);
-    return [x, y];
-  });
-  const line = coords.map((c) => c[0].toFixed(1) + "," + c[1].toFixed(1)).join(" ");
-  const sel = coords[idx];
   const picked = pts[idx];
+  const closes = pts.map((p) => p.close);
+  const rsi = rsiAt(closes, idx);
+  const min = Math.min.apply(null, pts.map((p) => p.low));
+  const max = Math.max.apply(null, pts.map((p) => p.high));
+  const span = max - min || 1;
+  const maxVol = Math.max.apply(null, pts.map((p) => p.volume)) || 1;
+  const w = 320;
+  const candleTop = 8;
+  const candleH = 118;
+  const volTop = 132;
+  const volH = 28;
+  const rsiTop = 168;
+  const rsiH = 26;
+  const h = 202;
+  const slot = (w - 16) / pts.length;
+  const y = (v) => candleTop + (1 - (v - min) / span) * candleH;
+  const candles = pts.map((p, i) => {
+    const cx = 8 + slot * (i + 0.5);
+    const bw = Math.max(2, slot * 0.62);
+    const bull = p.close >= p.open;
+    const color = bull ? "var(--up)" : "var(--down)";
+    const top = y(Math.max(p.open, p.close));
+    const bot = y(Math.min(p.open, p.close));
+    return `<g class="cnd${i === idx ? " on" : ""}">
+      <line x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${y(p.high).toFixed(1)}" y2="${y(p.low).toFixed(1)}" stroke="${color}" stroke-width="1"></line>
+      <rect x="${(cx - bw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1.2, bot - top).toFixed(1)}" fill="${color}"></rect>
+    </g>`;
+  }).join("");
+  const vols = pts.map((p, i) => {
+    const cx = 8 + slot * (i + 0.5);
+    const bw = Math.max(2, slot * 0.62);
+    const vh = (p.volume / maxVol) * volH;
+    const bull = p.close >= p.open;
+    return `<rect x="${(cx - bw / 2).toFixed(1)}" y="${(volTop + volH - vh).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, vh).toFixed(1)}" fill="${bull ? "var(--up)" : "var(--down)"}" opacity="${i === idx ? 0.85 : 0.35}"></rect>`;
+  }).join("");
+  const rsiPts = [];
+  for (let i = 0; i < pts.length; i++) {
+    const v = rsiAt(closes, i);
+    if (v == null) continue;
+    const x = 8 + slot * (i + 0.5);
+    const ry = rsiTop + (1 - v / 100) * rsiH;
+    rsiPts.push(x.toFixed(1) + "," + ry.toFixed(1));
+  }
   const when = picked.daysAgo === 0 ? "오늘" : picked.daysAgo + "일 전";
+  const rsiTxt = rsi != null ? " · RSI " + Math.round(rsi) : "";
   const meta = readonly
-    ? `데모 시세 · ${when} ${formatPrice(picked.price, s.market)}`
+    ? `데모 캔들 · ${when} ${formatPrice(picked.close, s.market)}${rsiTxt}`
     : state.chartIndex == null
-      ? `눌러서 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].price, s.market)}`
-      : `${when} · ${formatPrice(picked.price, s.market)}`;
+      ? `캔들을 눌러 종가 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].close, s.market)}${rsiTxt}`
+      : `${when} · ${formatPrice(picked.close, s.market)}${rsiTxt}`;
   const cap = readonly
-    ? "차트 분석 캡처를 댓글에 넣을 수 있습니다. 주문이 나가지 않습니다."
-    : "차트를 눌러 그날 가격을 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.";
+    ? "데모 캔들·거래량·RSI입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다. 주문이 나가지 않습니다."
+    : "캔들을 눌러 그날 종가를 매수가로 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.";
   return `<div class="chart-box">
     <div class="chart-cap">${cap}</div>
-    <svg class="chart${readonly ? " static" : ""}" viewBox="0 0 ${w} ${h}" role="img" aria-label="최근 시세 차트">
+    <svg class="chart${readonly ? " static" : ""}" viewBox="0 0 ${w} ${h}" role="img" aria-label="캔들 차트">
       <rect width="${w}" height="${h}" fill="transparent"></rect>
-      <polyline fill="none" stroke="currentColor" stroke-width="2" points="${line}"></polyline>
-      ${readonly || state.chartIndex == null ? "" : `<circle cx="${sel[0].toFixed(1)}" cy="${sel[1].toFixed(1)}" r="4.5" fill="currentColor"></circle>`}
+      ${candles}
+      ${vols}
+      <line x1="8" x2="${w - 8}" y1="${(rsiTop + rsiH * 0.3).toFixed(1)}" y2="${(rsiTop + rsiH * 0.3).toFixed(1)}" stroke="currentColor" opacity="0.12"></line>
+      <line x1="8" x2="${w - 8}" y1="${(rsiTop + rsiH * 0.7).toFixed(1)}" y2="${(rsiTop + rsiH * 0.7).toFixed(1)}" stroke="currentColor" opacity="0.12"></line>
+      ${rsiPts.length ? `<polyline fill="none" stroke="currentColor" stroke-width="1.4" points="${rsiPts.join(" ")}"></polyline>` : ""}
     </svg>
     <div class="chart-meta">${meta}</div>
+    ${tvLink(s)}
   </div>`;
 }
 function applyChartPick(clientX) {
@@ -1365,36 +1502,21 @@ function applyChartPick(clientX) {
   const ticker = document.getElementById("add-ticker")?.value;
   const s = ticker ? stock(ticker) : null;
   if (!svg || !s) return;
-  const pts = history(s);
+  const pts = history(s, 30);
   const rect = svg.getBoundingClientRect();
   const x = clientX - rect.left;
-  const idx = Math.max(0, Math.min(pts.length - 1, Math.round((x / Math.max(rect.width, 1)) * (pts.length - 1))));
+  const idx = Math.max(0, Math.min(pts.length - 1, Math.floor((x / Math.max(rect.width, 1)) * pts.length)));
   state.chartIndex = idx;
   state.addTicker = ticker;
-  const p = pts[idx].price;
+  const p = pts[idx].close;
   state.addPrice = s.market === "krx" ? String(Math.round(p)) : p.toFixed(2);
   const input = document.getElementById("add-price");
   if (input) input.value = state.addPrice;
   const meta = document.querySelector(".chart-meta");
   const when = pts[idx].daysAgo === 0 ? "오늘" : pts[idx].daysAgo + "일 전";
-  if (meta) meta.textContent = when + " · " + formatPrice(p, s.market);
-  const ys = pts.map((pt) => pt.price);
-  const min = Math.min.apply(null, ys);
-  const max = Math.max.apply(null, ys);
-  const span = max - min || 1;
-  const w = 320;
-  const h = 110;
-  const cx = 8 + (idx / (pts.length - 1)) * (w - 16);
-  const cy = 10 + (1 - (pts[idx].price - min) / span) * (h - 20);
-  let circle = svg.querySelector("circle");
-  if (!circle) {
-    circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("r", "4.5");
-    circle.setAttribute("fill", "currentColor");
-    svg.appendChild(circle);
-  }
-  circle.setAttribute("cx", cx.toFixed(1));
-  circle.setAttribute("cy", cy.toFixed(1));
+  const rsi = rsiAt(pts.map((pt) => pt.close), idx);
+  if (meta) meta.textContent = when + " · " + formatPrice(p, s.market) + (rsi != null ? " · RSI " + Math.round(rsi) : "");
+  svg.querySelectorAll(".cnd").forEach((el, i) => el.classList.toggle("on", i === idx));
 }
 function ico(name, filled) {
   const solid = filled && (name === "heart" || name === "me" || name === "star");
@@ -1448,7 +1570,8 @@ function emptyState(me) {
     groupOpen: { turn: true, mood: true },
     inboxPage: 0,
     threadImage: null,
-    lightbox: null
+    lightbox: null,
+    recTags: {}
   };
 }
 
@@ -1496,10 +1619,12 @@ function seed(state) {
     H("junho", "035720", 62000, { createdAt: now() - days(15) })
   );
 
+  const nvdaStock = state.stocks.find((x) => x.id === "NVDA");
+  const nvdaTags = nvdaStock ? chartSignals(nvdaStock).tags.filter((t) => t.on).map((t) => t.label) : ["거래량 급증"];
   state.recs.push({
     id: "rec1", groupId: group.id, senderId: "younghee", receiverId: state.me.id,
     stockId: "NVDA", holdingId: youngheeNVDA.id, message: "같이 들어가 봐.",
-    status: "pending", createdAt: now() - hours(3)
+    status: "pending", createdAt: now() - hours(3), signals: nvdaTags
   });
   state.comments.push(
     { id: "cm1", groupId: group.id, stockId: "NVDA", authorId: "cheolsu", parentId: null, body: "지금 들어가도 늦었나", createdAt: now() - hours(2) },
@@ -1559,33 +1684,50 @@ function chartSnapshot(ticker) {
   const pts = history(s, 30);
   const c = document.createElement("canvas");
   c.width = 720;
-  c.height = 280;
+  c.height = 340;
   const ctx = c.getContext("2d");
   ctx.fillStyle = "#fafafa";
   ctx.fillRect(0, 0, c.width, c.height);
-  const ys = pts.map((p) => p.price);
-  const min = Math.min.apply(null, ys);
-  const max = Math.max.apply(null, ys);
+  const min = Math.min.apply(null, pts.map((p) => p.low));
+  const max = Math.max.apply(null, pts.map((p) => p.high));
   const span = max - min || 1;
-  ctx.beginPath();
+  const maxVol = Math.max.apply(null, pts.map((p) => p.volume)) || 1;
+  const left = 28;
+  const usable = c.width - 56;
+  const candleTop = 48;
+  const candleH = 180;
+  const volTop = 236;
+  const volH = 44;
+  const slot = usable / pts.length;
+  const y = (v) => candleTop + (1 - (v - min) / span) * candleH;
   pts.forEach((p, i) => {
-    const x = 28 + (i / (pts.length - 1)) * (c.width - 56);
-    const y = 36 + (1 - (p.price - min) / span) * (c.height - 80);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    const cx = left + slot * (i + 0.5);
+    const bw = Math.max(2.8, slot * 0.56);
+    const bull = p.close >= p.open;
+    ctx.strokeStyle = ctx.fillStyle = bull ? "#e11d48" : "#2563eb";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, y(p.high));
+    ctx.lineTo(cx, y(p.low));
+    ctx.stroke();
+    const top = y(Math.max(p.open, p.close));
+    const h = Math.max(2, y(Math.min(p.open, p.close)) - top);
+    ctx.fillRect(cx - bw / 2, top, bw, h);
+    const vh = Math.max(2, volH * (p.volume / maxVol));
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(cx - bw / 2, volTop + volH - vh, bw, vh);
+    ctx.globalAlpha = 1;
   });
-  ctx.strokeStyle = "#111";
-  ctx.lineWidth = 3;
-  ctx.stroke();
   ctx.fillStyle = "#111";
   ctx.font = "700 22px sans-serif";
   ctx.fillText(s.name + " · " + s.ticker, 28, 30);
   ctx.fillStyle = "#737373";
-  ctx.font = "14px sans-serif";
-  ctx.fillText("데모 시세 · 분석용 차트", 28, c.height - 16);
+  ctx.font = "13px sans-serif";
+  const rsi = rsiAt(pts.map((p) => p.close), pts.length - 1);
+  ctx.fillText("데모 캔들 · RSI·거래량" + (rsi != null ? " · RSI " + Math.round(rsi) : ""), 28, c.height - 16);
   ctx.fillStyle = "#e11d48";
   ctx.font = "700 16px sans-serif";
-  ctx.fillText(formatPrice(pts[pts.length - 1].price, s.market), c.width - 160, 30);
+  ctx.fillText(formatPrice(pts[pts.length - 1].close, s.market), c.width - 180, 30);
   return c.toDataURL("image/jpeg", 0.72);
 }
 
@@ -1625,6 +1767,7 @@ function persist() {
     threadDraft: "",
     threadImage: null,
     lightbox: null,
+    recTags: {},
     chartIndex: null
   };
   try {
@@ -1950,14 +2093,19 @@ function addComment(stockId, body, parentId, silent, image) {
 
 function recommend(holdingId, toUserId, message) {
   const h = state.holdings.find((x) => x.id === holdingId);
+  const s = stock(h.stockId);
+  const snap = s ? chartSignals(s) : { tags: [] };
+  const signals = snap.tags.filter((t) => state.recTags && state.recTags[t.id]).map((t) => t.label);
   const rec = {
     id: uid(), groupId: group().id, senderId: state.me.id, receiverId: toUserId,
-    stockId: h.stockId, holdingId, message: (message || "").trim() || "같이 들어가 봐.", status: "pending", createdAt: now()
+    stockId: h.stockId, holdingId, message: (message || "").trim() || "같이 들어가 봐.",
+    status: "pending", createdAt: now(), signals
   };
   state.recs.push(rec);
   pushEvent("추천", `${stock(h.stockId).name}를 ${nickname(toUserId)}에게 추천했습니다.`, "rec", state.me.id, h.stockId);
   toast("추천을 보냈습니다");
   state.sheet = null;
+  state.recTags = {};
   render();
 }
 
@@ -2105,6 +2253,7 @@ function inboxBlock(item) {
           <div class="grow">
             <div class="stock-name">${esc(nickname(rec.senderId))} · ${esc(s.name)}</div>
             <div class="ticker">${esc(s.ticker)}</div>
+            ${signalChips(rec.signals)}
             ${pulseStrip(s.id, true)}
           </div>
         </div>
@@ -2121,6 +2270,7 @@ function inboxBlock(item) {
         <div class="grow">
           <div class="stock-name">${esc(nickname(rec.senderId))} · ${esc(s.name)}</div>
           <div class="ticker">${esc(s.ticker)}</div>
+          ${signalChips(rec.signals)}
           ${pulseStrip(s.id, true)}
         </div>
       </div>
@@ -2445,7 +2595,7 @@ function sheetHTML() {
     const priceVal = state.addPrice || "";
     return sheetWrap(`
       <h2>주식 추가</h2>
-      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "목록에서 종목을 고르고, 차트에서 그날 가격을 고르거나 직접 적으세요. 캡처는 iOS 앱에 있습니다."}</p>
+      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 캔들 종가나 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "목록에서 종목을 고르고, 캔들을 눌러 그날 종가를 고르거나 직접 적으세요. 캡처는 iOS 앱에 있습니다."}</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       ${selected ? chartPickHTML(selected) : ""}
@@ -2541,10 +2691,24 @@ function sheetHTML() {
   }
   if (state.sheet.startsWith("open-rec:")) {
     const hid = state.sheet.split(":")[1];
+    const h = state.holdings.find((x) => x.id === hid);
+    const s = h ? stock(h.stockId) : null;
     const others = memberUsers().filter((u) => u.id !== state.me.id);
+    const snap = s ? chartSignals(s) : { tags: [] };
+    if (!state.recTags || !Object.keys(state.recTags).length) {
+      state.recTags = {};
+      snap.tags.forEach((t) => { state.recTags[t.id] = t.on; });
+    }
+    const tagBtns = snap.tags.map((t) => {
+      const on = !!state.recTags[t.id];
+      return `<button type="button" class="signal-chip${on ? " on" : ""}" data-act="rec-tag:${t.id}">${esc(t.label)}</button>`;
+    }).join("");
     return sheetWrap(`
       <h2>친구에게 추천</h2>
-      <p class="note">이미 내가 보유한 종목을 친구에게 알립니다. 한마디를 적으면 추천 히스토리에 남습니다.</p>
+      <p class="note">데모 캔들의 RSI·거래량을 태그로 붙입니다. 실세는 트레이딩뷰에서 확인하세요. 주문이 나가지 않습니다.</p>
+      ${s ? chartPickHTML(s, true) : ""}
+      <div class="kind">왜 추천하나요</div>
+      <div class="signal-row">${tagBtns}</div>
       <label>한마디</label>
       <input id="rec-msg" value="같이 들어가 봐." />
       ${others.map((u) => `<div style="margin-bottom:8px">${btn(u.nickname + "에게", "secondary full", `send-rec:${hid}:${u.id}`)}</div>`).join("")}
@@ -2612,6 +2776,7 @@ function sheetHTML() {
     const recHTML = recs.length ? recs.map((r) => `<div class="history-item">
         <div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div>
         <div class="body">“${esc(r.message)}”</div>
+        ${signalChips(r.signals)}
         <div class="time">${esc(recStatusLabel(r.status))} · ${relative(r.createdAt)}</div>
       </div>`).join("") : "";
     const propHTML = proposals.map((p) => {
@@ -2909,7 +3074,21 @@ function handle(act) {
     return;
   }
   if (act.startsWith("suspect:")) return suspect(act.split(":")[1]);
-  if (act.startsWith("open-rec:")) { openSheet(act); return; }
+  if (act.startsWith("open-rec:")) {
+    state.recTags = {};
+    openSheet(act);
+    return;
+  }
+  if (act.startsWith("rec-tag:")) {
+    const id = act.slice(8);
+    const draft = document.getElementById("rec-msg")?.value;
+    state.recTags = state.recTags || {};
+    state.recTags[id] = !state.recTags[id];
+    render();
+    const again = document.getElementById("rec-msg");
+    if (again && draft != null) again.value = draft;
+    return;
+  }
   if (act.startsWith("open-prop")) { openSheet(act); return; }
   if (act.startsWith("send-rec:")) {
     const parts = act.split(":");

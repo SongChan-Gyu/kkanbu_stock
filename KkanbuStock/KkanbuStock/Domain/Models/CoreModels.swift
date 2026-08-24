@@ -208,11 +208,30 @@ struct PricePoint: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var date: Date
     var price: Double
+    var open: Double
+    var high: Double
+    var low: Double
+    var volume: Double
 
-    init(id: UUID = UUID(), date: Date, price: Double) {
+    var close: Double { price }
+    var isBull: Bool { close >= open }
+
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        price: Double,
+        open: Double? = nil,
+        high: Double? = nil,
+        low: Double? = nil,
+        volume: Double = 0
+    ) {
         self.id = id
         self.date = date
         self.price = price
+        self.open = open ?? price
+        self.high = high ?? price
+        self.low = low ?? price
+        self.volume = volume
     }
 }
 

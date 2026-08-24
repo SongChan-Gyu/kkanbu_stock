@@ -28,6 +28,7 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
     var status: RecommendationStatus
     var createdAt: Date
     var resolvedAt: Date?
+    var signals: [String]
 
     init(
         id: UUID = UUID(),
@@ -39,7 +40,8 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
         message: String,
         status: RecommendationStatus = .pending,
         createdAt: Date = Date(),
-        resolvedAt: Date? = nil
+        resolvedAt: Date? = nil,
+        signals: [String] = []
     ) {
         self.id = id
         self.groupId = groupId
@@ -51,6 +53,41 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.createdAt = createdAt
         self.resolvedAt = resolvedAt
+        self.signals = signals
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, groupId, senderId, receiverId, stockId, holdingId, message, status, createdAt, resolvedAt, signals
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        groupId = try c.decode(UUID.self, forKey: .groupId)
+        senderId = try c.decode(UUID.self, forKey: .senderId)
+        receiverId = try c.decode(UUID.self, forKey: .receiverId)
+        stockId = try c.decode(UUID.self, forKey: .stockId)
+        holdingId = try c.decode(UUID.self, forKey: .holdingId)
+        message = try c.decode(String.self, forKey: .message)
+        status = try c.decode(RecommendationStatus.self, forKey: .status)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        resolvedAt = try c.decodeIfPresent(Date.self, forKey: .resolvedAt)
+        signals = try c.decodeIfPresent([String].self, forKey: .signals) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(groupId, forKey: .groupId)
+        try c.encode(senderId, forKey: .senderId)
+        try c.encode(receiverId, forKey: .receiverId)
+        try c.encode(stockId, forKey: .stockId)
+        try c.encode(holdingId, forKey: .holdingId)
+        try c.encode(message, forKey: .message)
+        try c.encode(status, forKey: .status)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(resolvedAt, forKey: .resolvedAt)
+        try c.encode(signals, forKey: .signals)
     }
 }
 

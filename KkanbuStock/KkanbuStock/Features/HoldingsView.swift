@@ -296,6 +296,7 @@ struct RecommendSheet: View {
     var holding: Holding
     @State private var message = "같이 들어가 봐."
     @State private var selected: UUID?
+    @State private var selectedTags: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -306,11 +307,43 @@ struct RecommendSheet: View {
                             StockMark(ticker: stock.ticker, name: stock.name, size: 32)
                             Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
                         }
+                        MiniChart(candles: store.history(for: stock, days: 40))
+                        if let rsi = snapshot?.rsi {
+                            Text("RSI \(Int(rsi.rounded())) · 데모 캔들입니다. 트레이딩뷰 실세와 다를 수 있습니다.")
+                                .font(.caption)
+                                .foregroundStyle(KkanbuTheme.faint)
+                        }
+                        if let url = ChartMath.tradingViewURL(for: stock) {
+                            Link("트레이딩뷰에서 보기", destination: url)
+                        }
+                    }
+                    Section("왜 추천하나요") {
+                        Text("거래량·RSI는 데모 시세로 계산합니다. 켜 둔 태그가 추천에 붙습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                        ForEach(snapshot?.tags ?? []) { tag in
+                            Button {
+                                if selectedTags.contains(tag.label) {
+                                    selectedTags.remove(tag.label)
+                                } else {
+                                    selectedTags.insert(tag.label)
+                                }
+                            } label: {
+                                HStack {
+                                    Text(tag.label)
+                                        .foregroundStyle(KkanbuTheme.ink)
+                                    Spacer()
+                                    if selectedTags.contains(tag.label) {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 Section("누구한테") {
                     Button("그룹 전체에게") {
-                        store.recommendToGroup(holding: holding, message: message)
+                        store.recommendToGroup(holding: holding, message: message, signals: Array(selectedTags))
                         dismiss()
                     }
                     ForEach(friends, id: \.id) { user in
@@ -336,14 +369,22 @@ struct RecommendSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("보내기") {
                         if let selected {
-                            store.recommend(holding: holding, to: selected, message: message)
+                            store.recommend(holding: holding, to: selected, message: message, signals: Array(selectedTags))
                             dismiss()
                         }
                     }
                     .disabled(selected == nil)
                 }
             }
+            .onAppear {
+                selectedTags = Set((snapshot?.tags ?? []).filter(\.suggested).map(\.label))
+            }
         }
+    }
+
+    private var snapshot: ChartMath.Snapshot? {
+        guard let stock = store.state.stock(holding.stockId) else { return nil }
+        return ChartMath.snapshot(for: store.history(for: stock, days: 40))
     }
 
     private var friends: [User] {

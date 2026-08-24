@@ -58,6 +58,7 @@ struct InboxActionCard: View {
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
                                 PulseStrip(snapshot: pulse(for: stock), stock: stock)
+                                SignalChips(labels: rec.signals)
                             }
                         }
                         VStack(spacing: 8) {
@@ -82,6 +83,7 @@ struct InboxActionCard: View {
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
                                 PulseStrip(snapshot: pulse(for: stock), stock: stock)
+                                SignalChips(labels: rec.signals)
                             }
                         }
                         VStack(spacing: 8) {
@@ -278,10 +280,21 @@ struct RecommendationThreadView: View {
                         .foregroundStyle(KkanbuTheme.faint)
                 }
             }
-            MiniChart(values: store.history(for: stock).map(\.price))
-            Text("데모 시세입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다.")
-                .font(.caption)
-                .foregroundStyle(KkanbuTheme.faint)
+            MiniChart(candles: store.history(for: stock, days: 40))
+            if let rsi = ChartMath.snapshot(for: store.history(for: stock, days: 40)).rsi {
+                Text("RSI \(Int(rsi.rounded())) · 데모 캔들입니다. 거래량·RSI 태그를 추천에 붙일 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+            } else {
+                Text("데모 시세입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+            }
+            if let url = ChartMath.tradingViewURL(for: stock) {
+                Link("트레이딩뷰에서 보기", destination: url)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
             PulseStrip(snapshot: pulseSnapshot, compact: false, stock: stock)
         }
     }
@@ -311,6 +324,7 @@ struct RecommendationThreadView: View {
                         Text("“\(rec.message)”")
                             .font(.footnote)
                             .foregroundStyle(KkanbuTheme.ink)
+                        SignalChips(labels: rec.signals)
                         Text("\(rec.status.threadLabel) · \(MoneyFormat.relative(rec.createdAt))")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
@@ -511,12 +525,14 @@ struct RecommendationThreadView: View {
 
     private func attachChart() {
         #if canImport(UIKit)
-        let values = store.history(for: stock).map(\.price)
-        let last = values.last ?? store.price(for: stock.id)
+        let candles = store.history(for: stock, days: 40)
+        let last = candles.last?.close ?? store.price(for: stock.id)
+        let rsi = ChartMath.snapshot(for: candles).rsi
         pendingJPEG = CommentPhoto.chartJPEG(
-            values: values,
+            candles: candles,
             title: "\(stock.name) · \(stock.ticker)",
-            price: MoneyFormat.price(last, market: stock.market)
+            price: MoneyFormat.price(last, market: stock.market),
+            rsiLabel: rsi.map { "RSI \(Int($0.rounded()))" }
         )
         #endif
     }

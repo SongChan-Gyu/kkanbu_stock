@@ -13,28 +13,83 @@ enum KkanbuHaptic {
 }
 
 struct MiniChart: View {
-    var values: [Double]
+    var candles: [PricePoint] = []
+    var values: [Double] = []
+
+    private var points: [PricePoint] {
+        if !candles.isEmpty { return Array(candles.suffix(32)) }
+        return values.map { PricePoint(date: Date(), price: $0) }
+    }
 
     var body: some View {
-        GeometryReader { geo in
-            let minV = values.min() ?? 0
-            let maxV = values.max() ?? 1
-            let span = max(maxV - minV, 0.0001)
-            Path { path in
-                for (index, value) in values.enumerated() {
-                    let x = geo.size.width * CGFloat(index) / CGFloat(max(values.count - 1, 1))
-                    let y = geo.size.height * (1 - CGFloat((value - minV) / span))
-                    if index == 0 {
-                        path.move(to: CGPoint(x: x, y: y))
-                    } else {
-                        path.addLine(to: CGPoint(x: x, y: y))
-                    }
+        let pts = points
+        VStack(spacing: 4) {
+            GeometryReader { geo in
+                candleLayer(pts: pts, size: geo.size)
+            }
+            .frame(height: 72)
+            GeometryReader { geo in
+                volumeLayer(pts: pts, size: geo.size)
+            }
+            .frame(height: 28)
+        }
+        .accessibilityLabel("캔들 차트")
+    }
+
+    private func candleLayer(pts: [PricePoint], size: CGSize) -> some View {
+        let minV = pts.map(\.low).min() ?? 0
+        let maxV = pts.map(\.high).max() ?? 1
+        let span = max(maxV - minV, 0.0001)
+        let slot = size.width / CGFloat(max(pts.count, 1))
+        return ZStack {
+            ForEach(Array(pts.enumerated()), id: \.element.id) { index, point in
+                let cx = slot * (CGFloat(index) + 0.5)
+                let y = { (value: Double) in size.height * (1 - CGFloat((value - minV) / span)) }
+                let color = point.isBull ? Color.kkanbuUp : Color.kkanbuDown
+                Path { path in
+                    path.move(to: CGPoint(x: cx, y: y(point.high)))
+                    path.addLine(to: CGPoint(x: cx, y: y(point.low)))
+                }
+                .stroke(color, lineWidth: 1)
+                Rectangle()
+                    .fill(color)
+                    .frame(width: max(2.5, slot * 0.55), height: max(2, abs(y(point.close) - y(point.open))))
+                    .position(x: cx, y: (y(point.open) + y(point.close)) / 2)
+            }
+        }
+    }
+
+    private func volumeLayer(pts: [PricePoint], size: CGSize) -> some View {
+        let maxVol = max(pts.map(\.volume).max() ?? 1, 1)
+        let slot = size.width / CGFloat(max(pts.count, 1))
+        return ZStack(alignment: .bottom) {
+            ForEach(Array(pts.enumerated()), id: \.element.id) { index, point in
+                let cx = slot * (CGFloat(index) + 0.5)
+                let height = max(2, size.height * CGFloat(point.volume / maxVol))
+                Rectangle()
+                    .fill((point.isBull ? Color.kkanbuUp : Color.kkanbuDown).opacity(0.4))
+                    .frame(width: max(2, slot * 0.55), height: height)
+                    .position(x: cx, y: size.height - height / 2)
+            }
+        }
+    }
+}
+
+struct SignalChips: View {
+    var labels: [String]
+
+    var body: some View {
+        if !labels.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(labels, id: \.self) { label in
+                    Text(label)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(KkanbuTheme.chip, in: Capsule())
                 }
             }
-            .stroke(KkanbuTheme.ink, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
         }
-        .frame(height: 72)
-        .accessibilityLabel("최근 시세 차트")
     }
 }
 
@@ -107,6 +162,71 @@ enum CommentPhoto {
                 .foregroundColor: UIColor(white: 0.45, alpha: 1)
             ]
             ("데모 시세 · 분석용 차트" as NSString).draw(at: CGPoint(x: 28, y: size.height - 28), withAttributes: capAttrs)
+        }
+        return image.jpegData(compressionQuality: 0.72)
+    }
+
+    static func chartJPEG(candles: [PricePoint], title: String, price: String, rsiLabel: String? = nil) -> Data? {
+        let pts = Array(candles.suffix(40))
+        guard pts.count >= 2 else {
+            return chartJPEG(values: pts.map(\.close), title: title, price: price)
+        }
+        let size = CGSize(width: 720, height: 340)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1).setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+            let left: CGFloat = 28
+            let usableWidth = size.width - 56
+            let candleTop: CGFloat = 48
+            let candleH: CGFloat = 180
+            let volTop: CGFloat = 236
+            let volH: CGFloat = 44
+            let minV = pts.map(\.low).min() ?? 0
+            let maxV = pts.map(\.high).max() ?? 1
+            let span = max(maxV - minV, 0.0001)
+            let maxVol = max(pts.map(\.volume).max() ?? 1, 1)
+            let slot = usableWidth / CGFloat(pts.count)
+            let y: (Double) -> CGFloat = { value in
+                candleTop + (1 - CGFloat((value - minV) / span)) * candleH
+            }
+            let up = UIColor(red: 0.882, green: 0.114, blue: 0.282, alpha: 1)
+            let down = UIColor(red: 0.145, green: 0.388, blue: 0.922, alpha: 1)
+            for (index, point) in pts.enumerated() {
+                let cx = left + slot * (CGFloat(index) + 0.5)
+                let color = point.isBull ? up : down
+                color.setStroke()
+                color.setFill()
+                let wick = UIBezierPath()
+                wick.move(to: CGPoint(x: cx, y: y(point.high)))
+                wick.addLine(to: CGPoint(x: cx, y: y(point.low)))
+                wick.lineWidth = 1.2
+                wick.stroke()
+                let bodyH = max(2, abs(y(point.close) - y(point.open)))
+                let bodyY = min(y(point.open), y(point.close))
+                UIBezierPath(rect: CGRect(x: cx - max(1.4, slot * 0.28), y: bodyY, width: max(2.8, slot * 0.56), height: bodyH)).fill()
+                let vh = max(2, volH * CGFloat(point.volume / maxVol))
+                color.withAlphaComponent(0.4).setFill()
+                UIBezierPath(rect: CGRect(x: cx - max(1.4, slot * 0.28), y: volTop + volH - vh, width: max(2.8, slot * 0.56), height: vh)).fill()
+            }
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+            ]
+            (title as NSString).draw(at: CGPoint(x: 28, y: 10), withAttributes: titleAttrs)
+            let priceAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .bold),
+                .foregroundColor: up
+            ]
+            let priceText = price as NSString
+            let priceSize = priceText.size(withAttributes: priceAttrs)
+            priceText.draw(at: CGPoint(x: size.width - 28 - priceSize.width, y: 14), withAttributes: priceAttrs)
+            let cap = ["데모 캔들 · RSI·거래량", rsiLabel].compactMap { $0 }.joined(separator: " · ")
+            let capAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 13),
+                .foregroundColor: UIColor(white: 0.45, alpha: 1)
+            ]
+            (cap as NSString).draw(at: CGPoint(x: 28, y: size.height - 28), withAttributes: capAttrs)
         }
         return image.jpegData(compressionQuality: 0.72)
     }

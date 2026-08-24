@@ -26,18 +26,33 @@ struct MockStockPriceService: StockPriceServing {
 
     func historicalPrices(for stock: Stock, days: Int, now: Date) -> [PricePoint] {
         let base = basePrice(for: stock)
-        var price = base * 0.86
+        var prev = base * 0.86
         var points: [PricePoint] = []
         let seed = seedValue(stock.ticker)
         for i in stride(from: days, through: 0, by: -1) {
             let date = Calendar.current.date(byAdding: .day, value: -i, to: now) ?? now
             let wave = sin(Double(i + seed) / 6.5) * 0.018
             let drift = Double((seed % 7) - 3) * 0.0015
-            price = max(base * 0.55, price * (1 + wave + drift))
-            points.append(PricePoint(date: date, price: rounded(price, market: stock.market)))
-        }
-        if let last = points.indices.last {
-            points[last].price = rounded(base, market: stock.market)
+            let closeRaw = max(base * 0.55, prev * (1 + wave + drift))
+            let close = i == 0 ? base : closeRaw
+            let open = prev * (1 + sin(Double(i + seed) / 3.1) * 0.005)
+            let range = 0.008 + abs(wave) * 1.4
+            let high = max(open, close) * (1 + range)
+            let low = min(open, close) * (1 - range * 0.85)
+            let volBase = 800_000 + Double((seed % 11) * 90_000)
+            let volWave = 0.7 + abs(sin(Double(i * 3 + seed) / 2.4))
+            let spike = i <= 1 ? 2.15 : 1
+            points.append(
+                PricePoint(
+                    date: date,
+                    price: rounded(close, market: stock.market),
+                    open: rounded(open, market: stock.market),
+                    high: rounded(high, market: stock.market),
+                    low: rounded(low, market: stock.market),
+                    volume: volBase * volWave * spike
+                )
+            )
+            prev = closeRaw
         }
         return points
     }
@@ -154,5 +169,89 @@ enum StockCatalog {
 
     static func stock(ticker: String) -> Stock? {
         all.first { $0.ticker.caseInsensitiveCompare(ticker) == .orderedSame || $0.krCode == ticker || $0.name == ticker }
+    }
+}
+
+enum ChartMath {
+    struct Tag: Identifiable, Equatable, Hashable {
+        var id: String
+        var label: String
+        var suggested: Bool
+    }
+
+    struct Snapshot: Equatable {
+        var rsi: Double?
+        var volumeRatio: Double
+        var tags: [Tag]
+    }
+
+    static func rsi(closes: [Double], period: Int = 14) -> Double? {
+        guard closes.count > period else { return nil }
+        var gains = 0.0
+        var losses = 0.0
+        for i in 1...period {
+            let delta = closes[i] - closes[i - 1]
+            if delta >= 0 { gains += delta } else { losses -= delta }
+        }
+        var avgGain = gains / Double(period)
+        var avgLoss = losses / Double(period)
+        if closes.count == period + 1 {
+            return rsiValue(avgGain: avgGain, avgLoss: avgLoss)
+        }
+        for i in (period + 1)..<closes.count {
+            let delta = closes[i] - closes[i - 1]
+            avgGain = (avgGain * Double(period - 1) + max(delta, 0)) / Double(period)
+            avgLoss = (avgLoss * Double(period - 1) + max(-delta, 0)) / Double(period)
+        }
+        return rsiValue(avgGain: avgGain, avgLoss: avgLoss)
+    }
+
+    static func rsi(closes: [Double], endingAt index: Int, period: Int = 14) -> Double? {
+        guard index >= 0, index < closes.count else { return nil }
+        return rsi(closes: Array(closes.prefix(index + 1)), period: period)
+    }
+
+    static func snapshot(for points: [PricePoint]) -> Snapshot {
+        let closes = points.map(\.close)
+        let rsi = rsi(closes: closes)
+        let volumes = points.map(\.volume)
+        let window = Array(volumes.dropLast().suffix(20))
+        let avg = window.isEmpty ? 0 : window.reduce(0, +) / Double(window.count)
+        let last = volumes.last ?? 0
+        let ratio = avg > 0 ? last / avg : 1
+        var tags: [Tag] = []
+        if let rsi {
+            var label = "RSI \(Int(rsi.rounded()))"
+            var suggested = false
+            if rsi <= 30 {
+                label += " 과매도"
+                suggested = true
+            } else if rsi >= 70 {
+                label += " 과매수"
+                suggested = true
+            } else if rsi <= 35 || rsi >= 65 {
+                suggested = true
+            }
+            tags.append(Tag(id: "rsi", label: label, suggested: suggested))
+        }
+        if ratio >= 1.8 {
+            tags.append(Tag(id: "vol", label: String(format: "거래량 급증 %.1f배", ratio), suggested: true))
+        } else {
+            tags.append(Tag(id: "vol", label: String(format: "거래량 %.1f배", ratio), suggested: false))
+        }
+        return Snapshot(rsi: rsi, volumeRatio: ratio, tags: tags)
+    }
+
+    static func tradingViewURL(for stock: Stock) -> URL? {
+        let symbol = stock.market == .krx ? "KRX:\(stock.ticker)" : "NASDAQ:\(stock.ticker)"
+        var bits = URLComponents(string: "https://www.tradingview.com/chart/")
+        bits?.queryItems = [URLQueryItem(name: "symbol", value: symbol)]
+        return bits?.url
+    }
+
+    private static func rsiValue(avgGain: Double, avgLoss: Double) -> Double {
+        if avgLoss == 0 { return avgGain == 0 ? 50 : 100 }
+        let rs = avgGain / avgLoss
+        return 100 - 100 / (1 + rs)
     }
 }

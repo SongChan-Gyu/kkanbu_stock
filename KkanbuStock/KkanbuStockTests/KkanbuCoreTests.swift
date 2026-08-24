@@ -721,3 +721,54 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertNil(Holding.blendedAverage(oldAverage: 100, oldQuantity: 1, addPrice: 0, addQuantity: 1))
     }
 }
+
+final class ChartMathTests: XCTestCase {
+    func testRSIRisingSeriesIsHigh() {
+        let closes = (0..<20).map { 100.0 + Double($0) }
+        let rsi = ChartMath.rsi(closes: closes) ?? 0
+        XCTAssertGreaterThan(rsi, 70)
+    }
+
+    func testRSIFallingSeriesIsLow() {
+        let closes = (0..<20).map { 100.0 - Double($0) }
+        let rsi = ChartMath.rsi(closes: closes) ?? 100
+        XCTAssertLessThan(rsi, 30)
+    }
+
+    func testVolumeSpikeSuggestsTag() {
+        let now = Date()
+        var points: [PricePoint] = []
+        for i in 0..<21 {
+            points.append(PricePoint(date: now.addingTimeInterval(Double(i) * 86400), price: 100, volume: i == 20 ? 2000 : 100))
+        }
+        let snap = ChartMath.snapshot(for: points)
+        XCTAssertTrue(snap.tags.contains { $0.id == "vol" && $0.suggested })
+        XCTAssertGreaterThan(snap.volumeRatio, 1.8)
+    }
+
+    func testHistoryHasCandlesAndRecommendKeepsSignals() {
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        let points = MockStockPriceService().historicalPrices(for: nvda, days: 40, now: Date())
+        XCTAssertGreaterThan(points.count, 14)
+        XCTAssertGreaterThan(points.last?.high ?? 0, 0)
+        XCTAssertGreaterThan(points.last?.volume ?? 0, 0)
+
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-signal-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "영희")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+        store.addHolding(stock: nvda, averagePrice: 140, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(
+            holding: store.state.activeHoldings(of: store.state.currentUserId)[0],
+            to: friend.id,
+            message: "거래량 보고 들어가",
+            signals: ["RSI 32 과매도", "거래량 급증 2.1배"]
+        )
+        XCTAssertEqual(store.state.recommendations.first?.signals.count, 2)
+        XCTAssertTrue(store.state.recommendations.first?.signals.contains("거래량 급증 2.1배") == true)
+    }
+}
