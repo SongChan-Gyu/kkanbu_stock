@@ -252,15 +252,15 @@ function history(s, days) {
   points[points.length - 1].price = s.market === "krx" ? Math.round(base / 50) * 50 : Math.round(base * 100) / 100;
   return points;
 }
-function chartPickHTML(s) {
+function chartPickHTML(s, readonly) {
   const pts = history(s);
-  const idx = state.chartIndex == null ? pts.length - 1 : Math.min(state.chartIndex, pts.length - 1);
+  const idx = readonly || state.chartIndex == null ? pts.length - 1 : Math.min(state.chartIndex, pts.length - 1);
   const ys = pts.map((p) => p.price);
   const min = Math.min.apply(null, ys);
   const max = Math.max.apply(null, ys);
   const span = max - min || 1;
   const w = 320;
-  const h = 88;
+  const h = readonly ? 132 : 110;
   const coords = pts.map((p, i) => {
     const x = 8 + (i / (pts.length - 1)) * (w - 16);
     const y = 10 + (1 - (p.price - min) / span) * (h - 20);
@@ -270,21 +270,26 @@ function chartPickHTML(s) {
   const sel = coords[idx];
   const picked = pts[idx];
   const when = picked.daysAgo === 0 ? "오늘" : picked.daysAgo + "일 전";
-  const meta = state.chartIndex == null
-    ? `눌러서 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].price, s.market)}`
-    : `${when} · ${formatPrice(picked.price, s.market)}`;
+  const meta = readonly
+    ? `데모 시세 · ${when} ${formatPrice(picked.price, s.market)}`
+    : state.chartIndex == null
+      ? `눌러서 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].price, s.market)}`
+      : `${when} · ${formatPrice(picked.price, s.market)}`;
+  const cap = readonly
+    ? "차트 분석 캡처를 댓글에 넣을 수 있습니다. 주문이 나가지 않습니다."
+    : "차트를 눌러 그날 가격을 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.";
   return `<div class="chart-box">
-    <div class="chart-cap">차트를 눌러 그날 가격을 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.</div>
-    <svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="최근 시세 차트">
+    <div class="chart-cap">${cap}</div>
+    <svg class="chart${readonly ? " static" : ""}" viewBox="0 0 ${w} ${h}" role="img" aria-label="최근 시세 차트">
       <rect width="${w}" height="${h}" fill="transparent"></rect>
       <polyline fill="none" stroke="currentColor" stroke-width="2" points="${line}"></polyline>
-      ${state.chartIndex == null ? "" : `<circle cx="${sel[0].toFixed(1)}" cy="${sel[1].toFixed(1)}" r="4.5" fill="currentColor"></circle>`}
+      ${readonly || state.chartIndex == null ? "" : `<circle cx="${sel[0].toFixed(1)}" cy="${sel[1].toFixed(1)}" r="4.5" fill="currentColor"></circle>`}
     </svg>
     <div class="chart-meta">${meta}</div>
   </div>`;
 }
 function applyChartPick(clientX) {
-  const svg = document.querySelector("svg.chart");
+  const svg = document.querySelector("svg.chart:not(.static)");
   const ticker = document.getElementById("add-ticker")?.value;
   const s = ticker ? stock(ticker) : null;
   if (!svg || !s) return;
@@ -306,7 +311,7 @@ function applyChartPick(clientX) {
   const max = Math.max.apply(null, ys);
   const span = max - min || 1;
   const w = 320;
-  const h = 88;
+  const h = 110;
   const cx = 8 + (idx / (pts.length - 1)) * (w - 16);
   const cy = 10 + (1 - (pts[idx].price - min) / span) * (h - 20);
   let circle = svg.querySelector("circle");
@@ -369,7 +374,9 @@ function emptyState(me) {
     addPrice: "",
     chartIndex: null,
     groupOpen: { turn: true, mood: true },
-    inboxPage: 0
+    inboxPage: 0,
+    threadImage: null,
+    lightbox: null
   };
 }
 
@@ -425,7 +432,8 @@ function seed(state) {
   state.comments.push(
     { id: "cm1", groupId: group.id, stockId: "NVDA", authorId: "cheolsu", parentId: null, body: "지금 들어가도 늦었나", createdAt: now() - hours(2) },
     { id: "cm2", groupId: group.id, stockId: "NVDA", authorId: state.me.id, parentId: "cm1", body: "평단만 적어둘게", createdAt: now() - hours(1) },
-    { id: "cm3", groupId: group.id, stockId: "NVDA", authorId: "minsu", parentId: null, body: "나는 패스ㅋㅋ 물리면 니 탓이다", createdAt: now() - hours(0.5) }
+    { id: "cm3", groupId: group.id, stockId: "NVDA", authorId: "minsu", parentId: null, body: "나는 패스ㅋㅋ 물리면 니 탓이다", createdAt: now() - hours(0.5) },
+    { id: "cm4", groupId: group.id, stockId: "NVDA", authorId: "cheolsu", parentId: null, body: "차트 보니까 이 구간 지지선이야.", image: chartSnapshot("NVDA"), createdAt: now() - hours(0.4) }
   );
   state.takes.push(
     { id: "tk-nvda-yh", groupId: group.id, stockId: "NVDA", userId: "younghee", level: 2 },
@@ -453,6 +461,7 @@ function seed(state) {
     ev(group.id, "추천", `영희가 ${nick}에게 NVIDIA를 추천했습니다.`, now() - hours(3), "rec", "younghee", "NVDA"),
     ev(group.id, "댓글", `철수가 NVIDIA에 댓글을 남겼습니다. “지금 들어가도 늦었나”`, now() - hours(2), "cmt", "cheolsu", "NVDA"),
     ev(group.id, "대댓글", `${nick}가 NVIDIA에 답글을 남겼습니다. “평단만 적어둘게”`, now() - hours(1), "cmt", state.me.id, "NVDA"),
+    ev(group.id, "사진", `철수가 NVIDIA에 차트 사진을 남겼습니다.`, now() - hours(0.4), "cmt", "cheolsu", "NVDA"),
     ev(group.id, "매수 제안", `민수가 AMD 매수를 제안했습니다.`, now() - hours(8), "prop", "minsu", "AMD"),
     ev(group.id, "매수 제안 · 재요청", `${nick}에게 AMD 매수를 다시 제안했습니다.`, now() - hours(1), "nag", "minsu", "AMD"),
     ev(group.id, "깐부", `${nick} · 철수 · Apple`, now() - days(14), "kk", state.me.id),
@@ -472,11 +481,114 @@ function seed(state) {
   state.onboarding = false;
 }
 
+function chartSnapshot(ticker) {
+  const s = stock(ticker);
+  if (!s) return null;
+  const pts = history(s, 30);
+  const c = document.createElement("canvas");
+  c.width = 720;
+  c.height = 280;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fafafa";
+  ctx.fillRect(0, 0, c.width, c.height);
+  const ys = pts.map((p) => p.price);
+  const min = Math.min.apply(null, ys);
+  const max = Math.max.apply(null, ys);
+  const span = max - min || 1;
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const x = 28 + (i / (pts.length - 1)) * (c.width - 56);
+    const y = 36 + (1 - (p.price - min) / span) * (c.height - 80);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#111";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#111";
+  ctx.font = "700 22px sans-serif";
+  ctx.fillText(s.name + " · " + s.ticker, 28, 30);
+  ctx.fillStyle = "#737373";
+  ctx.font = "14px sans-serif";
+  ctx.fillText("데모 시세 · 분석용 차트", 28, c.height - 16);
+  ctx.fillStyle = "#e11d48";
+  ctx.font = "700 16px sans-serif";
+  ctx.fillText(formatPrice(pts[pts.length - 1].price, s.market), c.width - 160, 30);
+  return c.toDataURL("image/jpeg", 0.72);
+}
+
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1200;
+      let w = img.width;
+      let h = img.height;
+      const scale = Math.min(1, max / Math.max(w, h));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image"));
+    };
+    img.src = url;
+  });
+}
+
+function persist() {
+  if (state.onboarding) return;
+  const snap = {
+    ...state,
+    sheet: null,
+    toast: null,
+    error: null,
+    threadDraft: "",
+    threadImage: null,
+    lightbox: null,
+    chartIndex: null
+  };
+  try {
+    localStorage.setItem("kkanbu-web-v1", JSON.stringify(snap));
+  } catch (_) {
+    try {
+      snap.comments = (snap.comments || []).map((c) => ({ ...c, image: null }));
+      localStorage.setItem("kkanbu-web-v1", JSON.stringify(snap));
+    } catch (__) {}
+  }
+}
+
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem("kkanbu-web-v1");
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.me || saved.onboarding) return null;
+    return saved;
+  } catch (_) {
+    return null;
+  }
+}
+
 function ev(groupId, title, message, createdAt, type, actorId, stockId) {
   return { id: uid(), groupId, title, message, createdAt, type, actorId, stockId: stockId || null };
 }
 
 let state = emptyState({ id: "me", nickname: "나" });
+const saved = loadPersisted();
+if (saved) {
+  state = Object.assign(emptyState(saved.me), saved);
+  state.sheet = null;
+  state.lightbox = null;
+  state.threadImage = null;
+}
 
 function stock(id) { return state.stocks.find((s) => s.id === id); }
 function user(id) { return state.users.find((u) => u.id === id); }
@@ -725,28 +837,42 @@ function promiseCoBuy(proposalId) {
 function recStatusLabel(status) {
   return { pending: "대기", willBuy: "매수 예정", accepted: "매수 기록", rejected: "거절" }[status] || status;
 }
+function saveThreadDraft() {
+  const input = document.getElementById("thread-text");
+  if (input) state.threadDraft = input.value;
+}
 function commentsFor(stockId) {
   return (state.comments || []).filter((c) => c.stockId === stockId && c.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
 }
-function addComment(stockId, body, parentId, silent) {
+function photosFor(stockId) {
+  return commentsFor(stockId).filter((c) => c.image);
+}
+function addComment(stockId, body, parentId, silent, image) {
   const text = (body || "").trim();
-  if (!text) {
-    if (!silent) toast("내용을 적어 주세요.");
+  const photo = image || (!silent ? state.threadImage : null);
+  if (!text && !photo) {
+    if (!silent) toast("내용이나 사진을 넣어 주세요.");
     return;
   }
   const already = silent && commentsFor(stockId).some((c) => c.authorId === state.me.id && c.body === text);
   if (already) return;
   const comment = {
     id: uid(), groupId: group().id, stockId, authorId: state.me.id,
-    parentId: parentId || null, body: text, createdAt: now()
+    parentId: parentId || null, body: text, image: photo || null, createdAt: now()
   };
   state.comments.push(comment);
   if (silent) return;
-  const title = parentId ? "대댓글" : "댓글";
-  const kind = parentId ? "답글" : "댓글";
-  pushEvent(title, `${stock(stockId).name}에 ${kind}을 남겼습니다. “${text.slice(0, 40)}”`, "cmt", state.me.id, stockId);
-  toast(parentId ? "대댓글을 남겼습니다" : "댓글을 남겼습니다");
+  const title = photo && !text ? "사진" : parentId ? "대댓글" : "댓글";
+  const kind = photo && !text ? "사진" : parentId ? "답글" : "댓글";
+  const msg = photo && !text
+    ? `${stock(stockId).name}에 차트 사진을 남겼습니다.`
+    : photo
+      ? `${stock(stockId).name}에 사진 댓글을 남겼습니다. “${text.slice(0, 40)}”`
+      : `${stock(stockId).name}에 ${kind}을 남겼습니다. “${text.slice(0, 40)}”`;
+  pushEvent(title, msg, "cmt", state.me.id, stockId);
+  toast(parentId ? "대댓글을 남겼습니다" : (photo && !text ? "사진을 남겼습니다" : "댓글을 남겼습니다"));
   state.replyTo = null;
+  state.threadImage = null;
   render();
 }
 
@@ -810,6 +936,7 @@ function playAs(userId) {
 }
 
 function resetDemo() {
+  try { localStorage.removeItem("kkanbu-web-v1"); } catch (_) {}
   const nick = ["철수", "영희", "민수", "준호", "수진"].includes(state.me.nickname) ? "나" : state.me.nickname;
   state = emptyState({ id: "me", nickname: nick || "나" });
   seed(state);
@@ -1009,6 +1136,7 @@ function renderOnboarding() {
       <div style="height:8px"></div>
       ${btn("빈 그룹으로 시작", "secondary full", "empty-start")}
       <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다. 투자 자문이 아닙니다.</p>
+      <p class="note">Safari에서 공유 → 홈 화면에 추가하면 앱처럼 열립니다. 기록은 이 브라우저에만 남습니다.</p>
     </div>`;
 }
 
@@ -1223,6 +1351,10 @@ function renderProfile() {
       <p class="note">한 브라우저에서 상대 화면을 확인합니다.</p>
       <div class="actions">${memberUsers().map((u) => sm(u.nickname, `play:${u.id}`)).join("")}</div>
     </div>
+    <div class="section">
+      <div class="section-title">이 브라우저에서</div>
+      <p class="note">Safari 공유 → 홈 화면에 추가하면 홈 화면에서 바로 열립니다. 서버가 없어서 기록은 이 폰·이 브라우저에만 남습니다. 친구는 각자 같은 링크로 들어가면 됩니다.</p>
+    </div>
     <div class="section">${btn("데모 리셋", "secondary full", "reset")}</div>
   </div>`;
 }
@@ -1390,16 +1522,21 @@ function sheetHTML() {
     const recs = state.recs.filter((r) => r.stockId === stockId && r.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
     const proposals = state.proposals.filter((p) => p.stockId === stockId && p.groupId === group()?.id);
     const comments = commentsFor(stockId);
+    const photos = photosFor(stockId);
     const roots = comments.filter((c) => !c.parentId);
     const reply = state.replyTo ? comments.find((c) => c.id === state.replyTo) : null;
-    const commentHTML = (c, isReply) => `<div class="comment ${isReply ? "reply" : ""}">
+    const commentHTML = (c, isReply) => {
+      const photoIdx = c.image ? photos.findIndex((p) => p.id === c.id) : -1;
+      return `<div class="comment ${isReply ? "reply" : ""}">
       ${avatarHTML(user(c.authorId) || { nickname: "?" }, "sm")}
       <div class="grow">
         <div class="names">${esc(nickname(c.authorId))}</div>
-        <div class="body">${esc(c.body)}</div>
+        ${c.body ? `<div class="body">${esc(c.body)}</div>` : ""}
+        ${c.image && photoIdx >= 0 ? `<button type="button" class="comment-photo" data-act="photo:${stockId}:${photoIdx}"><img src="${c.image}" alt=""></button>` : ""}
         <div class="time">${relative(c.createdAt)}${!c.parentId ? ` · <button class="btn text" data-act="reply:${c.id}">답글</button>` : ""}</div>
       </div>
     </div>`;
+    };
     const recHTML = recs.length ? recs.map((r) => `<div class="history-item">
         <div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div>
         <div class="body">“${esc(r.message)}”</div>
@@ -1413,6 +1550,12 @@ function sheetHTML() {
         <div class="time">관심 ${n}명 · ${relative(p.createdAt)}</div>
       </div>`;
     }).join("");
+    const rail = photos.length ? `<div class="kind" style="margin-top:16px">사진 ${photos.length}</div>
+      <div class="photo-rail">${photos.map((c, i) => `<button type="button" class="rail-shot" data-act="photo:${stockId}:${i}"><img src="${c.image}" alt=""></button>`).join("")}</div>` : "";
+    const preview = state.threadImage ? `<div class="composer-preview">
+        <img src="${state.threadImage}" alt="">
+        <button type="button" class="btn text" data-act="clear-photo">사진 빼기</button>
+      </div>` : "";
     return sheetWrap(`
       <div class="thread-head">
         <div class="thread-title">
@@ -1422,14 +1565,21 @@ function sheetHTML() {
             <div class="ticker">${esc(s.ticker)}</div>
           </div>
         </div>
+        ${chartPickHTML(s, true)}
         ${pulseStrip(s.id, false)}
       </div>
-      <p class="note">이 종목의 추천·매수 제안과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
+      <p class="note">이 종목의 추천·매수 제안과 댓글입니다. 차트 분석 사진이나 한마디를 남기면 히스토리에 남습니다.</p>
       <div class="kind">이 종목 이야기</div>
       ${recHTML || propHTML ? recHTML + propHTML : `<p class="empty">아직 추천이나 매수 제안이 없습니다.</p>`}
+      ${rail}
       <div class="kind" style="margin-top:16px">댓글 ${comments.length}</div>
-      ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 이 종목에 한마디 남겨 보세요.</p>`}
+      ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 차트 분석 사진이나 한마디를 남겨 보세요.</p>`}
       ${reply ? `<div class="caption">${esc(nickname(reply.authorId))}에게 답글 · <button class="btn text" data-act="cancel-reply">취소</button></div>` : ""}
+      ${preview}
+      <div class="composer-attach">
+        <label class="btn sm composer-file">사진<input id="thread-photo" type="file" accept="image/*"></label>
+        ${sm("차트 첨부", "attach-chart")}
+      </div>
       <label>${reply ? "답글" : "댓글"}</label>
       <input id="thread-text" placeholder="${reply ? "답글 적기" : "이 종목에 한마디"}" value="${esc(state.threadDraft || "")}" />
       ${btn("보내기", "primary full", "do-comment")}
@@ -1451,6 +1601,24 @@ function tabs() {
   return `<nav class="tabs">${items.map(([id, label, icon]) => `<button class="${state.tab === id ? "on" : ""}" data-act="tab:${id}">${ico(icon, state.tab === id)}<span>${label}</span></button>`).join("")}</nav>`;
 }
 
+function lightboxHTML() {
+  if (!state.lightbox) return "";
+  const stockId = state.lightbox.stockId;
+  const photos = photosFor(stockId);
+  if (!photos.length) return "";
+  const i = Math.max(0, Math.min(state.lightbox.index | 0, photos.length - 1));
+  state.lightbox.index = i;
+  const c = photos[i];
+  const cap = c.body ? nickname(c.authorId) + " · " + c.body : nickname(c.authorId);
+  return `<div class="lightbox" data-act="lightbox-close">
+    <button type="button" class="lightbox-close" data-act="lightbox-close">닫기</button>
+    ${photos.length > 1 ? `<button type="button" class="lightbox-nav prev" data-act="lightbox-prev">‹</button>` : ""}
+    ${photos.length > 1 ? `<button type="button" class="lightbox-nav next" data-act="lightbox-next">›</button>` : ""}
+    <img src="${c.image}" alt="" data-act="lightbox-stay">
+    <div class="lightbox-cap" data-act="lightbox-stay">${esc(cap)} · ${i + 1} / ${photos.length}</div>
+  </div>`;
+}
+
 function render() {
   const root = document.getElementById("app");
   let body = "";
@@ -1459,8 +1627,9 @@ function render() {
   else if (state.tab === "act") body = renderActivity();
   else if (state.tab === "me") body = renderProfile();
   else body = renderGroup();
-  root.innerHTML = body + tabs() + sheetHTML();
+  root.innerHTML = body + tabs() + sheetHTML() + lightboxHTML();
   bindPager();
+  persist();
 }
 
 let sheetGuard = 0;
@@ -1476,30 +1645,46 @@ function closeSheet() {
   state.addTicker = null;
   state.addPrice = "";
   state.chartIndex = null;
+  state.threadImage = null;
+  state.threadDraft = "";
   render();
 }
 
 let chartTracking = false;
+let lightboxSwipeX = null;
 function onChartPointer(e) {
-  const svg = e.target.closest && e.target.closest("svg.chart");
+  const svg = e.target.closest && e.target.closest("svg.chart:not(.static)");
   if (!svg) return false;
   e.preventDefault();
   applyChartPick(e.clientX);
   return true;
 }
 document.addEventListener("pointerdown", (e) => {
-  if (!onChartPointer(e)) return;
-  chartTracking = true;
-  if (e.target.setPointerCapture) {
-    try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  if (onChartPointer(e)) {
+    chartTracking = true;
+    if (e.target.setPointerCapture) {
+      try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    return;
+  }
+  if (state.lightbox && e.target.closest && e.target.closest(".lightbox")) {
+    lightboxSwipeX = e.clientX;
   }
 });
 document.addEventListener("pointermove", (e) => {
   if (!chartTracking) return;
   onChartPointer(e);
 });
-document.addEventListener("pointerup", () => { chartTracking = false; });
-document.addEventListener("pointercancel", () => { chartTracking = false; });
+document.addEventListener("pointerup", (e) => {
+  chartTracking = false;
+  if (lightboxSwipeX != null && state.lightbox) {
+    const dx = e.clientX - lightboxSwipeX;
+    if (dx > 50) handle("lightbox-prev");
+    else if (dx < -50) handle("lightbox-next");
+  }
+  lightboxSwipeX = null;
+});
+document.addEventListener("pointercancel", () => { chartTracking = false; lightboxSwipeX = null; });
 
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "add-ticker") {
@@ -1508,6 +1693,15 @@ document.addEventListener("change", (e) => {
     state.addPrice = "";
     render();
   }
+  if (e.target && e.target.id === "thread-photo") {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    saveThreadDraft();
+    compressImageFile(file).then((data) => {
+      state.threadImage = data;
+      render();
+    }).catch(() => toast("사진을 읽지 못했습니다"));
+  }
 });
 document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "add-price") state.addPrice = e.target.value;
@@ -1515,12 +1709,12 @@ document.addEventListener("input", (e) => {
 });
 
 document.addEventListener("click", (e) => {
-  if (e.target.closest && e.target.closest("svg.chart")) {
+  if (e.target.closest && e.target.closest("svg.chart:not(.static)")) {
     e.preventDefault();
     return;
   }
   if (e.target.closest && e.target.closest("a[href]")) return;
-  if (e.target.classList.contains("sheet")) {
+  if (e.target.classList.contains("sheet") && !state.lightbox) {
     closeSheet();
     return;
   }
@@ -1659,19 +1853,59 @@ function handle(act) {
   if (act.startsWith("thread:")) {
     state.replyTo = null;
     state.threadDraft = "";
+    state.threadImage = null;
     openSheet(act);
     return;
   }
+  if (act === "attach-chart") {
+    saveThreadDraft();
+    const stockId = (state.sheet || "").split(":")[1];
+    const snap = chartSnapshot(stockId);
+    if (!snap) {
+      toast("차트를 만들지 못했습니다");
+      return;
+    }
+    state.threadImage = snap;
+    toast("차트를 붙였습니다");
+    render();
+    return;
+  }
+  if (act === "clear-photo") {
+    saveThreadDraft();
+    state.threadImage = null;
+    render();
+    return;
+  }
+  if (act.startsWith("photo:")) {
+    saveThreadDraft();
+    const parts = act.split(":");
+    state.lightbox = { stockId: parts[1], index: Number(parts[2]) || 0 };
+    render();
+    return;
+  }
+  if (act === "lightbox-stay") return;
+  if (act === "lightbox-close") {
+    state.lightbox = null;
+    render();
+    return;
+  }
+  if (act === "lightbox-prev" || act === "lightbox-next") {
+    if (!state.lightbox) return;
+    const photos = photosFor(state.lightbox.stockId);
+    if (!photos.length) return;
+    const delta = act === "lightbox-next" ? 1 : -1;
+    state.lightbox.index = (state.lightbox.index + delta + photos.length) % photos.length;
+    render();
+    return;
+  }
   if (act.startsWith("reply:")) {
-    const input = document.getElementById("thread-text");
-    if (input) state.threadDraft = input.value;
+    saveThreadDraft();
     state.replyTo = act.split(":")[1];
     render();
     return;
   }
   if (act === "cancel-reply") {
-    const input = document.getElementById("thread-text");
-    if (input) state.threadDraft = input.value;
+    saveThreadDraft();
     state.replyTo = null;
     render();
     return;

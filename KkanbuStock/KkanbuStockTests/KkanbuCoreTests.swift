@@ -481,6 +481,17 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.commentCount(in: store.state.groups[0].id, stockId: nvda.id), 2)
         XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
         XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
+
+        store.addComment(stockId: nvda.id, body: "", imageJPEG: Data([0xFF, 0xD8, 0xFF]))
+        XCTAssertEqual(store.state.comments.filter(\.hasPhoto).count, 1)
+        XCTAssertTrue(store.state.events.contains { $0.title == "사진" })
+        XCTAssertEqual(store.toast, "사진을 남겼습니다")
+
+        #if canImport(UIKit)
+        let chart = CommentPhoto.chartJPEG(values: [1, 2, 3, 4], title: "NVIDIA · NVDA", price: "$182.40")
+        XCTAssertNotNil(chart)
+        XCTAssertGreaterThan(chart?.count ?? 0, 100)
+        #endif
     }
 
     func testPromiseCoBuyWritesThreadComment() {

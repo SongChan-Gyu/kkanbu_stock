@@ -2,6 +2,12 @@ import SwiftUI
 #if canImport(UserNotifications)
 import UserNotifications
 #endif
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum LocalPush {
     static func requestPermission() {
@@ -206,6 +212,9 @@ struct RecommendationThreadView: View {
     var stock: Stock
     @State private var draft = ""
     @State private var replyTo: StockComment?
+    @State private var pendingJPEG: Data?
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var viewerIndex: Int?
 
     var body: some View {
         NavigationStack {
@@ -213,6 +222,7 @@ struct RecommendationThreadView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     history
+                    photoRail
                     comments
                 }
                 .padding(16)
@@ -223,10 +233,38 @@ struct RecommendationThreadView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
             }
+            .fullScreenCover(item: viewerBinding) { item in
+                CommentPhotoPager(photos: threadPhotos, index: item)
+            }
         }
     }
 
     private var groupId: UUID? { store.state.selectedGroupId }
+
+    private var threadItems: [StockComment] {
+        groupId.map { store.comments(in: $0, stockId: stock.id) } ?? []
+    }
+
+    private var threadPhotos: [CommentPhotoItem] {
+        threadItems.compactMap { comment in
+            guard let data = comment.imageJPEG, let image = platformImage(data) else { return nil }
+            return CommentPhotoItem(
+                id: comment.id,
+                image: image,
+                caption: comment.body.isEmpty ? store.state.nickname(comment.authorId) : "\(store.state.nickname(comment.authorId)) · \(comment.body)"
+            )
+        }
+    }
+
+    private var viewerBinding: Binding<CommentPhotoItem?> {
+        Binding(
+            get: {
+                guard let viewerIndex, threadPhotos.indices.contains(viewerIndex) else { return nil }
+                return threadPhotos[viewerIndex]
+            },
+            set: { viewerIndex = $0 == nil ? nil : viewerIndex }
+        )
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -240,6 +278,10 @@ struct RecommendationThreadView: View {
                         .foregroundStyle(KkanbuTheme.faint)
                 }
             }
+            MiniChart(values: store.history(for: stock).map(\.price))
+            Text("데모 시세입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다.")
+                .font(.caption)
+                .foregroundStyle(KkanbuTheme.faint)
             PulseStrip(snapshot: pulseSnapshot, compact: false, stock: stock)
         }
     }
@@ -295,15 +337,43 @@ struct RecommendationThreadView: View {
         }
     }
 
+    @ViewBuilder
+    private var photoRail: some View {
+        if !threadPhotos.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("사진 \(threadPhotos.count)")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.muted)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(threadPhotos.enumerated()), id: \.element.id) { index, photo in
+                            Button {
+                                viewerIndex = index
+                            } label: {
+                                Image(uiImage: photo.image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 92, height: 92)
+                                    .clipped()
+                                    .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var comments: some View {
-        let items = groupId.map { store.comments(in: $0, stockId: stock.id) } ?? []
+        let items = threadItems
         let roots = items.filter { $0.parentId == nil }
         return VStack(alignment: .leading, spacing: 8) {
             Text("댓글 \(items.count)")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(KkanbuTheme.muted)
             if items.isEmpty {
-                Text("아직 댓글이 없습니다. 이 종목에 한마디 남겨 보세요.")
+                Text("아직 댓글이 없습니다. 차트 분석 사진이나 한마디를 남겨 보세요.")
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.faint)
                     .padding(.vertical, 8)
@@ -322,11 +392,29 @@ struct RecommendationThreadView: View {
         HStack(alignment: .top, spacing: 10) {
             if isReply { Color.clear.frame(width: 18) }
             InitialsAvatar(name: store.state.nickname(comment.authorId), size: 28)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(store.state.nickname(comment.authorId))
                     .font(.caption.weight(.semibold))
-                Text(comment.body)
-                    .font(.subheadline)
+                if !comment.body.isEmpty {
+                    Text(comment.body)
+                        .font(.subheadline)
+                }
+                if let data = comment.imageJPEG, let image = platformImage(data) {
+                    Button {
+                        if let idx = threadPhotos.firstIndex(where: { $0.id == comment.id }) {
+                            viewerIndex = idx
+                        }
+                    } label: {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 180)
+                            .clipped()
+                            .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
                 HStack(spacing: 10) {
                     Text(MoneyFormat.relative(comment.createdAt))
                         .font(.caption)
@@ -354,13 +442,48 @@ struct RecommendationThreadView: View {
                         .font(.caption.weight(.medium))
                 }
             }
-            HStack(spacing: 8) {
+            if let pendingJPEG, let image = platformImage(pendingJPEG) {
+                HStack(alignment: .top) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipped()
+                        .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Spacer()
+                    Button("사진 빼기") { self.pendingJPEG = nil; pickerItem = nil }
+                        .font(.caption.weight(.medium))
+                }
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                #if canImport(PhotosUI)
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .frame(width: 48, height: 48)
+                }
+                .onChange(of: pickerItem) { _, item in
+                    Task { await loadPhoto(item) }
+                }
+                #endif
+                Button {
+                    attachChart()
+                } label: {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .frame(width: 48, height: 48)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("차트 첨부")
                 TextField(replyTo == nil ? "이 종목에 한마디" : "답글 적기", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .padding(.vertical, 10)
                 Button("보내기") { send() }
                     .font(.subheadline.weight(.semibold))
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .frame(minHeight: 48)
+                    .disabled(!canSend)
             }
             .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
         }
@@ -369,9 +492,95 @@ struct RecommendationThreadView: View {
         .background(KkanbuTheme.bg)
     }
 
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingJPEG != nil
+    }
+
     private func send() {
-        store.addComment(stockId: stock.id, parentId: replyTo?.id, body: draft)
+        store.addComment(stockId: stock.id, parentId: replyTo?.id, body: draft, imageJPEG: pendingJPEG)
         draft = ""
         replyTo = nil
+        pendingJPEG = nil
+        pickerItem = nil
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem?) async {
+        guard let item, let data = try? await item.loadTransferable(type: Data.self) else { return }
+        pendingJPEG = CommentPhoto.jpeg(from: data)
+    }
+
+    private func attachChart() {
+        #if canImport(UIKit)
+        let values = store.history(for: stock).map(\.price)
+        let last = values.last ?? store.price(for: stock.id)
+        pendingJPEG = CommentPhoto.chartJPEG(
+            values: values,
+            title: "\(stock.name) · \(stock.ticker)",
+            price: MoneyFormat.price(last, market: stock.market)
+        )
+        #endif
+    }
+
+    private func platformImage(_ data: Data) -> UIImage? {
+        #if canImport(UIKit)
+        UIImage(data: data)
+        #else
+        nil
+        #endif
+    }
+}
+
+struct CommentPhotoItem: Identifiable {
+    var id: UUID
+    #if canImport(UIKit)
+    var image: UIImage
+    #else
+    var image: Data
+    #endif
+    var caption: String
+}
+
+struct CommentPhotoPager: View {
+    @Environment(\.dismiss) private var dismiss
+    var photos: [CommentPhotoItem]
+    var index: CommentPhotoItem
+    @State private var current: UUID
+
+    init(photos: [CommentPhotoItem], index: CommentPhotoItem) {
+        self.photos = photos
+        self.index = index
+        _current = State(initialValue: index.id)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            TabView(selection: $current) {
+                ForEach(photos) { photo in
+                    VStack(spacing: 12) {
+                        Spacer()
+                        #if canImport(UIKit)
+                        Image(uiImage: photo.image)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.horizontal, 12)
+                        #endif
+                        Text(photo.caption)
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                        Spacer()
+                    }
+                    .tag(photo.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            Button("닫기") { dismiss() }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(16)
+        }
     }
 }

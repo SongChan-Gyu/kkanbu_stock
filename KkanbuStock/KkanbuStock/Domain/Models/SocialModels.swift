@@ -219,6 +219,7 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
     var authorId: UUID
     var parentId: UUID?
     var body: String
+    var imageJPEG: Data?
     var createdAt: Date
 
     init(
@@ -228,6 +229,7 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
         authorId: UUID,
         parentId: UUID? = nil,
         body: String,
+        imageJPEG: Data? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -236,8 +238,11 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
         self.authorId = authorId
         self.parentId = parentId
         self.body = body
+        self.imageJPEG = imageJPEG
         self.createdAt = createdAt
     }
+
+    var hasPhoto: Bool { imageJPEG != nil && !(imageJPEG?.isEmpty ?? true) }
 }
 
 struct Badge: Identifiable, Codable, Hashable, Sendable {

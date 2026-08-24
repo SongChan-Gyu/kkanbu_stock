@@ -12,6 +12,107 @@ enum KkanbuHaptic {
     }
 }
 
+struct MiniChart: View {
+    var values: [Double]
+
+    var body: some View {
+        GeometryReader { geo in
+            let minV = values.min() ?? 0
+            let maxV = values.max() ?? 1
+            let span = max(maxV - minV, 0.0001)
+            Path { path in
+                for (index, value) in values.enumerated() {
+                    let x = geo.size.width * CGFloat(index) / CGFloat(max(values.count - 1, 1))
+                    let y = geo.size.height * (1 - CGFloat((value - minV) / span))
+                    if index == 0 {
+                        path.move(to: CGPoint(x: x, y: y))
+                    } else {
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+            }
+            .stroke(KkanbuTheme.ink, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
+        }
+        .frame(height: 72)
+        .accessibilityLabel("최근 시세 차트")
+    }
+}
+
+enum CommentPhoto {
+    static func jpeg(from data: Data, maxPixel: CGFloat = 1200, quality: CGFloat = 0.72) -> Data? {
+        #if canImport(UIKit)
+        guard let image = UIImage(data: data) else { return data }
+        return jpeg(from: image, maxPixel: maxPixel, quality: quality)
+        #else
+        return data
+        #endif
+    }
+
+    #if canImport(UIKit)
+    static func jpeg(from image: UIImage, maxPixel: CGFloat = 1200, quality: CGFloat = 0.72) -> Data? {
+        let size = image.size
+        let longest = max(size.width, size.height)
+        let scale = longest > maxPixel ? maxPixel / longest : 1
+        let target = CGSize(width: max(1, size.width * scale), height: max(1, size.height * scale))
+        let renderer = UIGraphicsImageRenderer(size: target)
+        let scaled = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return scaled.jpegData(compressionQuality: quality)
+    }
+
+    static func chartJPEG(values: [Double], title: String, price: String) -> Data? {
+        let size = CGSize(width: 720, height: 280)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1).setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+            guard values.count >= 2 else { return }
+            let minV = values.min() ?? 0
+            let maxV = values.max() ?? 1
+            let span = max(maxV - minV, 0.0001)
+            let path = UIBezierPath()
+            let left: CGFloat = 28
+            let usableWidth = size.width - 56
+            let top: CGFloat = 48
+            let usableHeight = size.height - 80
+            for (index, value) in values.enumerated() {
+                let x = left + CGFloat(index) / CGFloat(values.count - 1) * usableWidth
+                let y = top + (1 - CGFloat((value - minV) / span)) * usableHeight
+                if index == 0 {
+                    path.move(to: CGPoint(x: x, y: y))
+                } else {
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+            UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1).setStroke()
+            path.lineWidth = 3
+            path.lineJoinStyle = .round
+            path.lineCapStyle = .round
+            path.stroke()
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+            ]
+            (title as NSString).draw(at: CGPoint(x: 28, y: 10), withAttributes: titleAttrs)
+            let priceAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .bold),
+                .foregroundColor: UIColor(red: 0.882, green: 0.114, blue: 0.282, alpha: 1)
+            ]
+            let priceText = price as NSString
+            let priceSize = priceText.size(withAttributes: priceAttrs)
+            priceText.draw(at: CGPoint(x: size.width - 28 - priceSize.width, y: 14), withAttributes: priceAttrs)
+            let capAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 14),
+                .foregroundColor: UIColor(white: 0.45, alpha: 1)
+            ]
+            ("데모 시세 · 분석용 차트" as NSString).draw(at: CGPoint(x: 28, y: size.height - 28), withAttributes: capAttrs)
+        }
+        return image.jpegData(compressionQuality: 0.72)
+    }
+    #endif
+}
+
 enum KkanbuTheme {
     static let radius: CGFloat = 10
     static let pagePadding: CGFloat = 20

@@ -491,11 +491,12 @@ final class AppStore {
         toast = "그룹에 추천을 보냈습니다"
     }
 
-    func addComment(stockId: UUID, parentId: UUID? = nil, body: String, silent: Bool = false) {
+    func addComment(stockId: UUID, parentId: UUID? = nil, body: String, imageJPEG: Data? = nil, silent: Bool = false) {
         guard let groupId = state.selectedGroupId else { return }
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            lastError = "내용을 적어 주세요."
+        let photo = imageJPEG.flatMap { $0.isEmpty ? nil : $0 }
+        guard !trimmed.isEmpty || photo != nil else {
+            lastError = "내용이나 사진을 넣어 주세요."
             return
         }
         if let parentId {
@@ -506,7 +507,8 @@ final class AppStore {
             stockId: stockId,
             authorId: state.currentUserId,
             parentId: parentId,
-            body: trimmed
+            body: trimmed,
+            imageJPEG: photo
         )
         let before = state
         state.comments.append(comment)
@@ -515,7 +517,11 @@ final class AppStore {
             return
         }
         emit(.commentPosted(id: comment.id), before: before)
-        toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+        if photo != nil && trimmed.isEmpty {
+            toast = "사진을 남겼습니다"
+        } else {
+            toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+        }
     }
 
     func talkedStockIds(in groupId: UUID) -> [UUID] {
