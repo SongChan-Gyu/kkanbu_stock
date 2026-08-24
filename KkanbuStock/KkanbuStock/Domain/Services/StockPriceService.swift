@@ -242,10 +242,21 @@ enum ChartMath {
         return Snapshot(rsi: rsi, volumeRatio: ratio, tags: tags)
     }
 
+    static let analysisTags: [Tag] = [
+        Tag(id: "vol", label: "거래량 급증", suggested: false),
+        Tag(id: "rsi-low", label: "RSI 과매도", suggested: false),
+        Tag(id: "rsi-high", label: "RSI 과매수", suggested: false),
+        Tag(id: "ma", label: "이평 돌파", suggested: false),
+        Tag(id: "support", label: "지지선", suggested: false)
+    ]
+
+    static func tvSymbol(for stock: Stock) -> String {
+        stock.market == .krx ? "KRX:\(stock.ticker)" : "NASDAQ:\(stock.ticker)"
+    }
+
     static func tradingViewURL(for stock: Stock) -> URL? {
-        let symbol = stock.market == .krx ? "KRX:\(stock.ticker)" : "NASDAQ:\(stock.ticker)"
         var bits = URLComponents(string: "https://www.tradingview.com/chart/")
-        bits?.queryItems = [URLQueryItem(name: "symbol", value: symbol)]
+        bits?.queryItems = [URLQueryItem(name: "symbol", value: tvSymbol(for: stock))]
         return bits?.url
     }
 

@@ -311,16 +311,88 @@ function chartSignals(s) {
   else tags.push({ id: "vol", label: "거래량 " + ratio.toFixed(1) + "배", on: false });
   return { rsi, ratio, tags, pts };
 }
+function tvSymbol(s) {
+  return (s.market === "krx" ? "KRX:" : "NASDAQ:") + s.ticker;
+}
 function tvURL(s) {
-  const sym = s.market === "krx" ? "KRX:" + s.ticker : "NASDAQ:" + s.ticker;
-  return "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(sym);
+  return "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(tvSymbol(s));
 }
 function tvLink(s) {
-  return `<a class="tv-link" href="${esc(tvURL(s))}" target="_blank" rel="noopener">트레이딩뷰에서 보기</a>`;
+  return `<a class="tv-link" href="${esc(tvURL(s))}" target="_blank" rel="noopener">새 탭에서 크게 보기</a>`;
 }
+const CHART_TAGS = [
+  { id: "vol", label: "거래량 급증" },
+  { id: "rsi-low", label: "RSI 과매도" },
+  { id: "rsi-high", label: "RSI 과매수" },
+  { id: "ma", label: "이평 돌파" },
+  { id: "support", label: "지지선" }
+];
 function signalChips(labels) {
   if (!labels || !labels.length) return "";
   return `<div class="signal-row">${labels.map((l) => `<span class="signal-chip">${esc(l)}</span>`).join("")}</div>`;
+}
+function tvBoxHTML(s, height) {
+  height = height || 440;
+  return `<div class="tv-wrap">
+    <div class="tv-box" id="tv-chart" data-tv-symbol="${esc(tvSymbol(s))}" style="height:${height}px"></div>
+  </div>`;
+}
+let tvScriptTried = false;
+function ensureTradingView(cb) {
+  if (window.TradingView) {
+    cb();
+    return;
+  }
+  if (!tvScriptTried) {
+    tvScriptTried = true;
+    const s = document.createElement("script");
+    s.src = "https://s3.tradingview.com/tv.js";
+    s.async = true;
+    s.onload = () => cb();
+    s.onerror = () => {};
+    document.head.appendChild(s);
+  }
+  const started = Date.now();
+  const t = setInterval(() => {
+    if (window.TradingView) {
+      clearInterval(t);
+      cb();
+    } else if (Date.now() - started > 8000) {
+      clearInterval(t);
+    }
+  }, 200);
+}
+function mountTradingView() {
+  const el = document.getElementById("tv-chart");
+  if (!el) return;
+  const symbol = el.getAttribute("data-tv-symbol");
+  if (!symbol) return;
+  ensureTradingView(() => {
+    if (!window.TradingView || !document.getElementById("tv-chart")) return;
+    const node = document.getElementById("tv-chart");
+    if (!node || node.getAttribute("data-tv-symbol") !== symbol) return;
+    node.innerHTML = "";
+    const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    try {
+      new TradingView.widget({
+        autosize: true,
+        symbol,
+        interval: "D",
+        timezone: "Asia/Seoul",
+        theme: dark ? "dark" : "light",
+        style: "1",
+        locale: "kr",
+        withdateranges: true,
+        hide_side_toolbar: true,
+        allow_symbol_change: false,
+        save_image: true,
+        hide_volume: false,
+        enable_publishing: false,
+        studies: ["STD;RSI", "Volume@tv-basicstudies"],
+        container_id: "tv-chart"
+      });
+    } catch (_) {}
+  });
 }
 function chartPickHTML(s, readonly) {
   const pts = history(s, 30);
@@ -377,11 +449,22 @@ function chartPickHTML(s, readonly) {
       ? `캔들을 눌러 종가 고르기 · 오늘 ${formatPrice(pts[pts.length - 1].close, s.market)}${rsiTxt}`
       : `${when} · ${formatPrice(picked.close, s.market)}${rsiTxt}`;
   const cap = readonly
-    ? "데모 캔들·거래량·RSI입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다. 주문이 나가지 않습니다."
-    : "캔들을 눌러 그날 종가를 매수가로 고르세요. 데모 시세입니다. 주문이 나가지 않습니다.";
+    ? "트레이딩뷰 일봉입니다. 거래량과 RSI가 같이 열립니다. 주문이 나가지 않습니다."
+    : "위는 트레이딩뷰 실세입니다. 아래 캔들을 눌러 매수 기록용 종가를 고르세요. 두 가격은 다를 수 있습니다.";
+  const tv = tvBoxHTML(s, readonly ? 460 : 380);
+  if (readonly) {
+    return `<div class="chart-box">
+      <div class="chart-cap">${cap}</div>
+      ${tv}
+      ${tvLink(s)}
+    </div>`;
+  }
   return `<div class="chart-box">
     <div class="chart-cap">${cap}</div>
-    <svg class="chart${readonly ? " static" : ""}" viewBox="0 0 ${w} ${h}" role="img" aria-label="캔들 차트">
+    ${tv}
+    ${tvLink(s)}
+    <div class="kind" style="margin-top:14px">매수 기록용</div>
+    <svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="매수 기록용 캔들">
       <rect width="${w}" height="${h}" fill="transparent"></rect>
       ${candles}
       ${vols}
@@ -390,7 +473,6 @@ function chartPickHTML(s, readonly) {
       ${rsiPts.length ? `<polyline fill="none" stroke="currentColor" stroke-width="1.4" points="${rsiPts.join(" ")}"></polyline>` : ""}
     </svg>
     <div class="chart-meta">${meta}</div>
-    ${tvLink(s)}
   </div>`;
 }
 function applyChartPick(clientX) {
@@ -515,8 +597,7 @@ function seed(state) {
     H("junho", "035720", 62000, { createdAt: now() - days(15) })
   );
 
-  const nvdaStock = state.stocks.find((x) => x.id === "NVDA");
-  const nvdaTags = nvdaStock ? chartSignals(nvdaStock).tags.filter((t) => t.on).map((t) => t.label) : ["거래량 급증"];
+  const nvdaTags = ["거래량 급증", "RSI 과매수"];
   state.recs.push({
     id: "rec1", groupId: group.id, senderId: "younghee", receiverId: state.me.id,
     stockId: "NVDA", holdingId: youngheeNVDA.id, message: "같이 들어가 봐.",
@@ -989,9 +1070,7 @@ function addComment(stockId, body, parentId, silent, image) {
 
 function recommend(holdingId, toUserId, message) {
   const h = state.holdings.find((x) => x.id === holdingId);
-  const s = stock(h.stockId);
-  const snap = s ? chartSignals(s) : { tags: [] };
-  const signals = snap.tags.filter((t) => state.recTags && state.recTags[t.id]).map((t) => t.label);
+  const signals = CHART_TAGS.filter((t) => state.recTags && state.recTags[t.id]).map((t) => t.label);
   const rec = {
     id: uid(), groupId: group().id, senderId: state.me.id, receiverId: toUserId,
     stockId: h.stockId, holdingId, message: (message || "").trim() || "같이 들어가 봐.",
@@ -1491,7 +1570,7 @@ function sheetHTML() {
     const priceVal = state.addPrice || "";
     return sheetWrap(`
       <h2>주식 추가</h2>
-      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 캔들 종가나 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "목록에서 종목을 고르고, 캔들을 눌러 그날 종가를 고르거나 직접 적으세요. 캡처는 iOS 앱에 있습니다."}</p>
+      <p class="note">${pre ? "추천받은 종목입니다. 샀으면 아래 캔들 종가나 내가 산 가격을 적으세요. 현재가로 채우지 않습니다." : "위 트레이딩뷰에서 보고, 아래 캔들을 눌러 그날 종가를 고르거나 직접 적으세요. 캡처는 iOS 앱에 있습니다."}</p>
       <label>종목</label>
       <select id="add-ticker">${options}</select>
       ${selected ? chartPickHTML(selected) : ""}
@@ -1590,20 +1669,19 @@ function sheetHTML() {
     const h = state.holdings.find((x) => x.id === hid);
     const s = h ? stock(h.stockId) : null;
     const others = memberUsers().filter((u) => u.id !== state.me.id);
-    const snap = s ? chartSignals(s) : { tags: [] };
     if (!state.recTags || !Object.keys(state.recTags).length) {
       state.recTags = {};
-      snap.tags.forEach((t) => { state.recTags[t.id] = t.on; });
+      CHART_TAGS.forEach((t) => { state.recTags[t.id] = false; });
     }
-    const tagBtns = snap.tags.map((t) => {
+    const tagBtns = CHART_TAGS.map((t) => {
       const on = !!state.recTags[t.id];
       return `<button type="button" class="signal-chip${on ? " on" : ""}" data-act="rec-tag:${t.id}">${esc(t.label)}</button>`;
     }).join("");
     return sheetWrap(`
       <h2>친구에게 추천</h2>
-      <p class="note">데모 캔들의 RSI·거래량을 태그로 붙입니다. 실세는 트레이딩뷰에서 확인하세요. 주문이 나가지 않습니다.</p>
+      <p class="note">트레이딩뷰 차트에서 본 거래량·RSI를 태그로 남깁니다. 주문이 나가지 않습니다.</p>
       ${s ? chartPickHTML(s, true) : ""}
-      <div class="kind">왜 추천하나요</div>
+      <div class="kind">차트에서 본 것</div>
       <div class="signal-row">${tagBtns}</div>
       <label>한마디</label>
       <input id="rec-msg" value="같이 들어가 봐." />
@@ -1701,7 +1779,7 @@ function sheetHTML() {
         ${chartPickHTML(s, true)}
         ${pulseStrip(s.id, false)}
       </div>
-      <p class="note">이 종목의 추천·매수 제안과 댓글입니다. 차트 분석 사진이나 한마디를 남기면 히스토리에 남습니다.</p>
+      <p class="note">트레이딩뷰 일봉입니다. 거래량과 RSI가 같이 열립니다. 이 종목의 추천·매수 제안과 댓글입니다.</p>
       <div class="kind">이 종목 이야기</div>
       ${recHTML || propHTML ? recHTML + propHTML : `<p class="empty">아직 추천이나 매수 제안이 없습니다.</p>`}
       ${rail}
@@ -1763,6 +1841,7 @@ function render() {
   root.innerHTML = body + tabs() + sheetHTML() + lightboxHTML();
   bindPager();
   persist();
+  mountTradingView();
   const panel = document.querySelector(".sheet .panel");
   if (panel && (state.sheet || "").startsWith("thread:") && (state.threadImage || state.replyTo)) {
     const anchor = document.querySelector(".composer-preview") || document.getElementById("thread-composer");
@@ -1855,6 +1934,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest && e.target.closest("a[href]")) return;
+  if (e.target.closest && e.target.closest(".tv-wrap")) return;
   if (e.target.classList.contains("sheet") && !state.lightbox) {
     closeSheet();
     return;
@@ -1977,12 +2057,11 @@ function handle(act) {
   }
   if (act.startsWith("rec-tag:")) {
     const id = act.slice(8);
-    const draft = document.getElementById("rec-msg")?.value;
     state.recTags = state.recTags || {};
     state.recTags[id] = !state.recTags[id];
-    render();
-    const again = document.getElementById("rec-msg");
-    if (again && draft != null) again.value = draft;
+    const btn = document.querySelector(`[data-act="rec-tag:${id}"]`);
+    if (btn) btn.classList.toggle("on", !!state.recTags[id]);
+    persist();
     return;
   }
   if (act.startsWith("open-prop")) { openSheet(act); return; }

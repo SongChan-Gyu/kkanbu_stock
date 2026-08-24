@@ -3,6 +3,9 @@ import Foundation
 #if canImport(UIKit)
 import UIKit
 #endif
+#if canImport(WebKit)
+import WebKit
+#endif
 
 enum KkanbuHaptic {
     static func tap() {
@@ -74,6 +77,107 @@ struct MiniChart: View {
         }
     }
 }
+
+struct TradingViewPane: View {
+    var stock: Stock
+    var height: CGFloat = 420
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            #if canImport(WebKit)
+            TradingViewWeb(symbol: ChartMath.tvSymbol(for: stock))
+                .frame(height: height)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(KkanbuTheme.line, lineWidth: 1)
+                }
+            #else
+            MiniChart(candles: [])
+            #endif
+            Text("트레이딩뷰 일봉 · 거래량·RSI. 주문이 나가지 않습니다.")
+                .font(.caption)
+                .foregroundStyle(KkanbuTheme.faint)
+            if let url = ChartMath.tradingViewURL(for: stock) {
+                Link("새 탭에서 크게 보기", destination: url)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
+        }
+    }
+}
+
+#if canImport(WebKit)
+struct TradingViewWeb: UIViewRepresentable {
+    var symbol: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(symbol: symbol)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let web = WKWebView(frame: .zero)
+        web.scrollView.isScrollEnabled = false
+        web.scrollView.bounces = false
+        web.isOpaque = false
+        web.backgroundColor = .clear
+        DispatchQueue.main.async {
+            web.loadHTMLString(Self.html(symbol: symbol), baseURL: URL(string: "https://www.tradingview.com"))
+        }
+        return web
+    }
+
+    func updateUIView(_ web: WKWebView, context: Context) {
+        guard context.coordinator.symbol != symbol else { return }
+        context.coordinator.symbol = symbol
+        web.loadHTMLString(Self.html(symbol: symbol), baseURL: URL(string: "https://www.tradingview.com"))
+    }
+
+    final class Coordinator {
+        var symbol: String
+        init(symbol: String) { self.symbol = symbol }
+    }
+
+    private static func html(symbol: String) -> String {
+        let safe = symbol.replacingOccurrences(of: "\"", with: "")
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <style>html,body,#tv{margin:0;height:100%;background:transparent}</style>
+        </head>
+        <body>
+        <div id="tv"></div>
+        <script src="https://s3.tradingview.com/tv.js"></script>
+        <script>
+        function boot() {
+          if (!window.TradingView) { setTimeout(boot, 200); return; }
+          new TradingView.widget({
+            autosize: true,
+            symbol: "\(safe)",
+            interval: "D",
+            timezone: "Asia/Seoul",
+            theme: "light",
+            style: "1",
+            locale: "kr",
+            hide_side_toolbar: true,
+            allow_symbol_change: false,
+            save_image: true,
+            hide_volume: false,
+            enable_publishing: false,
+            studies: ["STD;RSI", "Volume@tv-basicstudies"],
+            container_id: "tv"
+          });
+        }
+        boot();
+        </script>
+        </body>
+        </html>
+        """
+    }
+}
+#endif
 
 struct SignalChips: View {
     var labels: [String]

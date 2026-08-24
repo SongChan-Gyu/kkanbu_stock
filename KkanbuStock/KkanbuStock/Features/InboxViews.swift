@@ -280,21 +280,7 @@ struct RecommendationThreadView: View {
                         .foregroundStyle(KkanbuTheme.faint)
                 }
             }
-            MiniChart(candles: store.history(for: stock, days: 40))
-            if let rsi = ChartMath.snapshot(for: store.history(for: stock, days: 40)).rsi {
-                Text("RSI \(Int(rsi.rounded())) · 데모 캔들입니다. 거래량·RSI 태그를 추천에 붙일 수 있습니다.")
-                    .font(.caption)
-                    .foregroundStyle(KkanbuTheme.faint)
-            } else {
-                Text("데모 시세입니다. 차트 분석 캡처를 댓글에 넣을 수 있습니다.")
-                    .font(.caption)
-                    .foregroundStyle(KkanbuTheme.faint)
-            }
-            if let url = ChartMath.tradingViewURL(for: stock) {
-                Link("트레이딩뷰에서 보기", destination: url)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(KkanbuTheme.ink)
-            }
+            TradingViewPane(stock: stock, height: 420)
             PulseStrip(snapshot: pulseSnapshot, compact: false, stock: stock)
         }
     }

@@ -771,4 +771,13 @@ final class ChartMathTests: XCTestCase {
         XCTAssertEqual(store.state.recommendations.first?.signals.count, 2)
         XCTAssertTrue(store.state.recommendations.first?.signals.contains("거래량 급증 2.1배") == true)
     }
+
+    func testAnalysisTagsAreChartReads() {
+        XCTAssertEqual(
+            ChartMath.analysisTags.map(\.label),
+            ["거래량 급증", "RSI 과매도", "RSI 과매수", "이평 돌파", "지지선"]
+        )
+        XCTAssertEqual(ChartMath.tvSymbol(for: StockCatalog.stock(ticker: "NVDA")!), "NASDAQ:NVDA")
+        XCTAssertEqual(ChartMath.tvSymbol(for: StockCatalog.stock(ticker: "005930")!), "KRX:005930")
+    }
 }

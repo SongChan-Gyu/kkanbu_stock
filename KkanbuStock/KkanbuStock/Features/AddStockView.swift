@@ -134,12 +134,19 @@ struct ChartPricePickerView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("언제 샀나요?")
                     .font(.largeTitle.bold())
                     .padding(.horizontal)
-                Text("차트를 눌러 그날 캔들 종가를 고르세요. 정확한 값은 아래에서 고쳐도 돼요. 데모 시세입니다.")
+                Text("위는 트레이딩뷰 실세입니다. 거래량과 RSI가 같이 열립니다. 아래 캔들을 눌러 매수 기록용 종가를 고르세요. 두 가격은 다를 수 있습니다.")
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                TradingViewPane(stock: stock, height: 360)
+                    .padding(.horizontal)
+                Text("매수 기록용")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.muted)
                     .padding(.horizontal)
                 Chart(store.history(for: stock, days: 40)) { point in
                     RuleMark(
@@ -198,11 +205,9 @@ struct ChartPricePickerView: View {
                             .font(.headline)
                         Text(MoneyFormat.price(selected.price, market: stock.market))
                             .font(.system(size: 36, weight: .heavy, design: .rounded))
-                        if let rsi = selectedRSI {
-                            Text("RSI \(Int(rsi.rounded())) · 종가를 매수가로 씁니다.")
-                                .font(.caption)
-                                .foregroundStyle(KkanbuTheme.muted)
-                        }
+                        Text("이 날 종가를 매수가로 씁니다. 위 트레이딩뷰 숫자와 다를 수 있습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.muted)
                     }
                     .padding(.horizontal)
                 }
@@ -219,7 +224,7 @@ struct ChartPricePickerView: View {
                     dismiss()
                 }
                 .padding()
-                Spacer()
+            }
             }
             .background(KkanbuBackground())
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
@@ -231,13 +236,6 @@ struct ChartPricePickerView: View {
 
     private var parsedOverride: Double? {
         Double(priceText.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "$", with: ""))
-    }
-
-    private var selectedRSI: Double? {
-        guard let selected else { return nil }
-        let pts = store.history(for: stock, days: 40)
-        guard let index = pts.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: selected.date) }) else { return nil }
-        return ChartMath.rsi(closes: pts.map(\.close), endingAt: index)
     }
 
     private func nearest(to date: Date) -> PricePoint? {

@@ -27,6 +27,7 @@ html = f"""<!DOCTYPE html>
     <div id="app"></div>
   </div>
   <div id="toast" class="toast" hidden></div>
+  <script src="https://s3.tradingview.com/tv.js"></script>
   <script>
 {js}
   </script>

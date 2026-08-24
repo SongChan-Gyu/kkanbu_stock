@@ -307,21 +307,13 @@ struct RecommendSheet: View {
                             StockMark(ticker: stock.ticker, name: stock.name, size: 32)
                             Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
                         }
-                        MiniChart(candles: store.history(for: stock, days: 40))
-                        if let rsi = snapshot?.rsi {
-                            Text("RSI \(Int(rsi.rounded())) · 데모 캔들입니다. 트레이딩뷰 실세와 다를 수 있습니다.")
-                                .font(.caption)
-                                .foregroundStyle(KkanbuTheme.faint)
-                        }
-                        if let url = ChartMath.tradingViewURL(for: stock) {
-                            Link("트레이딩뷰에서 보기", destination: url)
-                        }
+                        TradingViewPane(stock: stock, height: 380)
                     }
-                    Section("왜 추천하나요") {
-                        Text("거래량·RSI는 데모 시세로 계산합니다. 켜 둔 태그가 추천에 붙습니다.")
+                    Section("차트에서 본 것") {
+                        Text("트레이딩뷰에서 본 거래량·RSI를 태그로 남깁니다.")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
-                        ForEach(snapshot?.tags ?? []) { tag in
+                        ForEach(ChartMath.analysisTags) { tag in
                             Button {
                                 if selectedTags.contains(tag.label) {
                                     selectedTags.remove(tag.label)
@@ -377,14 +369,9 @@ struct RecommendSheet: View {
                 }
             }
             .onAppear {
-                selectedTags = Set((snapshot?.tags ?? []).filter(\.suggested).map(\.label))
+                selectedTags = []
             }
         }
-    }
-
-    private var snapshot: ChartMath.Snapshot? {
-        guard let stock = store.state.stock(holding.stockId) else { return nil }
-        return ChartMath.snapshot(for: store.history(for: stock, days: 40))
     }
 
     private var friends: [User] {
