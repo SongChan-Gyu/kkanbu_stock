@@ -389,27 +389,39 @@ struct ScreenshotVerifySheet: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var mismatch: (Double, Double)?
 
+    private var isSell: Bool { holding.status == .sold }
+    private var live: Holding { store.state.holding(holding.id) ?? holding }
+    private var targetPrice: Double { live.verificationPrice }
+
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text("친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다.")
+                Text(isSell
+                     ? "매도 체결 캡처로 매도가를 확인합니다. 친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다."
+                     : "친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다.")
                     .foregroundStyle(.secondary)
+                if let stock = store.state.stock(holding.stockId) {
+                    Text("확인할 가격 \(MoneyFormat.price(targetPrice, market: stock.market))")
+                        .font(.subheadline.weight(.semibold))
+                }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("캡처로 인증하기", systemImage: "camera.viewfinder")
+                    Label(isSell ? "매도가 캡처로 인증" : "캡처로 인증하기", systemImage: "camera.viewfinder")
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8))
                 }
                 Button("샘플로 인증 테스트") {
                     if let stock = store.state.stock(holding.stockId) {
-                        let text = "\(stock.ticker)\n\(stock.name)\n평균매입가 \(MoneyFormat.price(holding.averagePrice, market: stock.market))"
+                        let label = isSell ? "매도가" : "평균매입가"
+                        let text = "\(stock.ticker)\n\(stock.name)\n\(label) \(MoneyFormat.price(targetPrice, market: stock.market))"
                         apply(store.analyzeText(text))
                     }
                 }
                 Button("일부러 다른 가격 샘플") {
                     if let stock = store.state.stock(holding.stockId) {
-                        let fake = holding.averagePrice * 1.2
-                        let text = "\(stock.ticker)\n\(stock.name)\n평균매입가 \(MoneyFormat.price(fake, market: stock.market))"
+                        let fake = targetPrice * 1.2
+                        let label = isSell ? "매도가" : "평균매입가"
+                        let text = "\(stock.ticker)\n\(stock.name)\n\(label) \(MoneyFormat.price(fake, market: stock.market))"
                         apply(store.analyzeText(text))
                     }
                 }
@@ -423,8 +435,8 @@ struct ScreenshotVerifySheet: View {
                             Text("시스템이 사기라고 단정하지 않아요.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            PillButton(title: "수정하기") {
-                                store.updateHoldingPrice(id: holding.id, price: mismatch.1)
+                            PillButton(title: "캡처 가격으로 맞추기") {
+                                store.adoptScreenshotPrice(holdingId: holding.id, price: mismatch.1)
                                 dismiss()
                             }
                             PillButton(title: "인증 취소", kind: .secondary) { dismiss() }
@@ -434,7 +446,7 @@ struct ScreenshotVerifySheet: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("캡처 인증")
+            .navigationTitle(isSell ? "매도가 인증" : "캡처 인증")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
             .onChange(of: pickerItem) { _, item in
                 Task { await load(item) }
@@ -443,7 +455,7 @@ struct ScreenshotVerifySheet: View {
     }
 
     private func apply(_ analysis: ScreenshotAnalysisResult) {
-        let before = holding.averagePrice
+        let before = targetPrice
         store.applyScreenshotVerification(holdingId: holding.id, analysis: analysis)
         if store.state.holding(holding.id)?.verificationState == .mismatch, let ocr = analysis.recognizedPrice {
             mismatch = (before, ocr)

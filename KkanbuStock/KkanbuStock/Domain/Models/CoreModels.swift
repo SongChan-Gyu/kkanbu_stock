@@ -118,6 +118,7 @@ enum VerificationState: String, Codable, Sendable {
     case screenshotVerified
     case suspected
     case mismatch
+    case needsReview
 }
 
 struct Holding: Identifiable, Codable, Hashable, Sendable {
@@ -169,6 +170,10 @@ struct Holding: Identifiable, Codable, Hashable, Sendable {
         self.firedEventKeys = firedEventKeys
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    var verificationPrice: Double {
+        status == .sold ? (sellPrice ?? averagePrice) : averagePrice
     }
 
     func returnRate(currentPrice: Double) -> Double {

@@ -165,13 +165,18 @@ final class AppStore {
 
     func sellHolding(id: UUID, sellPrice: Double, sellDate: Date) {
         guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        guard sellPrice > 0 else {
+            lastError = "매도가를 확인해 주세요."
+            return
+        }
         let before = state
         state.holdings[index].status = .sold
         state.holdings[index].sellPrice = sellPrice
         state.holdings[index].sellDate = sellDate
         state.holdings[index].updatedAt = Date()
+        markNeedsReview(at: index)
         emit(.holdingSold(holdingId: id), before: before)
-        toast = "매도 처리됨"
+        toast = "매도 처리됨. 매도가 인증을 남겨 주세요."
     }
 
     func updateHoldingPrice(id: UUID, price: Double, quantity: Double? = nil) {
@@ -180,17 +185,21 @@ final class AppStore {
             lastError = "평단을 확인해 주세요."
             return
         }
+        let holding = state.holdings[index]
+        let qtyChanged = quantity.map { $0 > 0 && $0 != holding.quantity } ?? false
+        guard abs(holding.averagePrice - price) > 0.0001 || qtyChanged else {
+            toast = "바꿀 값이 없습니다."
+            return
+        }
         let before = state
         state.holdings[index].averagePrice = price
         if let quantity, quantity > 0 {
             state.holdings[index].quantity = quantity
         }
         state.holdings[index].updatedAt = Date()
-        if state.holdings[index].verificationState == .mismatch {
-            state.holdings[index].verificationState = .unverified
-        }
+        markNeedsReview(at: index)
         emit(.priceEdited(holdingId: id), before: before)
-        toast = "평단을 고쳤습니다"
+        toast = "평단을 고쳤습니다. 다시 인증해 주세요."
     }
 
     func addToPosition(id: UUID, addPrice: Double, addQuantity: Double, existingQuantity: Double? = nil) {
@@ -211,15 +220,29 @@ final class AppStore {
         state.holdings[index].averagePrice = avg
         state.holdings[index].quantity = oldQty + addQuantity
         state.holdings[index].updatedAt = Date()
-        if state.holdings[index].verificationState == .mismatch {
-            state.holdings[index].verificationState = .unverified
-        }
+        markNeedsReview(at: index)
         emit(.priceEdited(holdingId: id), before: before)
         if let stock = state.stock(holding.stockId) {
-            toast = "평단 \(MoneyFormat.price(avg, market: stock.market))로 바꿨습니다"
+            toast = "평단 \(MoneyFormat.price(avg, market: stock.market))로 바꿨습니다. 다시 인증해 주세요."
         } else {
-            toast = "평단을 고쳤습니다"
+            toast = "평단을 고쳤습니다. 다시 인증해 주세요."
         }
+    }
+
+    func adoptScreenshotPrice(holdingId: UUID, price: Double) {
+        guard let index = state.holdings.firstIndex(where: { $0.id == holdingId }) else { return }
+        guard price > 0 else { return }
+        let before = state
+        if state.holdings[index].status == .sold {
+            state.holdings[index].sellPrice = price
+        } else {
+            state.holdings[index].averagePrice = price
+        }
+        state.holdings[index].verificationState = .screenshotVerified
+        state.holdings[index].inputMethod = .screenshot
+        state.holdings[index].updatedAt = Date()
+        emit(.verified(holdingId: holdingId, matched: true), before: before)
+        toast = "캡처 가격으로 맞추고 인증했습니다"
     }
 
     func recommend(holding: Holding, to userId: UUID, message: String) {
@@ -394,13 +417,15 @@ final class AppStore {
                 state.holdings[index].inputMethod = .screenshot
             }
             emit(.verified(holdingId: holdingId, matched: true), before: before)
-            toast = "캡처 인증 완료"
+            toast = holding.status == .sold ? "매도가 인증 완료" : "캡처 인증 완료"
         } else {
             if let index = state.holdings.firstIndex(where: { $0.id == holdingId }) {
                 state.holdings[index].verificationState = .mismatch
             }
             emit(.verified(holdingId: holdingId, matched: false), before: before)
-            lastError = "입력한 매수가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
+            lastError = holding.status == .sold
+                ? "입력한 매도가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
+                : "입력한 매수가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
         }
     }
 
@@ -618,7 +643,14 @@ final class AppStore {
         let suspects = state.holdings.filter { $0.userId == userId && ($0.verificationState == .suspected || $0.verificationState == .mismatch) }.map {
             InboxItem(id: $0.id, kind: .suspect, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
         }
-        return (recs + proposals + Array(nags) + suspects).sorted { $0.date > $1.date }
+        let reviews = state.holdings.filter { $0.userId == userId && $0.verificationState == .needsReview }.map {
+            InboxItem(id: $0.id, kind: .reverify, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
+        }
+        return (recs + proposals + Array(nags) + suspects + reviews).sorted { $0.date > $1.date }
+    }
+
+    private func markNeedsReview(at index: Int) {
+        state.holdings[index].verificationState = .needsReview
     }
 
     private func completeCoBuysIfNeeded(userId: UUID, stockId: UUID) -> [Trigger] {
@@ -759,7 +791,7 @@ final class AppStore {
 }
 
 struct InboxItem: Identifiable {
-    enum Kind { case recommend, proposal, suspect, nag, cobuyRegister }
+    enum Kind { case recommend, proposal, suspect, nag, cobuyRegister, reverify }
     var id: UUID
     var kind: Kind
     var date: Date

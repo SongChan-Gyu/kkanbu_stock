@@ -155,7 +155,7 @@ struct AverageEditSheet: View {
                         }
                     }
                     Section("추매") {
-                        Text("더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 현재가로 채우지 않습니다.")
+                        Text("더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 현재가로 채우지 않습니다. 반영하면 인증이 풀리고, 캡처로 다시 인증합니다.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         TextField(stock.market == .krx ? "추가 매수가 예: 72300" : "추가 매수가 예: 163.40", text: $addPriceText)
@@ -266,7 +266,7 @@ struct SellSheet: View {
                     TextField("매도가", text: $priceText)
                         .keyboardType(.decimalPad)
                     DatePicker("매도일", selection: $date, displayedComponents: .date)
-                    Text("매도해도 기록은 남아요. 혼자 튐, 선견지명, 너무 일찍 튐 같은 사건이 여기서 시작됩니다.")
+                    Text("매도해도 기록은 남아요. 혼자 튐, 선견지명, 너무 일찍 튐 같은 사건이 여기서 시작됩니다. 매도가도 캡처로 인증해 주세요. 현재가로 채우지 않습니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -276,14 +276,15 @@ struct SellSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("매도 처리") {
-                        let value = Double(priceText.replacingOccurrences(of: ",", with: "")) ?? store.price(for: holding.stockId)
+                        guard let value = Double(priceText.replacingOccurrences(of: ",", with: "")), value > 0 else { return }
                         store.sellHolding(id: holding.id, sellPrice: value, sellDate: date)
                         dismiss()
                     }
+                    .disabled((Double(priceText.replacingOccurrences(of: ",", with: "")) ?? 0) <= 0)
                 }
             }
             .onAppear {
-                priceText = String(format: "%.2f", store.price(for: holding.stockId))
+                priceText = ""
             }
         }
     }

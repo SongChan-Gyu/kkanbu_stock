@@ -38,6 +38,17 @@ final class StockTextParserTests: XCTestCase {
         XCTAssertEqual(result.recognizedPrice, 198.20, accuracy: 0.01)
     }
 
+    func testSellPriceLabel() {
+        let result = parser.analyze(
+            text: "NVDA\nNVIDIA\n매도가 $180.00",
+            catalog: catalog,
+            now: Date()
+        )
+        XCTAssertEqual(result.matchedStock?.ticker, "NVDA")
+        XCTAssertEqual(result.recognizedPrice, 180.00, accuracy: 0.01)
+        XCTAssertGreaterThanOrEqual(result.priceConfidence, 0.9)
+    }
+
     func testLowConfidenceWithoutMatch() {
         let result = parser.analyze(text: "hello world 123", catalog: catalog, now: Date())
         XCTAssertNil(result.matchedStock)
@@ -538,6 +549,58 @@ final class AppStoreFlowTests: XCTestCase {
         store.updateHoldingPrice(id: id, price: 180, quantity: 3)
         XCTAssertEqual(store.state.holding(id)?.averagePrice ?? 0, 180, accuracy: 0.01)
         XCTAssertEqual(store.state.holding(id)?.quantity ?? 0, 3, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertTrue(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify && $0.holding?.id == id })
+    }
+
+    func testPriceEditAndSellRequireVerificationAgain() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-reverify-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(
+            stock: nvda,
+            averagePrice: 163.4,
+            quantity: 1,
+            purchaseDate: Date(),
+            method: .screenshot,
+            verification: .screenshotVerified
+        )
+        let id = store.state.activeHoldings(of: store.state.currentUserId)[0].id
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+
+        store.addToPosition(id: id, addPrice: 140, addQuantity: 1)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertTrue(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify })
+
+        let match = store.analyzeText("NVDA\nNVIDIA\n평균매입가 $151.70")
+        store.applyScreenshotVerification(holdingId: id, analysis: match)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+        XCTAssertFalse(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify })
+
+        store.updateHoldingPrice(id: id, price: 155)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+
+        store.sellHolding(id: id, sellPrice: 180, sellDate: Date())
+        XCTAssertEqual(store.state.holding(id)?.status, .sold)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertEqual(store.toast, "매도 처리됨. 매도가 인증을 남겨 주세요.")
+
+        let sellMatch = store.analyzeText("NVDA\nNVIDIA\n매도가 $180.00")
+        store.applyScreenshotVerification(holdingId: id, analysis: sellMatch)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+        XCTAssertTrue(store.state.events.contains { $0.type == .screenshotVerified && $0.message.contains("매도가") })
+
+        store.applyScreenshotVerification(
+            holdingId: id,
+            analysis: store.analyzeText("NVDA\nNVIDIA\n매도가 $210.00")
+        )
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .mismatch)
+        store.adoptScreenshotPrice(holdingId: id, price: 210)
+        XCTAssertEqual(store.state.holding(id)?.sellPrice ?? 0, 210, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
     }
 }
 

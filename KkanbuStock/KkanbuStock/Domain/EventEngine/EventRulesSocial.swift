@@ -187,6 +187,7 @@ struct VerificationRule: EventRule {
         case let .verified(holdingId, matched):
             guard let holding = context.after.holding(holdingId) else { return [] }
             let type: EventType = matched ? (holding.suspicionCount > 0 ? .verificationSuccess : .screenshotVerified) : .verificationMismatch
+            let isSell = holding.status == .sold
             let title: String
             let message: String
             switch type {
@@ -194,11 +195,15 @@ struct VerificationRule: EventRule {
                 title = "의혹 해명"
                 message = "\(context.after.nickname(holding.userId))가 캡처 인증으로 구라핑 의혹을 깔끔하게 해명했습니다."
             case .screenshotVerified:
-                title = "매수가 인증"
-                message = "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매수가를 인증했습니다."
+                title = isSell ? "매도가 인증" : "매수가 인증"
+                message = isSell
+                    ? "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매도가를 인증했습니다."
+                    : "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 매수가를 인증했습니다."
             default:
                 title = "정보 불일치"
-                message = "\(context.after.nickname(holding.userId))의 입력 정보와 캡처 정보가 다릅니다. 사기라고 단정하지 않고, 확인이 필요하다는 뜻이에요."
+                message = isSell
+                    ? "\(context.after.nickname(holding.userId))의 매도가와 캡처 정보가 다릅니다. 사기라고 단정하지 않고, 확인이 필요하다는 뜻이에요."
+                    : "\(context.after.nickname(holding.userId))의 입력 정보와 캡처 정보가 다릅니다. 사기라고 단정하지 않고, 확인이 필요하다는 뜻이에요."
             }
             return context.after.groups(for: holding.userId).map { group in
                 FeedEvent(
@@ -221,7 +226,7 @@ struct VerificationRule: EventRule {
                     stockId: holding.stockId,
                     holdingId: holding.id,
                     title: "평단 수정",
-                    message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 평단을 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))로 고쳤습니다."
+                    message: "\(context.after.nickname(holding.userId))가 \(context.stockName(holding.stockId)) 평단을 \(MoneyFormat.price(holding.averagePrice, market: context.after.stock(holding.stockId)?.market ?? .nasdaq))로 고쳤습니다. 인증이 풀렸습니다."
                 )
             }
         default:

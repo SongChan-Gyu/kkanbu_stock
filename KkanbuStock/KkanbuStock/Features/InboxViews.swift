@@ -113,10 +113,21 @@ struct InboxActionCard: View {
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
             }
-        case .suspect:
+        case .suspect, .reverify:
             if let holding = item.holding, let stock = store.state.stock(holding.stockId) {
+                let isSell = holding.status == .sold
+                let title: String
+                if item.kind == .reverify {
+                    title = isSell ? "매도가 인증" : "평단 재인증"
+                } else {
+                    title = "매수가 확인 요청"
+                }
+                let price = MoneyFormat.price(holding.verificationPrice, market: stock.market)
+                let blurb = isSell
+                    ? "\(price)에 판 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다."
+                    : "\(price)에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다."
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("매수가 확인 요청")
+                    Text(title)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
                     HStack(spacing: 10) {
@@ -129,10 +140,10 @@ struct InboxActionCard: View {
                                 .foregroundStyle(KkanbuTheme.faint)
                         }
                     }
-                    Text("\(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.")
+                    Text(blurb)
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "캡처로 인증") { onVerify(holding) }
+                    QuietButton(title: isSell ? "매도가 인증" : "캡처로 인증") { onVerify(holding) }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }

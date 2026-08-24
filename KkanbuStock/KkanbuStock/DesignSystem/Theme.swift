@@ -630,6 +630,11 @@ struct HoldingCardView: View {
                     .font(.caption)
                     .foregroundStyle(KkanbuTheme.faint)
             }
+            if holding.verificationState == .needsReview {
+                Text(holding.status == .sold ? "매도가 인증이 필요합니다" : "평단을 고쳐서 다시 인증이 필요합니다")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.muted)
+            }
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
                     small("친구에게 추천", action: onRecommend)
@@ -637,7 +642,7 @@ struct HoldingCardView: View {
                     small("매도", action: onSell)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {
-                    small("캡처 인증", action: onVerify)
+                    small(holding.status == .sold ? "매도가 인증" : "캡처 인증", action: onVerify)
                 }
             }
         }

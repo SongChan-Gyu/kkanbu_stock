@@ -546,6 +546,9 @@ function inbox() {
   state.holdings.filter((h) => h.userId === me && (h.verification === "suspected" || h.verification === "mismatch")).forEach((h) => {
     items.push({ kind: "suspect", holding: h });
   });
+  state.holdings.filter((h) => h.userId === me && h.verification === "needsReview").forEach((h) => {
+    items.push({ kind: "reverify", holding: h });
+  });
   return items;
 }
 
@@ -579,9 +582,9 @@ function addToPosition(id) {
     toast("추가 매수가와 수량을 적거나, 새 평단을 적어 주세요.");
     return;
   }
-  if (h.verification === "mismatch") h.verification = "unverified";
-  pushEvent("평단 수정", `${nickname(state.me.id)}가 ${s.name} 평단을 ${formatPrice(h.averagePrice, s.market)}로 고쳤습니다.`, "rec", state.me.id, h.stockId);
-  toast("평단 " + formatPrice(h.averagePrice, s.market) + "로 바꿨습니다");
+  h.verification = "needsReview";
+  pushEvent("평단 수정", `${nickname(state.me.id)}가 ${s.name} 평단을 ${formatPrice(h.averagePrice, s.market)}로 고쳤습니다. 인증이 풀렸습니다.`, "rec", state.me.id, h.stockId);
+  toast("평단 " + formatPrice(h.averagePrice, s.market) + "로 바꿨습니다. 다시 인증해 주세요.");
   state.sheet = null;
   state.addTicker = null;
   state.addPrice = "";
@@ -630,19 +633,53 @@ function sellHolding(id) {
   const h = state.holdings.find((x) => x.id === id);
   if (!h) return;
   const s = stock(h.stockId);
-  const p = priceOf(s);
+  const typed = Number(document.getElementById("sell-price")?.value);
+  if (!(typed > 0)) {
+    toast("내가 판 가격을 적어 주세요. 현재가로 채우지 않습니다.");
+    return;
+  }
+  const p = typed;
   h.status = "sold";
   h.sellPrice = p;
+  h.verification = "needsReview";
   const leftovers = state.holdings.filter((x) => x.stockId === h.stockId && x.status === "holding" && x.userId !== h.userId);
   if (leftovers.length) {
-    pushEvent("혼자 매도", `${s.name}를 매도했습니다. ${nickname(leftovers[0].userId)}는 아직 보유 중.`, "solo");
+    pushEvent("혼자 매도", `${s.name}를 매도했습니다. ${nickname(leftovers[0].userId)}는 아직 보유 중.`, "solo", state.me.id, h.stockId);
     leftovers.forEach((left) => {
-      pushEvent("존버", `${s.name}에서 ${nickname(left.userId)}만 남아 있습니다.`, "diamond", left.userId);
+      pushEvent("존버", `${s.name}에서 ${nickname(left.userId)}만 남아 있습니다.`, "diamond", left.userId, h.stockId);
     });
   } else {
-    pushEvent("매도", `${s.name}를 매도했습니다.`, "solo");
+    pushEvent("매도", `${s.name}를 매도했습니다.`, "solo", state.me.id, h.stockId);
   }
-  toast("매도 처리됨");
+  toast("매도 처리됨. 매도가 인증을 남겨 주세요.");
+  state.sheet = null;
+  render();
+}
+
+function verify(holdingId, mode) {
+  const h = state.holdings.find((x) => x.id === holdingId);
+  if (!h) return;
+  const s = stock(h.stockId);
+  const isSell = h.status === "sold";
+  const label = isSell ? "매도가" : "매수가";
+  if (mode === "mismatch") {
+    h.verification = "mismatch";
+    pushEvent("정보 불일치", `${s.name} ${label}와 캡처 정보가 다릅니다.`, "gura", state.me.id, h.stockId);
+    toast("입력과 캡처가 다릅니다. 사기라고 단정하지 않습니다.");
+    render();
+    return;
+  }
+  if (mode === "adopt") {
+    const next = Number(document.getElementById("verify-ocr")?.value);
+    if (next > 0) {
+      if (isSell) h.sellPrice = next;
+      else h.averagePrice = next;
+    }
+  }
+  h.verification = "screenshot";
+  pushEvent(isSell ? "매도가 인증" : "인증", `${s.name} ${label}를 인증했습니다.`, "shot", state.me.id, h.stockId);
+  toast(isSell ? "매도가 인증 완료" : "캡처 인증 완료");
+  state.sheet = null;
   render();
 }
 
@@ -746,15 +783,6 @@ function suspect(holdingId) {
   render();
 }
 
-function verify(holdingId) {
-  const h = state.holdings.find((x) => x.id === holdingId);
-  h.verification = "screenshot";
-  pushEvent("인증", `${stock(h.stockId).name} 매수가를 인증했습니다.`, "shot");
-  toast("캡처 인증 완료");
-  state.sheet = null;
-  render();
-}
-
 function shock(ticker, pct) {
   stock(ticker).offset += pct;
   toast("시세가 반영되었습니다");
@@ -830,12 +858,17 @@ function holdingRow(h, isMine) {
   let actions = "";
   if (isMine && h.status === "holding") {
     actions = sm("친구에게 추천", `open-rec:${h.id}`) + sm("추매", `addon:${h.id}`) + sm("매도", `sell:${h.id}`);
-    if (h.verification !== "screenshot") actions += sm("캡처 인증", `verify:${h.id}`);
+  }
+  if (isMine && h.verification !== "screenshot") {
+    actions += sm(h.status === "sold" ? "매도가 인증" : "캡처 인증", `verify:${h.id}`);
   }
   const partnerLine = partners.length && g
     ? `${esc(partners.join(" · "))}와 <span class="grade ${g.kick}">${esc(g.title)}</span>`
     : "";
-  const suspect = h.verification === "suspected" ? `<div class="caption">매수가 의심 중</div>` : "";
+  const suspect = h.verification === "suspected" ? `<div class="caption">매수가 의심 중</div>`
+    : h.verification === "needsReview"
+      ? `<div class="caption">${h.status === "sold" ? "매도가 인증이 필요합니다" : "평단을 고쳐서 다시 인증이 필요합니다"}</div>`
+      : "";
   return `
     <div class="row">
       ${stockMark(s)}
@@ -917,11 +950,17 @@ function inboxBlock(item) {
       ${threadBtn(s.id)}
     </div>`;
   }
-  if (item.kind === "suspect") {
+  if (item.kind === "suspect" || item.kind === "reverify") {
     const h = item.holding;
     const s = stock(h.stockId);
+    const isSell = h.status === "sold";
+    const title = item.kind === "reverify" ? (isSell ? "매도가 인증" : "평단 재인증") : "매수가 확인 요청";
+    const price = isSell ? (h.sellPrice || h.averagePrice) : h.averagePrice;
+    const blurb = isSell
+      ? `${formatPrice(price, s.market)}에 판 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.`
+      : `${formatPrice(price, s.market)}에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.`;
     return `<div class="action-block">
-      <div class="kind">매수가 확인 요청</div>
+      <div class="kind">${title}</div>
       <div class="row" style="border:0;padding:0 0 8px">
         ${stockMark(s, "sm")}
         <div class="grow">
@@ -929,8 +968,8 @@ function inboxBlock(item) {
           <div class="ticker">${esc(s.ticker)}</div>
         </div>
       </div>
-      <p class="caption">${formatPrice(h.averagePrice, s.market)}에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.</p>
-      ${btn("캡처로 인증", "primary", `verify:${h.id}`)}
+      <p class="caption">${blurb}</p>
+      ${btn(isSell ? "매도가 인증" : "캡처로 인증", "primary", `verify:${h.id}`)}
     </div>`;
   }
   return "";
@@ -1222,7 +1261,7 @@ function sheetHTML() {
     const avgVal = String(s.market === "krx" ? Math.round(h.averagePrice) : h.averagePrice);
     return sheetWrap(`
       <h2>추매 · 평단</h2>
-      <p class="note">더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 평단만 고쳐도 됩니다. 현재가로 채우지 않습니다.</p>
+      <p class="note">더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 평단만 고쳐도 됩니다. 현재가로 채우지 않습니다. 반영하면 인증이 풀리고, 캡처로 다시 인증합니다.</p>
       <div class="row" style="border:0;padding:0 0 8px">
         ${stockMark(s)}
         <div class="grow">
@@ -1242,6 +1281,56 @@ function sheetHTML() {
       <label>수량 (선택)</label>
       <input id="new-qty" type="number" step="0.0001" value="${h.quantity ? esc(String(h.quantity)) : ""}" />
       ${btn("반영", "primary full", "do-addon")}
+      <div style="height:8px"></div>
+      ${btn("닫기", "secondary full", "close")}
+    `);
+  }
+  if (state.sheet.startsWith("sell:")) {
+    const hid = state.sheet.split(":")[1];
+    const h = state.holdings.find((x) => x.id === hid);
+    const s = h ? stock(h.stockId) : null;
+    if (!h || !s) return "";
+    const quote = formatPrice(priceOf(s), s.market);
+    return sheetWrap(`
+      <h2>매도하기</h2>
+      <p class="note">매도해도 기록은 남아요. 매도가도 캡처로 인증해 주세요. 현재가로 자동 체결하지 않습니다.</p>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+          <div class="meta">지금 시세 ${quote} · 데모 시세입니다</div>
+        </div>
+      </div>
+      <label>매도가</label>
+      <input id="sell-price" type="number" step="0.01" placeholder="내가 판 가격" />
+      ${btn("매도 처리", "primary full", "do-sell")}
+      <div style="height:8px"></div>
+      ${btn("닫기", "secondary full", "close")}
+    `);
+  }
+  if (state.sheet.startsWith("verify:")) {
+    const hid = state.sheet.split(":")[1];
+    const h = state.holdings.find((x) => x.id === hid);
+    const s = h ? stock(h.stockId) : null;
+    if (!h || !s) return "";
+    const isSell = h.status === "sold";
+    const target = isSell ? (h.sellPrice || h.averagePrice) : h.averagePrice;
+    const fake = Math.round(target * 120) / 100;
+    const mismatch = h.verification === "mismatch";
+    return sheetWrap(`
+      <h2>${isSell ? "매도가 인증" : "캡처 인증"}</h2>
+      <p class="note">${isSell ? "매도 체결 캡처로 매도가를 확인합니다. " : ""}친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다. 웹 데모는 샘플로 확인합니다.</p>
+      <div class="row" style="border:0;padding:0 0 8px">
+        ${stockMark(s)}
+        <div class="grow">
+          <div class="stock-name">${esc(s.name)}</div>
+          <div class="meta">확인할 가격 ${formatPrice(target, s.market)}</div>
+        </div>
+      </div>
+      ${btn("샘플로 인증 테스트", "primary full", `do-verify:${hid}:ok`)}
+      <div style="height:8px"></div>
+      ${btn("일부러 다른 가격 샘플", "secondary full", `do-verify:${hid}:mismatch`)}
+      ${mismatch ? `<input type="hidden" id="verify-ocr" value="${fake}" /><p class="caption">입력과 캡처가 다릅니다. 사기라고 단정하지 않습니다.</p>${btn("캡처 가격으로 맞추기", "primary full", `do-verify:${hid}:adopt`)}` : ""}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
     `);
@@ -1533,8 +1622,18 @@ function handle(act) {
     addToPosition(id);
     return;
   }
-  if (act.startsWith("sell:")) return sellHolding(act.split(":")[1]);
-  if (act.startsWith("verify:")) return verify(act.split(":")[1]);
+  if (act.startsWith("sell:")) { openSheet(act); return; }
+  if (act === "do-sell") {
+    const id = (state.sheet || "").split(":")[1];
+    sellHolding(id);
+    return;
+  }
+  if (act.startsWith("verify:")) { openSheet(act); return; }
+  if (act.startsWith("do-verify:")) {
+    const parts = act.split(":");
+    verify(parts[1], parts[2]);
+    return;
+  }
   if (act.startsWith("suspect:")) return suspect(act.split(":")[1]);
   if (act.startsWith("open-rec:")) { openSheet(act); return; }
   if (act.startsWith("open-prop")) { openSheet(act); return; }
