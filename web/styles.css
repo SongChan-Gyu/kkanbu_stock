@@ -943,7 +943,9 @@ label {
   align-items: center;
   justify-content: center;
   margin: 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--text-3);
+  background: var(--chip);
+  color: var(--text);
   font-size: 15px;
   font-weight: 600;
 }
