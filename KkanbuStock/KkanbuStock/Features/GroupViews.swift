@@ -85,17 +85,10 @@ struct GroupHomeView: View {
                         friendsStocks
                     }
                 }
-                FoldSection(title: "활동", count: eventCount, preview: feedPreview, isOpen: openBinding("feed")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        hero
-                        feed
-                    }
-                }
             }
             .padding(16)
             .padding(.bottom, 24)
         }
-        .animation(.spring(duration: 0.45), value: store.state.events.first?.id)
         .sheet(isPresented: $showRank) { RankingsView(group: group) }
         .sheet(isPresented: $showAdd) { AddStockView() }
         .sheet(isPresented: $showPropose) { ProposalSheet() }
@@ -130,12 +123,6 @@ struct GroupHomeView: View {
     private var friendCount: Int {
         GroupSocial.memberHoldings(in: group.id, state: store.state)
             .filter { $0.1.status == .holding && $0.0.id != store.state.currentUserId }.count
-    }
-    private var eventCount: Int {
-        store.state.events.filter { $0.groupId == group.id }.count
-    }
-    private var feedPreview: String? {
-        store.state.events.first(where: { $0.groupId == group.id })?.title
     }
 
     private var header: some View {
@@ -239,26 +226,6 @@ struct GroupHomeView: View {
         store.pulseSnapshot(for: stock, in: group.id)
     }
 
-    private var hero: some View {
-        let spicy = GroupSocial.spicyEvents(in: group.id, state: store.state)
-        return Group {
-            if let event = spicy.first {
-                KkanbuCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("지금")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(KkanbuTheme.muted)
-                        EventRow(
-                            event: event,
-                            relative: MoneyFormat.relative(event.createdAt),
-                            actorName: event.actorId.map { store.state.nickname($0) } ?? ""
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     private var members: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
@@ -347,24 +314,6 @@ struct GroupHomeView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                }
-            }
-        }
-    }
-
-    private var feed: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            let events = store.state.events.filter { $0.groupId == group.id }
-            if events.isEmpty {
-                EmptyStateView(title: "아직 기록이 없습니다", message: "주식을 넣거나 친구를 초대하면 시작됩니다.")
-            } else {
-                ForEach(Array(events.prefix(12))) { event in
-                    EventRow(
-                        event: event,
-                        relative: MoneyFormat.relative(event.createdAt),
-                        actorName: event.actorId.map { store.state.nickname($0) } ?? "",
-                                onTap: event.opensRecommendationThread ? event.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
-                    )
                 }
             }
         }

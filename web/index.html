@@ -2081,8 +2081,6 @@ function renderGroup() {
         })()) : ""}
 
       ${friendsHoldings.length ? foldSection("friends", "친구 주식", friendsHoldings.length, "", `<div class="row-list">${friendsHoldings.map((h) => holdingRow(h, false)).join("")}</div>`) : ""}
-
-      ${foldSection("feed", "활동", state.events.length, state.events[0]?.title || "", state.events.length ? state.events.slice(0, 12).map(eventRow).join("") : `<p class="empty">아직 기록이 없습니다.</p>`)}
     </div>`;
 }
 
@@ -2109,16 +2107,18 @@ function renderHoldings() {
 
 function renderActivity() {
   const mine = inbox();
-  const recs = state.recs.filter((r) => r.senderId === state.me.id || r.receiverId === state.me.id);
-  const recStatus = { pending: "대기", willBuy: "매수 예정", accepted: "매수 기록", rejected: "거절" };
+  const events = state.events || [];
+  const spicy = events.find((e) => /황금|최악|공동묘지|혼자|선견|존버/.test(e.title));
+  const rest = events.filter((e) => e !== spicy);
+  const feed = rest.length
+    ? rest.map(eventRow).join("")
+    : (spicy ? "" : `<p class="empty">아직 기록이 없습니다.</p>`);
   return `<div class="screen">
     <div class="page-title">활동</div>
-    <p class="page-sub">추천과 매수 제안</p>
+    <p class="page-sub">나를 향한 일과 그룹 기록</p>
     ${mine.length ? `<div class="row-list">${mine.map(inboxBlock).join("")}</div>` : emptyStateHTML("대기 중인 일이 없습니다", "추천이나 매수 제안이 오면 여기에 모입니다.")}
-    <div class="section">
-      <div class="section-title">추천 기록</div>
-      ${recs.length ? recs.map((r) => `<div class="pair-row">${stockMark(stock(r.stockId), "sm")}<div class="grow"><div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div><div class="stock">${esc(stock(r.stockId).name)} · ${recStatus[r.status] || r.status}</div></div></div>`).join("") : `<p class="empty">기록이 없습니다.</p>`}
-    </div>
+    ${spicy ? `<div class="section"><div class="section-title">지금</div>${eventRow(spicy)}</div>` : ""}
+    ${feed ? `<div class="section"><div class="section-title">최근 기록</div>${feed}</div>` : ""}
   </div>`;
 }
 

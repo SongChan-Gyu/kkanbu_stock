@@ -27,17 +27,38 @@ struct ActivityView: View {
                                 onOpenThread: { threadStock = $0 }
                             )
                         }
-                        Text("최근 기록")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(KkanbuTheme.muted)
-                            .padding(.top, 8)
-                        ForEach(Array(store.state.events.prefix(20))) { event in
+                        if let spicy = spicyEvent {
+                            Text("지금")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(KkanbuTheme.muted)
+                                .padding(.top, 8)
                             EventRow(
-                                event: event,
-                                relative: MoneyFormat.relative(event.createdAt),
-                                actorName: event.actorId.map { store.state.nickname($0) } ?? "",
-                                onTap: event.opensRecommendationThread ? event.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
+                                event: spicy,
+                                relative: MoneyFormat.relative(spicy.createdAt),
+                                actorName: spicy.actorId.map { store.state.nickname($0) } ?? "",
+                                onTap: spicy.opensRecommendationThread ? spicy.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
                             )
+                        }
+                        let rest = groupEvents.filter { $0.id != spicyEvent?.id }
+                        if !rest.isEmpty {
+                            Text("최근 기록")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(KkanbuTheme.muted)
+                                .padding(.top, 8)
+                            ForEach(rest) { event in
+                                EventRow(
+                                    event: event,
+                                    relative: MoneyFormat.relative(event.createdAt),
+                                    actorName: event.actorId.map { store.state.nickname($0) } ?? "",
+                                    onTap: event.opensRecommendationThread ? event.stockId.flatMap { store.state.stock($0) }.map { stock in { threadStock = stock } } : nil
+                                )
+                            }
+                        } else if spicyEvent == nil {
+                            Text("최근 기록")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(KkanbuTheme.muted)
+                                .padding(.top, 8)
+                            EmptyStateView(title: "아직 기록이 없습니다", message: "주식을 넣거나 친구를 초대하면 시작됩니다.")
                         }
                     }
                     .padding(16)
@@ -49,6 +70,16 @@ struct ActivityView: View {
             .sheet(item: $addPrefill) { AddStockView(prefill: $0) }
             .sheet(item: $threadStock) { RecommendationThreadView(stock: $0) }
         }
+    }
+
+    private var groupEvents: [FeedEvent] {
+        guard let groupId = store.state.selectedGroupId else { return store.state.events }
+        return store.state.events.filter { $0.groupId == groupId }
+    }
+
+    private var spicyEvent: FeedEvent? {
+        guard let groupId = store.state.selectedGroupId else { return nil }
+        return GroupSocial.spicyEvents(in: groupId, state: store.state).first
     }
 }
 
