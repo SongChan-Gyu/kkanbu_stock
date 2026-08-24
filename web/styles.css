@@ -933,8 +933,16 @@ label {
 .composer-attach {
   display: flex;
   gap: 8px;
+  align-items: stretch;
+  margin: 0 0 12px;
+}
+.composer-attach .btn {
+  flex: 1;
+  min-height: 48px;
+  display: flex;
   align-items: center;
-  margin: 0 0 10px;
+  justify-content: center;
+  margin: 0;
 }
 .composer-file {
   position: relative;

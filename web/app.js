@@ -963,10 +963,10 @@ function emptyStateHTML(title, message) {
   return `<div class="empty-state">${brandMark()}<div class="empty-title">${esc(title)}</div><p class="empty-msg">${esc(message)}</p></div>`;
 }
 function btn(label, kind, action) {
-  return `<button class="btn ${kind || "primary"}" data-act="${esc(action)}">${label}</button>`;
+  return `<button type="button" class="btn ${kind || "primary"}" data-act="${esc(action)}">${label}</button>`;
 }
 function sm(label, action) {
-  return `<button class="btn sm" data-act="${esc(action)}">${label}</button>`;
+  return `<button type="button" class="btn sm" data-act="${esc(action)}">${label}</button>`;
 }
 
 function verifyMark(v) {
@@ -1576,9 +1576,9 @@ function sheetHTML() {
       ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 차트 분석 사진이나 한마디를 남겨 보세요.</p>`}
       ${reply ? `<div class="caption">${esc(nickname(reply.authorId))}에게 답글 · <button class="btn text" data-act="cancel-reply">취소</button></div>` : ""}
       ${preview}
-      <div class="composer-attach">
-        <label class="btn sm composer-file">사진<input id="thread-photo" type="file" accept="image/*"></label>
-        ${sm("차트 첨부", "attach-chart")}
+      <div class="composer-attach" id="thread-composer">
+        <label class="btn secondary composer-file">사진 고르기<input id="thread-photo" type="file" accept="image/*"></label>
+        ${btn("차트 첨부", "secondary", "attach-chart")}
       </div>
       <label>${reply ? "답글" : "댓글"}</label>
       <input id="thread-text" placeholder="${reply ? "답글 적기" : "이 종목에 한마디"}" value="${esc(state.threadDraft || "")}" />
@@ -1630,6 +1630,14 @@ function render() {
   root.innerHTML = body + tabs() + sheetHTML() + lightboxHTML();
   bindPager();
   persist();
+  const panel = document.querySelector(".sheet .panel");
+  if (panel && (state.sheet || "").startsWith("thread:") && (state.threadImage || state.replyTo)) {
+    const anchor = document.querySelector(".composer-preview") || document.getElementById("thread-composer");
+    if (anchor) {
+      const delta = anchor.getBoundingClientRect().top - panel.getBoundingClientRect().top - 16;
+      panel.scrollTop = Math.max(0, panel.scrollTop + delta);
+    }
+  }
 }
 
 let sheetGuard = 0;
