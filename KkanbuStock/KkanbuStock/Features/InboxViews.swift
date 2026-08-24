@@ -107,6 +107,7 @@ struct InboxActionCard: View {
                     VStack(spacing: 8) {
                         QuietButton(title: "관심 있음") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "패스", kind: .secondary) { store.declineProposal(proposal.id) }
+                        threadButton(stock)
                     }
                 }
                 .padding(.vertical, 12)
@@ -238,12 +239,15 @@ struct RecommendationThreadView: View {
 
     private var history: some View {
         let recs = groupId.map { store.recommendations(in: $0, stockId: stock.id) } ?? []
+        let proposals = groupId.map { gid in
+            store.state.proposals.filter { $0.groupId == gid && $0.stockId == stock.id }
+        } ?? []
         return VStack(alignment: .leading, spacing: 8) {
-            Text("추천 히스토리")
+            Text("이 종목 이야기")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(KkanbuTheme.muted)
-            if recs.isEmpty {
-                Text("아직 이 종목을 추천한 기록이 없습니다.")
+            if recs.isEmpty && proposals.isEmpty {
+                Text("아직 추천이나 매수 제안이 없습니다.")
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.faint)
             } else {
@@ -255,6 +259,21 @@ struct RecommendationThreadView: View {
                             .font(.footnote)
                             .foregroundStyle(KkanbuTheme.ink)
                         Text("\(rec.status.threadLabel) · \(MoneyFormat.relative(rec.createdAt))")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    .padding(.vertical, 10)
+                    .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                }
+                ForEach(proposals) { proposal in
+                    let promised = store.state.coBuys.filter { $0.proposalId == proposal.id && $0.status != .declined }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(store.state.nickname(proposal.proposerId)) · 매수 제안")
+                            .font(.subheadline.weight(.semibold))
+                        Text("“\(proposal.message)”")
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.ink)
+                        Text("관심 \(promised.count)명 · \(MoneyFormat.relative(proposal.createdAt))")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
                     }
@@ -273,7 +292,7 @@ struct RecommendationThreadView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(KkanbuTheme.muted)
             if items.isEmpty {
-                Text("아직 댓글이 없습니다. 이 추천에 한마디 남겨 보세요.")
+                Text("아직 댓글이 없습니다. 이 종목에 한마디 남겨 보세요.")
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.faint)
                     .padding(.vertical, 8)
@@ -325,7 +344,7 @@ struct RecommendationThreadView: View {
                 }
             }
             HStack(spacing: 8) {
-                TextField(replyTo == nil ? "이 추천에 한마디" : "답글 적기", text: $draft, axis: .vertical)
+                TextField(replyTo == nil ? "이 종목에 한마디" : "답글 적기", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .padding(.vertical, 10)
                 Button("보내기") { send() }

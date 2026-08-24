@@ -70,24 +70,14 @@ struct GroupHomeView: View {
                 members
                 header
                 myTurn
-                if recCount > 0 {
-                    FoldSection(title: "추천 종목", count: recCount, isOpen: openBinding("recs")) {
-                        recommendedThreads
-                    }
-                }
                 if pulseCount > 0 {
-                    FoldSection(title: "종목 평가", count: pulseCount, isOpen: openBinding("mood")) {
+                    FoldSection(title: "종목 평가", count: pulseCount, preview: pulsePreview, isOpen: openBinding("mood")) {
                         todayPulse
                     }
                 }
                 if bondCount > 0 {
                     FoldSection(title: "깐부", count: bondCount, preview: kkPreview, isOpen: openBinding("kk")) {
                         kkangbuStrip
-                    }
-                }
-                if pendingCount > 0 {
-                    FoldSection(title: "매수 제안", count: pendingCount, isOpen: openBinding("pending")) {
-                        pending
                     }
                 }
                 if friendCount > 0 {
@@ -123,13 +113,11 @@ struct GroupHomeView: View {
         )
     }
 
-    private var recCount: Int {
-        Set(store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)).count
-    }
     private var pulseCount: Int {
-        let recIds = store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)
-        let bondIds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).map(\.stockId)
-        return Set(recIds + bondIds).count
+        store.talkedStockIds(in: group.id).count
+    }
+    private var pulsePreview: String? {
+        store.talkedStockIds(in: group.id).first.flatMap { store.state.stock($0)?.name }
     }
     private var bondCount: Int {
         KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).count
@@ -138,9 +126,6 @@ struct GroupHomeView: View {
         let bonds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices)
         let mood = bonds.first(where: { $0.grade.isRoast }) ?? bonds.first(where: { $0.grade.isGlory })
         return mood?.grade.title
-    }
-    private var pendingCount: Int {
-        store.state.proposals.filter { $0.groupId == group.id && $0.status == .open }.count
     }
     private var friendCount: Int {
         GroupSocial.memberHoldings(in: group.id, state: store.state)
@@ -194,73 +179,34 @@ struct GroupHomeView: View {
         }
     }
 
-    private var recommendedThreads: some View {
-        let recs = store.state.recommendations.filter { $0.groupId == group.id }
-        let stockIds = recs.reduce(into: [UUID]()) { result, rec in
-            if !result.contains(rec.stockId) { result.append(rec.stockId) }
-        }
+    private var todayPulse: some View {
+        let ids = store.talkedStockIds(in: group.id)
         return Group {
-            if !stockIds.isEmpty {
+            if !ids.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(stockIds, id: \.self) { stockId in
+                    ForEach(ids, id: \.self) { stockId in
                         if let stock = store.state.stock(stockId) {
-                            let related = recs.filter { $0.stockId == stockId }
+                            let snap = pulse(for: stock)
+                            let caption = stockCaption(for: stockId)
                             let count = store.commentCount(in: group.id, stockId: stockId)
                             VStack(alignment: .leading, spacing: 8) {
                                 Button {
                                     threadStock = stock
                                 } label: {
                                     HStack(alignment: .top, spacing: 12) {
-                                        StockMark(ticker: stock.ticker, name: stock.name, size: 40)
+                                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(stock.name)
                                                 .font(.subheadline.weight(.semibold))
                                                 .foregroundStyle(KkanbuTheme.ink)
-                                            Text(related.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · "))
-                                                .font(.caption)
-                                                .foregroundStyle(KkanbuTheme.muted)
-                                            Text(related.last.map { "“\($0.message)”" } ?? "")
-                                                .font(.caption)
-                                                .foregroundStyle(KkanbuTheme.ink)
+                                            if !caption.isEmpty {
+                                                Text(caption)
+                                                    .font(.caption)
+                                                    .foregroundStyle(KkanbuTheme.muted)
+                                            }
                                         }
                                         Spacer()
                                         CommentCountLabel(count: count)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
-                            }
-                            .padding(.vertical, 10)
-                            .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var todayPulse: some View {
-        let recIds = store.state.recommendations.filter { $0.groupId == group.id }.map(\.stockId)
-        let bondIds = KkangbuMath.bonds(in: group.id, state: store.state, prices: store.currentPrices).map(\.stockId)
-        let ids = (recIds + bondIds).reduce(into: [UUID]()) { result, id in
-            if !result.contains(id) { result.append(id) }
-        }
-        return Group {
-            if !ids.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(ids.prefix(3), id: \.self) { stockId in
-                        if let stock = store.state.stock(stockId) {
-                            let snap = pulse(for: stock)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Button {
-                                    threadStock = stock
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        StockMark(ticker: stock.ticker, name: stock.name, size: 36)
-                                        Text(stock.name)
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(KkanbuTheme.ink)
-                                        Spacer()
                                     }
                                 }
                                 .buttonStyle(.plain)
@@ -273,6 +219,20 @@ struct GroupHomeView: View {
                 }
             }
         }
+    }
+
+    private func stockCaption(for stockId: UUID) -> String {
+        let recs = store.recommendations(in: group.id, stockId: stockId)
+        if let last = recs.last {
+            let arrows = recs.map { "\(store.state.nickname($0.senderId)) → \(store.state.nickname($0.receiverId))" }.joined(separator: " · ")
+            return last.message.isEmpty ? arrows : "\(arrows)\n“\(last.message)”"
+        }
+        let proposals = store.state.proposals.filter { $0.groupId == group.id && $0.stockId == stockId }
+        if let last = proposals.last {
+            let head = "\(store.state.nickname(last.proposerId)) · 매수 제안"
+            return last.message.isEmpty ? head : "\(head)\n“\(last.message)”"
+        }
+        return ""
     }
 
     private func pulse(for stock: Stock) -> StockPulse.Snapshot {
@@ -361,21 +321,6 @@ struct GroupHomeView: View {
         }
     }
 
-    private var pending: some View {
-        let open = store.state.proposals.filter { $0.groupId == group.id && $0.status == .open }
-        return Group {
-            if !open.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(open) { proposal in
-                        ProposalCard(proposal: proposal, onRegister: { stock in
-                            addPrefill = stock
-                        })
-                    }
-                }
-            }
-        }
-    }
-
     private var friendsStocks: some View {
         let rows = GroupSocial.memberHoldings(in: group.id, state: store.state)
             .filter { $0.1.status == .holding && $0.0.id != store.state.currentUserId }
@@ -384,25 +329,22 @@ struct GroupHomeView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(rows.prefix(8), id: \.1.id) { user, holding in
                         if let stock = store.state.stock(holding.stockId) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                NavigationLink {
-                                    FriendDetailView(user: user, group: group)
-                                } label: {
-                                    HoldingCardView(
-                                        stock: stock,
-                                        holding: holding,
-                                        currentPrice: store.price(for: stock.id),
-                                        partners: [],
-                                        grade: nil,
-                                        showsQuantity: user.shareQuantity,
-                                        isMine: false,
-                                        ownerName: user.nickname,
-                                        showsPulse: false
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                PulseStrip(snapshot: store.pulseSnapshot(for: stock, in: group.id), stock: stock)
+                            NavigationLink {
+                                FriendDetailView(user: user, group: group)
+                            } label: {
+                                HoldingCardView(
+                                    stock: stock,
+                                    holding: holding,
+                                    currentPrice: store.price(for: stock.id),
+                                    partners: [],
+                                    grade: nil,
+                                    showsQuantity: user.shareQuantity,
+                                    isMine: false,
+                                    ownerName: user.nickname,
+                                    showsPulse: false
+                                )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

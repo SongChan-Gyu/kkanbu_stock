@@ -472,6 +472,55 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
     }
 
+    func testPromiseCoBuyWritesThreadComment() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-interest-\(UUID().uuidString).json")
+        )
+        store.refreshDerived()
+        let amd = StockCatalog.stock(ticker: "AMD")!
+        let groupId = store.state.groups[0].id
+        let proposal = store.state.proposals.first { $0.stockId == amd.id }!
+        XCTAssertFalse(store.state.comments.contains { $0.stockId == amd.id && $0.body == "관심 있음" })
+
+        store.promiseCoBuy(proposalId: proposal.id)
+        XCTAssertTrue(store.state.coBuys.contains { $0.userId == me.id && $0.proposalId == proposal.id && $0.status == .promised })
+        XCTAssertEqual(
+            store.state.comments.filter { $0.stockId == amd.id && $0.authorId == me.id && $0.body == "관심 있음" }.count,
+            1
+        )
+        XCTAssertEqual(store.toast, "관심을 남겼습니다")
+        XCTAssertNil(store.myTake(in: groupId, stockId: amd.id))
+        XCTAssertTrue(store.talkedStockIds(in: groupId).contains(amd.id))
+        XCTAssertEqual(Set(store.talkedStockIds(in: groupId)).count, store.talkedStockIds(in: groupId).count)
+
+        store.promiseCoBuy(proposalId: proposal.id)
+        XCTAssertEqual(
+            store.state.comments.filter { $0.stockId == amd.id && $0.authorId == me.id && $0.body == "관심 있음" }.count,
+            1
+        )
+    }
+
+    func testTalkedStocksIncludeRecsProposalsAndBondsOnce() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-talked-\(UUID().uuidString).json")
+        )
+        store.refreshDerived()
+        let ids = store.talkedStockIds(in: store.state.groups[0].id)
+        let nvda = StockCatalog.stock(ticker: "NVDA")!.id
+        let amd = StockCatalog.stock(ticker: "AMD")!.id
+        XCTAssertTrue(ids.contains(nvda))
+        XCTAssertTrue(ids.contains(amd))
+        XCTAssertEqual(ids.filter { $0 == nvda }.count, 1)
+    }
+
     func testAddToPositionRecalculatesAverage() {
         let store = AppStore(
             state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),

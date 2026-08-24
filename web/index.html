@@ -1353,13 +1353,13 @@ function seed(state) {
     { id: "cm3", groupId: group.id, stockId: "NVDA", authorId: "minsu", parentId: null, body: "나는 패스ㅋㅋ 물리면 니 탓이다", createdAt: now() - hours(0.5) }
   );
   state.takes.push(
-    { id: "tk-nvda-yh", stockId: "NVDA", userId: "younghee", level: 2 },
-    { id: "tk-nvda-cs", stockId: "NVDA", userId: "cheolsu", level: 1 },
-    { id: "tk-nvda-ms", stockId: "NVDA", userId: "minsu", level: 2 },
-    { id: "tk-aapl-me", stockId: "AAPL", userId: state.me.id, level: 1 },
-    { id: "tk-kakao-ms", stockId: "035720", userId: "minsu", level: -2 },
-    { id: "tk-kakao-jh", stockId: "035720", userId: "junho", level: -1 },
-    { id: "tk-amd-ms", stockId: "AMD", userId: "minsu", level: 1 }
+    { id: "tk-nvda-yh", groupId: group.id, stockId: "NVDA", userId: "younghee", level: 2 },
+    { id: "tk-nvda-cs", groupId: group.id, stockId: "NVDA", userId: "cheolsu", level: 1 },
+    { id: "tk-nvda-ms", groupId: group.id, stockId: "NVDA", userId: "minsu", level: 2 },
+    { id: "tk-aapl-me", groupId: group.id, stockId: "AAPL", userId: state.me.id, level: 1 },
+    { id: "tk-kakao-ms", groupId: group.id, stockId: "035720", userId: "minsu", level: -2 },
+    { id: "tk-kakao-jh", groupId: group.id, stockId: "035720", userId: "junho", level: -1 },
+    { id: "tk-amd-ms", groupId: group.id, stockId: "AMD", userId: "minsu", level: 1 }
   );
   const proposal = {
     id: "p1", groupId: group.id, proposerId: "minsu", stockId: "AMD",
@@ -1376,10 +1376,10 @@ function seed(state) {
   state.events = [
     ev(group.id, "멤버 참여", `${nick}님이 그룹에 참여했습니다.`, now() - 120000, "member", state.me.id),
     ev(group.id, "추천", `영희가 ${nick}에게 NVIDIA를 추천했습니다.`, now() - hours(3), "rec", "younghee", "NVDA"),
-    ev(group.id, "댓글", `철수가 NVIDIA 추천에 댓글을 남겼습니다. “지금 들어가도 늦었나”`, now() - hours(2), "cmt", "cheolsu", "NVDA"),
-    ev(group.id, "대댓글", `${nick}가 NVIDIA 추천에 답글을 남겼습니다. “평단만 적어둘게”`, now() - hours(1), "cmt", state.me.id, "NVDA"),
-    ev(group.id, "매수 제안", `민수가 AMD 매수를 제안했습니다.`, now() - hours(8), "prop", "minsu"),
-    ev(group.id, "매수 제안 · 재요청", `${nick}에게 AMD 매수를 다시 제안했습니다.`, now() - hours(1), "nag", "minsu"),
+    ev(group.id, "댓글", `철수가 NVIDIA에 댓글을 남겼습니다. “지금 들어가도 늦었나”`, now() - hours(2), "cmt", "cheolsu", "NVDA"),
+    ev(group.id, "대댓글", `${nick}가 NVIDIA에 답글을 남겼습니다. “평단만 적어둘게”`, now() - hours(1), "cmt", state.me.id, "NVDA"),
+    ev(group.id, "매수 제안", `민수가 AMD 매수를 제안했습니다.`, now() - hours(8), "prop", "minsu", "AMD"),
+    ev(group.id, "매수 제안 · 재요청", `${nick}에게 AMD 매수를 다시 제안했습니다.`, now() - hours(1), "nag", "minsu", "AMD"),
     ev(group.id, "깐부", `${nick} · 철수 · Apple`, now() - days(14), "kk", state.me.id),
     ev(group.id, "깐부", `철수 · 영희 · NVIDIA`, now() - days(32), "kk", "cheolsu"),
     ev(group.id, "황금 깐부", `철수 · 영희가 NVIDIA 황금 깐부가 되었습니다.`, now() - days(4), "gold", "cheolsu"),
@@ -1600,10 +1600,12 @@ function declineProposal(proposalId) {
 function promiseCoBuy(proposalId) {
   const p = state.proposals.find((x) => x.id === proposalId);
   if (!p) return;
-  if (!state.cobuys.some((c) => c.proposalId === proposalId && c.userId === state.me.id)) {
-    state.cobuys.push({ id: uid(), proposalId, groupId: p.groupId, userId: state.me.id, stockId: p.stockId, status: "promised", nagCount: 0 });
-  }
-  pushEvent("매수 제안", `${stock(p.stockId).name} 매수 제안에 관심을 남겼습니다.`, "prop");
+  const mine = state.cobuys.find((c) => c.proposalId === proposalId && c.userId === state.me.id);
+  if (mine && mine.status === "promised") return;
+  if (mine) mine.status = "promised";
+  else state.cobuys.push({ id: uid(), proposalId, groupId: p.groupId, userId: state.me.id, stockId: p.stockId, status: "promised", nagCount: 0 });
+  addComment(p.stockId, "관심 있음", null, true);
+  pushEvent("관심", `${stock(p.stockId).name} 매수 제안에 관심을 남겼습니다.`, "prop", state.me.id, p.stockId);
   toast("관심을 남겼습니다");
   render();
 }
@@ -1614,20 +1616,23 @@ function recStatusLabel(status) {
 function commentsFor(stockId) {
   return (state.comments || []).filter((c) => c.stockId === stockId && c.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
 }
-function addComment(stockId, body, parentId) {
+function addComment(stockId, body, parentId, silent) {
   const text = (body || "").trim();
   if (!text) {
-    toast("내용을 적어 주세요.");
+    if (!silent) toast("내용을 적어 주세요.");
     return;
   }
+  const already = silent && commentsFor(stockId).some((c) => c.authorId === state.me.id && c.body === text);
+  if (already) return;
   const comment = {
     id: uid(), groupId: group().id, stockId, authorId: state.me.id,
     parentId: parentId || null, body: text, createdAt: now()
   };
   state.comments.push(comment);
+  if (silent) return;
   const title = parentId ? "대댓글" : "댓글";
   const kind = parentId ? "답글" : "댓글";
-  pushEvent(title, `${stock(stockId).name} 추천에 ${kind}을 남겼습니다. “${text.slice(0, 40)}”`, "cmt", state.me.id, stockId);
+  pushEvent(title, `${stock(stockId).name}에 ${kind}을 남겼습니다. “${text.slice(0, 40)}”`, "cmt", state.me.id, stockId);
   toast(parentId ? "대댓글을 남겼습니다" : "댓글을 남겼습니다");
   state.replyTo = null;
   render();
@@ -1764,7 +1769,7 @@ function holdingRow(h, isMine) {
         <div class="stock-name">${esc(s.name)}${verifyMark(h.verification)}</div>
         <div class="ticker">${esc(s.ticker)}</div>
         <div class="meta">평단 ${formatPrice(h.averagePrice, s.market)} · 현재가 ${formatPrice(priceOf(s), s.market)}</div>
-        ${pulseStrip(s.id, true)}
+        ${isMine ? pulseStrip(s.id, true) : ""}
         ${partnerLine ? `<div class="caption">${partnerLine}</div>` : ""}
         ${h.status === "sold" ? `<div class="caption">매도 · ${formatPct(ret(h.averagePrice, h.sellPrice))}</div>` : ""}
         ${suspect}
@@ -1834,6 +1839,7 @@ function inboxBlock(item) {
       ${btn("관심 있음", "primary", `promise:${p.id}`)}
       <div style="height:8px"></div>
       ${btn("패스", "secondary", `later:${p.id}`)}
+      ${threadBtn(s.id)}
     </div>`;
   }
   if (item.kind === "suspect") {
@@ -1860,7 +1866,7 @@ function eventRow(e) {
   const kick = /황금|신의|매수 예정/.test(e.title) || e.type === "gold" ? "glory"
     : /최악|공동묘지|거절|혼자/.test(e.title) || e.type === "worst" || e.type === "solo" ? "roast"
     : "plain";
-  const open = e.stockId && (e.type === "rec" || e.type === "cmt") ? ` data-act="thread:${e.stockId}"` : "";
+  const open = e.stockId && (e.type === "rec" || e.type === "cmt" || e.type === "prop" || e.type === "nag") ? ` data-act="thread:${e.stockId}"` : "";
   const badgeIco = e.type === "cmt" ? "comment" : e.type === "rec" ? "plane" : /황금|신의/.test(e.title) ? "star" : "plane";
   const badgeColor = kick === "glory" ? "var(--up)" : kick === "roast" ? "var(--down)" : "#262626";
   return `<div class="feed-item"${open} style="${open ? "cursor:pointer" : ""}">
@@ -1943,48 +1949,49 @@ function bindPager() {
   });
 }
 
-function recommendedSection() {
-  const recs = state.recs.filter((r) => r.groupId === group()?.id);
+function talkedStockIds() {
+  const gid = group()?.id;
   const ids = [];
-  recs.forEach((r) => { if (!ids.includes(r.stockId)) ids.push(r.stockId); });
-  if (!ids.length) return "";
-  const lastName = stock(ids[0])?.name || "";
-  const body = ids.map((id) => {
-    const s = stock(id);
-    const related = recs.filter((r) => r.stockId === id);
-    const last = related[related.length - 1];
-    return `<div class="row-block">
-      <button class="row btn" data-act="thread:${id}">
-        ${stockMark(s)}
-        <div class="grow">
-          <div class="stock-name">${esc(s.name)}</div>
-          <div class="caption">${esc(related.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · "))}</div>
-          <div class="meta">“${esc(last.message)}”</div>
-        </div>
-        <div class="right">${commentMeta(id)}</div>
-      </button>
-      ${pulseStrip(id, true)}
-    </div>`;
-  }).join("");
-  return foldSection("recs", "추천 종목", ids.length, lastName, body);
+  const push = (id) => { if (id && !ids.includes(id)) ids.push(id); };
+  state.recs.filter((r) => r.groupId === gid).forEach((r) => push(r.stockId));
+  state.proposals.filter((p) => p.groupId === gid).forEach((p) => push(p.stockId));
+  (state.takes || []).filter((t) => !t.groupId || t.groupId === gid).forEach((t) => push(t.stockId));
+  (state.comments || []).filter((c) => c.groupId === gid).forEach((c) => push(c.stockId));
+  bonds().forEach((b) => push(b.stockId));
+  return ids;
+}
+
+function stockCaption(stockId) {
+  const gid = group()?.id;
+  const recs = state.recs.filter((r) => r.groupId === gid && r.stockId === stockId);
+  if (recs.length) {
+    const last = recs[recs.length - 1];
+    const arrows = recs.map((r) => `${nickname(r.senderId)} → ${nickname(r.receiverId)}`).join(" · ");
+    return `<div class="caption">${esc(arrows)}</div>${last.message ? `<div class="meta">“${esc(last.message)}”</div>` : ""}`;
+  }
+  const proposals = state.proposals.filter((p) => p.groupId === gid && p.stockId === stockId);
+  if (proposals.length) {
+    const last = proposals[proposals.length - 1];
+    return `<div class="caption">${esc(nickname(last.proposerId))} · 매수 제안</div>${last.message ? `<div class="meta">“${esc(last.message)}”</div>` : ""}`;
+  }
+  return "";
 }
 
 function moodSection() {
-  const recIds = state.recs.filter((r) => r.groupId === group()?.id).map((r) => r.stockId);
-  const bondIds = bonds().map((b) => b.stockId);
-  const ids = [];
-  recIds.concat(bondIds).forEach((id) => { if (!ids.includes(id)) ids.push(id); });
+  const ids = talkedStockIds();
   if (!ids.length) return "";
   const first = stock(ids[0]);
   const preview = first ? first.name : "";
-  const body = ids.slice(0, 3).map((id) => {
+  const body = ids.map((id) => {
     const s = stock(id);
     return `<div class="row-block">
       <button class="row btn" data-act="thread:${id}">
         ${stockMark(s)}
         <div class="grow">
           <div class="stock-name">${esc(s.name)}</div>
+          ${stockCaption(id)}
         </div>
+        <div class="right">${commentMeta(id)}</div>
       </button>
       ${pulseStrip(id, false)}
     </div>`;
@@ -2017,7 +2024,6 @@ function renderGroup() {
       </div>
 
       ${turnPager(items)}
-      ${recommendedSection()}
       ${moodSection()}
 
       ${kk.length ? foldSection("kk", "깐부", kk.length, (kk.find((b) => b.grade.kick === "roast") || kk.find((b) => b.grade.kick === "glory") || kk[0]).grade.title, (() => {
@@ -2057,7 +2063,6 @@ function renderHoldings() {
       ${btn("매수 제안", "secondary", "open-prop:")}
     </div>
     ${active.length ? `<div class="section"><div class="section-title">보유 중</div><div class="row-list">${active.map((h) => holdingRow(h, true)).join("")}</div></div>` : emptyStateHTML("아직 주식이 없습니다", "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")}
-    ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     ${sold.length ? `<div class="section"><div class="section-title">매도 기록</div><div class="row-list">${sold.map((h) => holdingRow(h, true)).join("")}</div></div>` : ""}
     <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다.</p>
   </div>`;
@@ -2219,6 +2224,7 @@ function sheetHTML() {
     const s = stock(stockId);
     if (!s) return "";
     const recs = state.recs.filter((r) => r.stockId === stockId && r.groupId === group()?.id).sort((a, b) => a.createdAt - b.createdAt);
+    const proposals = state.proposals.filter((p) => p.stockId === stockId && p.groupId === group()?.id);
     const comments = commentsFor(stockId);
     const roots = comments.filter((c) => !c.parentId);
     const reply = state.replyTo ? comments.find((c) => c.id === state.replyTo) : null;
@@ -2230,6 +2236,19 @@ function sheetHTML() {
         <div class="time">${relative(c.createdAt)}${!c.parentId ? ` · <button class="btn text" data-act="reply:${c.id}">답글</button>` : ""}</div>
       </div>
     </div>`;
+    const recHTML = recs.length ? recs.map((r) => `<div class="history-item">
+        <div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div>
+        <div class="body">“${esc(r.message)}”</div>
+        <div class="time">${esc(recStatusLabel(r.status))} · ${relative(r.createdAt)}</div>
+      </div>`).join("") : "";
+    const propHTML = proposals.map((p) => {
+      const n = state.cobuys.filter((c) => c.proposalId === p.id && c.status !== "declined").length;
+      return `<div class="history-item">
+        <div class="names">${esc(nickname(p.proposerId))} · 매수 제안</div>
+        <div class="body">“${esc(p.message)}”</div>
+        <div class="time">관심 ${n}명 · ${relative(p.createdAt)}</div>
+      </div>`;
+    }).join("");
     return sheetWrap(`
       <div class="thread-head">
         <div class="thread-title">
@@ -2241,18 +2260,14 @@ function sheetHTML() {
         </div>
         ${pulseStrip(s.id, false)}
       </div>
-      <p class="note">이 종목을 추천한 기록과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
-      <div class="kind">추천 히스토리</div>
-      ${recs.length ? recs.map((r) => `<div class="history-item">
-        <div class="names">${esc(nickname(r.senderId))} → ${esc(nickname(r.receiverId))}</div>
-        <div class="body">“${esc(r.message)}”</div>
-        <div class="time">${esc(recStatusLabel(r.status))} · ${relative(r.createdAt)}</div>
-      </div>`).join("") : `<p class="empty">아직 이 종목을 추천한 기록이 없습니다.</p>`}
+      <p class="note">이 종목의 추천·매수 제안과 댓글입니다. 한 줄 남기면 히스토리에 남습니다.</p>
+      <div class="kind">이 종목 이야기</div>
+      ${recHTML || propHTML ? recHTML + propHTML : `<p class="empty">아직 추천이나 매수 제안이 없습니다.</p>`}
       <div class="kind" style="margin-top:16px">댓글 ${comments.length}</div>
-      ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 이 추천에 한마디 남겨 보세요.</p>`}
+      ${roots.length ? roots.map((c) => commentHTML(c, false) + comments.filter((x) => x.parentId === c.id).map((x) => commentHTML(x, true)).join("")).join("") : `<p class="empty">아직 댓글이 없습니다. 이 종목에 한마디 남겨 보세요.</p>`}
       ${reply ? `<div class="caption">${esc(nickname(reply.authorId))}에게 답글 · <button class="btn text" data-act="cancel-reply">취소</button></div>` : ""}
       <label>${reply ? "답글" : "댓글"}</label>
-      <input id="thread-text" placeholder="${reply ? "답글 적기" : "이 추천에 한마디"}" value="${esc(state.threadDraft || "")}" />
+      <input id="thread-text" placeholder="${reply ? "답글 적기" : "이 종목에 한마디"}" value="${esc(state.threadDraft || "")}" />
       ${btn("보내기", "primary full", "do-comment")}
       <div style="height:8px"></div>
       ${btn("닫기", "secondary full", "close")}
@@ -2373,7 +2388,7 @@ function handle(act) {
   if (act.startsWith("fold:")) {
     if (!state.groupOpen) state.groupOpen = { turn: true };
     const id = act.slice(5);
-    const fallback = id === "turn";
+    const fallback = id === "turn" || id === "mood";
     state.groupOpen[id] = !isOpen(id, fallback);
     render();
     return;
@@ -2461,7 +2476,7 @@ function handle(act) {
     if (!state.takes) state.takes = [];
     const idx = state.takes.findIndex((t) => t.stockId === stockId && t.userId === state.me.id);
     if (idx >= 0) state.takes[idx].level = level;
-    else state.takes.push({ id: uid(), stockId, userId: state.me.id, level });
+    else state.takes.push({ id: uid(), groupId: group()?.id, stockId, userId: state.me.id, level });
     const s = stock(stockId);
     toast(takeMeta(level).title + (s ? " · " + s.name : ""));
     render();

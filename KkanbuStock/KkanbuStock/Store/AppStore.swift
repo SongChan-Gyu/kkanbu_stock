@@ -289,6 +289,7 @@ final class AppStore {
             if existing.status == .promised { return }
             if let index = state.coBuys.firstIndex(where: { $0.id == existing.id }) {
                 state.coBuys[index].status = .promised
+                leaveInterestComment(groupId: proposal.groupId, stockId: proposal.stockId)
                 emit(.coBuyPromised(id: existing.id), before: before)
                 toast = "관심을 남겼습니다"
             }
@@ -296,8 +297,20 @@ final class AppStore {
         }
         let cobuy = CoBuyRequest(proposalId: proposalId, groupId: proposal.groupId, userId: state.currentUserId, stockId: proposal.stockId)
         state.coBuys.append(cobuy)
+        leaveInterestComment(groupId: proposal.groupId, stockId: proposal.stockId)
         emit(.coBuyPromised(id: cobuy.id), before: before)
         toast = "관심을 남겼습니다"
+    }
+
+    private func leaveInterestComment(groupId: UUID, stockId: UUID) {
+        let alreadySaid = state.comments.contains {
+            $0.groupId == groupId && $0.stockId == stockId
+                && $0.authorId == state.currentUserId && $0.body == "관심 있음"
+        }
+        guard !alreadySaid else { return }
+        state.comments.append(
+            StockComment(groupId: groupId, stockId: stockId, authorId: state.currentUserId, body: "관심 있음")
+        )
     }
 
     func declineProposal(_ proposalId: UUID) {
@@ -453,7 +466,7 @@ final class AppStore {
         toast = "그룹에 추천을 보냈습니다"
     }
 
-    func addComment(stockId: UUID, parentId: UUID? = nil, body: String) {
+    func addComment(stockId: UUID, parentId: UUID? = nil, body: String, silent: Bool = false) {
         guard let groupId = state.selectedGroupId else { return }
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -472,8 +485,27 @@ final class AppStore {
         )
         let before = state
         state.comments.append(comment)
+        if silent {
+            persist()
+            return
+        }
         emit(.commentPosted(id: comment.id), before: before)
         toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+    }
+
+    func talkedStockIds(in groupId: UUID) -> [UUID] {
+        var seen = Set<UUID>()
+        var ids: [UUID] = []
+        func push(_ id: UUID) {
+            guard seen.insert(id).inserted else { return }
+            ids.append(id)
+        }
+        for rec in state.recommendations where rec.groupId == groupId { push(rec.stockId) }
+        for proposal in state.proposals where proposal.groupId == groupId { push(proposal.stockId) }
+        for take in state.takes where take.groupId == groupId { push(take.stockId) }
+        for comment in state.comments where comment.groupId == groupId { push(comment.stockId) }
+        for bond in KkangbuMath.bonds(in: groupId, state: state, prices: currentPrices) { push(bond.stockId) }
+        return ids
     }
 
     func comments(in groupId: UUID, stockId: UUID) -> [StockComment] {

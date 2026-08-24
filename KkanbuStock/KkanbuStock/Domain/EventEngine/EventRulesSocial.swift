@@ -245,7 +245,7 @@ struct CommentRule: EventRule {
                 actorId: comment.authorId,
                 stockId: comment.stockId,
                 title: isReply ? "대댓글" : "댓글",
-                message: "\(context.after.nickname(comment.authorId))가 \(context.stockName(comment.stockId)) 추천에 \(isReply ? "답글" : "댓글")을 남겼습니다. “\(clipped)”"
+                message: "\(context.after.nickname(comment.authorId))가 \(context.stockName(comment.stockId))에 \(isReply ? "답글" : "댓글")을 남겼습니다. “\(clipped)”"
             )
         ]
     }
