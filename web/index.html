@@ -151,7 +151,20 @@ body {
   border-radius: 999px;
 }
 .invite-chip span { color: var(--text-2); font-weight: 500; }
-.header-actions { margin: 4px 0 14px; }
+.header-actions {
+  margin: 4px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sync-dot {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.sync-dot.on { color: var(--up); }
+.sync-dot.connecting { color: var(--text-2); }
+.sync-dot.error { color: var(--down); }
 .profile-head { padding: 8px 0 8px; }
 .avatar.lg { width: 72px; height: 72px; font-size: 26px; }
 .page-sub {
@@ -1663,7 +1676,11 @@ function emptyState(me) {
     inboxPage: 0,
     threadImage: null,
     lightbox: null,
-    recTags: {}
+    recTags: {},
+    mode: null,
+    roomId: null,
+    sync: "off",
+    pendingJoin: ""
   };
 }
 
@@ -1767,6 +1784,8 @@ function seed(state) {
     { userId: "junho", title: "존버" }
   ];
   state.onboarding = false;
+  state.mode = "demo";
+  state.roomId = null;
 }
 
 function chartSnapshot(ticker) {
@@ -1859,7 +1878,8 @@ function persist() {
     threadImage: null,
     lightbox: null,
     recTags: {},
-    chartIndex: null
+    chartIndex: null,
+    sync: state.sync || "off"
   };
   try {
     localStorage.setItem("kkanbu-web-v1", JSON.stringify(snap));
@@ -1869,6 +1889,7 @@ function persist() {
       localStorage.setItem("kkanbu-web-v1", JSON.stringify(snap));
     } catch (__) {}
   }
+  if (state.mode === "live") scheduleRoomPush(480);
 }
 
 function loadPersisted() {
@@ -1883,18 +1904,484 @@ function loadPersisted() {
   }
 }
 
+const ROOM_BROKERS = [
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt"
+];
+const ROOM_TOPIC = (code) => "kkanbu/v1/" + code;
+const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+let roomClient = null;
+let roomApplying = false;
+let roomPushTimer = 0;
+let roomRev = 0;
+let roomWanted = "";
+
+function loadIdentity() {
+  try {
+    const raw = localStorage.getItem("kkanbu-identity");
+    if (raw) {
+      const me = JSON.parse(raw);
+      if (me && me.id) return { id: me.id, nickname: me.nickname || "나" };
+    }
+  } catch (_) {}
+  const me = { id: uid(), nickname: "나" };
+  try { localStorage.setItem("kkanbu-identity", JSON.stringify(me)); } catch (_) {}
+  return me;
+}
+
+function saveIdentity(me) {
+  try { localStorage.setItem("kkanbu-identity", JSON.stringify({ id: me.id, nickname: me.nickname })); } catch (_) {}
+}
+
+function ensureIdentity(nickname) {
+  const name = (nickname || "").trim() || state.me.nickname || "나";
+  let id = state.me && state.me.id;
+  if (!id || id === "me") id = uid();
+  state.me = { id, nickname: name };
+  saveIdentity(state.me);
+  if (!state.users.some((u) => u.id === id)) state.users.push(state.me);
+  else {
+    const u = state.users.find((x) => x.id === id);
+    if (u) u.nickname = name;
+  }
+}
+
+function makeInviteCode() {
+  const buf = crypto.getRandomValues(new Uint8Array(8));
+  let s = "";
+  for (let i = 0; i < 8; i++) s += ROOM_ALPHABET[buf[i] % ROOM_ALPHABET.length];
+  return s;
+}
+
+function parseJoinFromText(text) {
+  if (!text) return "";
+  const s = String(text).trim();
+  const tagged = s.match(/join=([A-HJ-NP-Z2-9]{6,14})/i);
+  if (tagged) return tagged[1].toUpperCase();
+  const compact = s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (compact.length >= 6 && compact.length <= 14 && ![...compact].every((c) => "01IO".includes(c))) return compact;
+  return "";
+}
+
+function parseJoin() {
+  try {
+    const hash = (location.hash || "").replace(/^#/, "");
+    const query = new URLSearchParams(location.search);
+    const fromHash = new URLSearchParams(hash);
+    return parseJoinFromText(query.get("join") || fromHash.get("join") || hash.replace(/^join=/i, ""));
+  } catch (_) {
+    return "";
+  }
+}
+
+function setJoinHash(code) {
+  try {
+    const url = new URL(location.href);
+    url.hash = code ? "join=" + code : "";
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  } catch (_) {
+    try { if (code) location.hash = "join=" + code; } catch (__) {}
+  }
+}
+
+function inviteURL() {
+  const base = String(location.href).split("#")[0].split("?")[0];
+  const code = state.roomId || group()?.invite || "";
+  return code ? base + "#join=" + code : base;
+}
+
+function mergeById(a, b) {
+  const map = new Map();
+  const keyOf = (item) => {
+    if (!item) return "";
+    if (item.id != null && item.id !== "") return "id:" + item.id;
+    if (item.groupId && item.userId && item.averagePrice == null && item.stockId == null && item.proposalId == null && item.level == null) return "mem:" + item.groupId + ":" + item.userId;
+    if (item.holdingId && item.actorId) return "sus:" + item.holdingId + ":" + item.actorId;
+    if (item.userId && item.title && item.stockId == null) return "badge:" + item.userId + ":" + item.title;
+    if (item.stockId && item.userId && item.level != null && item.averagePrice == null) return "take:" + item.groupId + ":" + item.userId + ":" + item.stockId;
+    return "";
+  };
+  (a || []).concat(b || []).forEach((item) => {
+    const key = keyOf(item);
+    if (!key) return;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, item);
+      return;
+    }
+    const ta = prev.updatedAt || prev.createdAt || 0;
+    const tb = item.updatedAt || item.createdAt || 0;
+    if (tb > ta) map.set(key, item);
+    else if (tb === ta && item.status === "sold" && prev.status !== "sold") map.set(key, item);
+    else if (tb === ta && item.image && !prev.image) map.set(key, item);
+  });
+  return [...map.values()];
+}
+
+function loadMqtt() {
+  if (window.mqtt && window.mqtt.connect) return Promise.resolve(window.mqtt);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js";
+    s.onload = () => (window.mqtt && window.mqtt.connect ? resolve(window.mqtt) : reject(new Error("mqtt")));
+    s.onerror = () => reject(new Error("mqtt"));
+    document.head.appendChild(s);
+  });
+}
+
+function packRoom() {
+  roomRev += 1;
+  const body = {
+    v: 1,
+    room: state.roomId,
+    rev: roomRev,
+    client: state.me.id,
+    ts: now(),
+    users: state.users,
+    groups: state.groups,
+    members: state.members,
+    holdings: state.holdings,
+    recs: state.recs,
+    proposals: state.proposals,
+    cobuys: state.cobuys,
+    suspicions: state.suspicions,
+    events: state.events,
+    badges: state.badges,
+    comments: state.comments || [],
+    takes: state.takes,
+    offsets: Object.fromEntries((state.stocks || []).map((s) => [s.id, s.offset || 0]))
+  };
+  let json = JSON.stringify(body);
+  if (json.length > 180000) {
+    body.comments = (body.comments || []).map((c) => ({ ...c, image: null }));
+    json = JSON.stringify(body);
+  }
+  return json;
+}
+
+function applyRoom(remote) {
+  if (!remote || remote.v !== 1 || !Array.isArray(remote.users)) return false;
+  roomApplying = true;
+  const stocks = state.stocks;
+  const me = state.me;
+  const sheet = state.sheet;
+  const tab = state.tab;
+  const groupOpen = state.groupOpen;
+  const mode = state.mode;
+  const roomId = state.roomId;
+  state.users = mergeById(state.users, remote.users);
+  state.groups = mergeById(state.groups, remote.groups);
+  state.members = mergeById(state.members, remote.members);
+  state.holdings = mergeById(state.holdings, remote.holdings);
+  state.recs = mergeById(state.recs, remote.recs);
+  state.proposals = mergeById(state.proposals, remote.proposals);
+  state.cobuys = mergeById(state.cobuys, remote.cobuys);
+  state.suspicions = mergeById(state.suspicions, remote.suspicions);
+  state.events = mergeById(state.events, remote.events).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  state.badges = mergeById(state.badges, remote.badges);
+  state.comments = mergeById(state.comments, remote.comments);
+  state.takes = mergeById(state.takes, remote.takes);
+  if (!state.users.some((u) => u.id === me.id)) state.users.push(me);
+  state.me = state.users.find((u) => u.id === me.id) || me;
+  state.stocks = stocks;
+  if (remote.offsets) {
+    state.stocks.forEach((s) => {
+      if (remote.offsets[s.id] != null) s.offset = remote.offsets[s.id];
+    });
+  }
+  state.sheet = sheet;
+  state.tab = tab;
+  state.groupOpen = groupOpen;
+  state.mode = mode;
+  state.roomId = roomId;
+  state.onboarding = false;
+  roomRev = Math.max(roomRev, remote.rev || 0);
+  if (state.groups[0] && !state.selectedGroupId) state.selectedGroupId = state.groups[0].id;
+  roomApplying = false;
+  return true;
+}
+
+function ensureMembership() {
+  const g = group() || state.groups[0];
+  if (!g) return false;
+  let changed = false;
+  state.selectedGroupId = g.id;
+  if (!state.users.some((u) => u.id === state.me.id)) {
+    state.users.push(state.me);
+    changed = true;
+  }
+  if (!state.members.some((m) => m.groupId === g.id && m.userId === state.me.id)) {
+    state.members.push({ id: uid(), groupId: g.id, userId: state.me.id, joinedAt: now() });
+    state.events.unshift(ev(g.id, "멤버 참여", `${state.me.nickname}님이 그룹에 참여했습니다.`, now(), "member", state.me.id));
+    changed = true;
+  }
+  return changed;
+}
+
+function canRerenderFromSync() {
+  const sheet = state.sheet || "";
+  if (document.getElementById("tv-chart")) return false;
+  if (sheet.startsWith("thread:") || sheet.startsWith("open-rec") || sheet === "add" || sheet.startsWith("register:") || sheet.startsWith("addon:")) return false;
+  return true;
+}
+
+function paintSync() {
+  const el = document.querySelector(".sync-dot");
+  if (!el) return;
+  el.className = "sync-dot " + (state.sync || "off");
+  el.textContent = state.sync === "on" ? "친구와 연결됨" : state.sync === "connecting" ? "연결 중" : state.sync === "error" ? "연결 실패" : "다시 연결 중";
+}
+
+function scheduleRoomPush(ms) {
+  if (roomApplying || state.mode !== "live" || !state.roomId) return;
+  clearTimeout(roomPushTimer);
+  roomPushTimer = setTimeout(pushRoom, ms == null ? 480 : ms);
+}
+
+function pushRoom() {
+  if (state.mode !== "live" || !state.roomId || !roomClient || !roomClient.connected) return;
+  try {
+    roomClient.publish(ROOM_TOPIC(state.roomId), packRoom(), { qos: 1, retain: true });
+  } catch (_) {}
+}
+
+function stopRoom() {
+  roomWanted = "";
+  clearTimeout(roomPushTimer);
+  if (roomClient) {
+    try { roomClient.end(true); } catch (_) {}
+    roomClient = null;
+  }
+  state.sync = "off";
+}
+
+function bindRoomClient(client) {
+  const topic = ROOM_TOPIC(state.roomId);
+  roomClient = client;
+  client.subscribe(topic, { qos: 1 });
+  state.sync = "on";
+  paintSync();
+  client.on("message", (_t, buf) => {
+    if (state.mode !== "live") return;
+    let remote;
+    try { remote = JSON.parse(String(buf)); } catch (_) { return; }
+    if (remote.room && state.roomId && remote.room !== state.roomId) return;
+    if (remote.client === state.me.id && (remote.rev || 0) <= roomRev) return;
+    applyRoom(remote);
+    const joined = ensureMembership();
+    persist();
+    if (joined) scheduleRoomPush(120);
+    if (canRerenderFromSync()) render();
+    else paintSync();
+  });
+  client.on("offline", () => { state.sync = "off"; paintSync(); });
+  client.on("reconnect", () => { state.sync = "connecting"; paintSync(); });
+  client.on("connect", () => {
+    state.sync = "on";
+    paintSync();
+    scheduleRoomPush(80);
+  });
+  client.on("error", () => { state.sync = "error"; paintSync(); });
+  scheduleRoomPush(80);
+}
+
+async function connectRoom() {
+  if (state.mode !== "live" || !state.roomId) return;
+  roomWanted = state.roomId;
+  state.sync = "connecting";
+  paintSync();
+  try {
+    const mqtt = await loadMqtt();
+    if (roomWanted !== state.roomId) return;
+    if (roomClient) {
+      try { roomClient.end(true); } catch (_) {}
+      roomClient = null;
+    }
+    let lastErr;
+    for (const url of ROOM_BROKERS) {
+      if (roomWanted !== state.roomId) return;
+      try {
+        const client = await new Promise((resolve, reject) => {
+          const c = mqtt.connect(url, {
+            clientId: "kk" + String(state.me.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 10) + Math.random().toString(16).slice(2, 6),
+            clean: true,
+            keepalive: 30,
+            reconnectPeriod: 2500,
+            connectTimeout: 8000,
+            protocolVersion: 4
+          });
+          let settled = false;
+          const to = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            try { c.end(true); } catch (_) {}
+            reject(new Error("timeout"));
+          }, 9000);
+          c.once("connect", () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(to);
+            resolve(c);
+          });
+          c.once("error", (err) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(to);
+            try { c.end(true); } catch (_) {}
+            reject(err || new Error("mqtt"));
+          });
+        });
+        if (roomWanted !== state.roomId) {
+          try { client.end(true); } catch (_) {}
+          return;
+        }
+        bindRoomClient(client);
+        return;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("mqtt");
+  } catch (_) {
+    if (roomWanted !== state.roomId) return;
+    state.sync = "error";
+    paintSync();
+    toast("친구 연결에 실패했습니다. 잠시 후 다시 열어 보세요.");
+  }
+}
+
+async function shareInvite() {
+  if (state.mode === "demo") {
+    try { await navigator.clipboard.writeText(group()?.invite || "KKANBU"); } catch (_) {}
+    toast("초대 코드 복사됨");
+    return;
+  }
+  if (state.mode !== "live") {
+    await promoteToLive();
+  }
+  const url = inviteURL();
+  const code = state.roomId || group()?.invite || "";
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "주식 깐부", text: "이 링크로 그룹에 들어와. 코드 " + code, url });
+      toast("초대 링크를 보냈습니다");
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("초대 링크 복사됨. 친구에게 보내세요.");
+  } catch (_) {
+    toast(url);
+  }
+}
+
+async function promoteToLive() {
+  ensureIdentity(state.me.nickname);
+  const code = makeInviteCode();
+  state.mode = "live";
+  state.roomId = code;
+  let g = group();
+  if (!g) {
+    g = { id: "g-" + code, name: (state.me.nickname || "우리") + "의 주식팟", invite: code, ownerId: state.me.id };
+    state.groups.push(g);
+    state.selectedGroupId = g.id;
+    state.members.push({ id: uid(), groupId: g.id, userId: state.me.id, joinedAt: now() });
+  } else {
+    g.invite = code;
+  }
+  setJoinHash(code);
+  persist();
+  render();
+  await connectRoom();
+}
+
+function createLiveRoom() {
+  const nick = document.getElementById("nick")?.value?.trim() || "나";
+  const name = document.getElementById("group-name")?.value?.trim() || nick + "의 주식팟";
+  ensureIdentity(nick);
+  const code = makeInviteCode();
+  state = emptyState(state.me);
+  state.mode = "live";
+  state.roomId = code;
+  state.onboarding = false;
+  state.users = [state.me];
+  state.groups = [{ id: "g-" + code, name, invite: code, ownerId: state.me.id }];
+  state.selectedGroupId = state.groups[0].id;
+  state.members = [{ id: uid(), groupId: state.groups[0].id, userId: state.me.id, joinedAt: now() }];
+  state.events = [ev(state.groups[0].id, "멤버 참여", `${state.me.nickname}님이 그룹을 만들었습니다.`, now(), "member", state.me.id)];
+  setJoinHash(code);
+  toast("그룹을 만들었습니다. 초대를 눌러 친구에게 보내세요.");
+  render();
+  connectRoom();
+}
+
+async function joinLiveRoom() {
+  const nick = document.getElementById("nick")?.value?.trim() || state.me.nickname || "나";
+  const raw = document.getElementById("join-code")?.value || state.pendingJoin || parseJoin();
+  const code = parseJoinFromText(raw);
+  if (!code) {
+    toast("초대 링크나 코드를 넣어 주세요");
+    return;
+  }
+  ensureIdentity(nick);
+  state = emptyState(state.me);
+  state.mode = "live";
+  state.roomId = code;
+  state.onboarding = false;
+  state.users = [state.me];
+  state.pendingJoin = code;
+  setJoinHash(code);
+  toast("그룹에 들어가는 중");
+  render();
+  await connectRoom();
+  const started = Date.now();
+  while (Date.now() - started < 10000 && !(state.groups && state.groups.length)) {
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  if (!state.groups.length) {
+    toast("아직 그룹이 없습니다. 초대한 친구가 앱을 열어 두었는지 확인해 주세요.");
+    return;
+  }
+  if (ensureMembership()) {
+    persist();
+    scheduleRoomPush(80);
+    render();
+  }
+  toast(group()?.name ? group().name + "에 들어왔습니다" : "그룹에 들어왔습니다");
+}
+
+function leaveRoom() {
+  stopRoom();
+  try { localStorage.removeItem("kkanbu-web-v1"); } catch (_) {}
+  const me = loadIdentity();
+  state = emptyState(me);
+  state.pendingJoin = "";
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (_) {}
+  toast("그룹에서 나갔습니다");
+  render();
+}
+
 function ev(groupId, title, message, createdAt, type, actorId, stockId) {
   return { id: uid(), groupId, title, message, createdAt, type, actorId, stockId: stockId || null };
 }
 
-let state = emptyState({ id: "me", nickname: "나" });
+let state = emptyState(loadIdentity());
 const saved = loadPersisted();
 if (saved) {
   state = Object.assign(emptyState(saved.me), saved);
   state.sheet = null;
   state.lightbox = null;
   state.threadImage = null;
+  if (!state.mode) {
+    if ((state.groups || []).some((g) => g.invite === "KKANBU")) state.mode = "demo";
+    else if ((state.groups || []).length) state.mode = "local";
+  }
 }
+state.pendingJoin = parseJoin() || "";
 
 function stock(id) { return state.stocks.find((s) => s.id === id); }
 function user(id) { return state.users.find((u) => u.id === id); }
@@ -2003,6 +2490,7 @@ function addToPosition(id) {
   h.verification = "needsReview";
   pushEvent("평단 수정", `${nickname(state.me.id)}가 ${s.name} 평단을 ${formatPrice(h.averagePrice, s.market)}로 고쳤습니다. 인증이 풀렸습니다.`, "rec", state.me.id, h.stockId);
   toast("평단 " + formatPrice(h.averagePrice, s.market) + "로 바꿨습니다. 다시 인증해 주세요.");
+  h.updatedAt = now();
   state.sheet = null;
   state.addTicker = null;
   state.addPrice = "";
@@ -2060,6 +2548,7 @@ function sellHolding(id) {
   h.status = "sold";
   h.sellPrice = p;
   h.verification = "needsReview";
+  h.updatedAt = now();
   const leftovers = state.holdings.filter((x) => x.stockId === h.stockId && x.status === "holding" && x.userId !== h.userId);
   if (leftovers.length) {
     pushEvent("혼자 매도", `${s.name}를 매도했습니다. ${nickname(leftovers[0].userId)}는 아직 보유 중.`, "solo", state.me.id, h.stockId);
@@ -2238,6 +2727,10 @@ function shock(ticker, pct) {
 }
 
 function playAs(userId) {
+  if (state.mode === "live") {
+    toast("실제 그룹에서는 내 화면만 봅니다");
+    return;
+  }
   const u = user(userId);
   state.me = u;
   toast(`${u.nickname}으로 보는 중`);
@@ -2245,6 +2738,7 @@ function playAs(userId) {
 }
 
 function resetDemo() {
+  stopRoom();
   try { localStorage.removeItem("kkanbu-web-v1"); } catch (_) {}
   const nick = ["철수", "영희", "민수", "준호", "수진"].includes(state.me.nickname) ? "나" : state.me.nickname;
   state = emptyState({ id: "me", nickname: nick || "나" });
@@ -2436,18 +2930,30 @@ function eventRow(e) {
 }
 
 function renderOnboarding() {
+  const pending = state.pendingJoin || "";
   return `
     <div class="screen onboard">
       ${brandMark()}
       <h1 class="brand-name">주식 깐부</h1>
-      <p class="lead">같은 종목을 사면 깐부가 됩니다.</p>
+      <p class="lead">친구를 초대하면 같은 그룹에서 주식을 같이 봅니다. 같은 종목을 사면 깐부가 됩니다.</p>
       <label>닉네임</label>
       <input id="nick" value="${esc(state.me.nickname)}" />
-      ${btn("데모 그룹으로 시작", "primary full", "demo")}
+      ${pending ? `
+        <p class="note">초대받은 그룹입니다. 닉네임을 적고 들어가세요.</p>
+        <input type="hidden" id="join-code" value="${esc(pending)}" />
+        ${btn("그룹에 참여", "primary full", "join-room")}
+      ` : `
+        <label>그룹 이름</label>
+        <input id="group-name" placeholder="우리 주식팟" />
+        ${btn("그룹 만들고 친구 초대", "primary full", "create-room")}
+        <label>초대 링크 또는 코드</label>
+        <input id="join-code" placeholder="링크를 붙여넣거나 코드" />
+        ${btn("초대로 참여", "secondary full", "join-room")}
+      `}
       <div style="height:8px"></div>
-      ${btn("빈 그룹으로 시작", "secondary full", "empty-start")}
+      ${btn("데모 둘러보기", "ghost full", "demo")}
       <p class="note">직접 입력한 보유 정보는 증권 계좌로 검증되지 않습니다. 투자 자문이 아닙니다.</p>
-      <p class="note">Safari에서 공유 → 홈 화면에 추가하면 앱처럼 열립니다. 기록은 이 브라우저에만 남습니다.</p>
+      <p class="note">Safari에서 공유 → 홈 화면에 추가하면 앱처럼 열립니다. 초대 링크를 아는 친구만 들어옵니다.</p>
     </div>`;
 }
 
@@ -2569,7 +3075,8 @@ function renderGroup() {
       </div>
       <div class="members story">${memberUsers().map((u) => `<button class="member" data-act="play:${u.id}">${avatarHTML(u)}<span>${esc(u.id === state.me.id ? "나" : u.nickname)}</span></button>`).join("")}</div>
       <div class="header-actions">
-        <button class="invite-chip" data-act="copy"><span>초대</span>${esc(g.invite)}</button>
+        <button class="invite-chip" data-act="share-invite"><span>초대</span>${esc(g.invite)}</button>
+        ${state.mode === "live" ? `<span class="sync-dot ${esc(state.sync || "off")}">${state.sync === "on" ? "친구와 연결됨" : state.sync === "connecting" ? "연결 중" : state.sync === "error" ? "연결 실패" : "다시 연결 중"}</span>` : ""}
       </div>
       <div class="split">
         ${btn("주식 추가", "primary", "open-add")}
@@ -2658,15 +3165,29 @@ function renderProfile() {
       </div>
     </div>
     <div class="section">
-      <div class="section-title">친구로 보기</div>
-      <p class="note">한 브라우저에서 상대 화면을 확인합니다.</p>
-      <div class="actions">${memberUsers().map((u) => sm(u.nickname, `play:${u.id}`)).join("")}</div>
+      <div class="section-title">이 그룹</div>
+      ${state.mode === "live" ? `
+        <p class="note">초대를 누르면 링크가 복사됩니다. 친구가 그 링크를 열면 같은 그룹에 들어옵니다. 링크를 아는 사람만 들어올 수 있습니다.</p>
+        ${btn("초대 링크 보내기", "primary full", "share-invite")}
+        <div style="height:8px"></div>
+        ${btn("그룹 나가기", "secondary full", "leave-room")}
+      ` : state.mode === "demo" ? `
+        <p class="note">데모입니다. 실친구와 쓰려면 나가서 그룹을 새로 만드세요.</p>
+        <div class="section-title" style="margin-top:16px">친구로 보기</div>
+        <p class="note">한 브라우저에서 상대 화면을 확인합니다.</p>
+        <div class="actions">${memberUsers().map((u) => sm(u.nickname, `play:${u.id}`)).join("")}</div>
+        ${btn("데모 리셋", "secondary full", "reset")}
+      ` : `
+        <p class="note">초대를 누르면 친구와 이 그룹을 같이 봅니다.</p>
+        ${btn("친구 초대하기", "primary full", "share-invite")}
+      `}
     </div>
-    <div class="section">
+    ${state.mode !== "live" ? `<div class="section">
       <div class="section-title">이 브라우저에서</div>
-      <p class="note">Safari 공유 → 홈 화면에 추가하면 홈 화면에서 바로 열립니다. 서버가 없어서 기록은 이 폰·이 브라우저에만 남습니다. 친구는 각자 같은 링크로 들어가면 됩니다.</p>
-    </div>
-    <div class="section">${btn("데모 리셋", "secondary full", "reset")}</div>
+      <p class="note">Safari 공유 → 홈 화면에 추가하면 홈 화면에서 바로 열립니다.</p>
+    </div>` : `<div class="section">
+      <p class="note">Safari 공유 → 홈 화면에 추가하면 홈 화면에서 바로 열립니다.</p>
+    </div>`}
   </div>`;
 }
 
@@ -3060,21 +3581,24 @@ document.addEventListener("click", (e) => {
 
 function handle(act) {
   if (act === "demo") {
+    stopRoom();
     const nick = document.getElementById("nick")?.value?.trim() || "나";
     state.me.nickname = nick;
     seed(state);
-    toast("그룹에 참여했습니다");
+    toast("데모 그룹에 들어갔습니다");
     render();
     return;
   }
-  if (act === "empty-start") {
-    const nick = document.getElementById("nick")?.value?.trim() || "나";
-    state.me.nickname = nick;
-    state.onboarding = false;
-    state.groups.push({ id: "g-empty", name: "내 그룹", invite: "SOLO", ownerId: state.me.id });
-    state.selectedGroupId = "g-empty";
-    state.members.push({ groupId: "g-empty", userId: state.me.id, joinedAt: now() });
-    render();
+  if (act === "create-room" || act === "empty-start") {
+    createLiveRoom();
+    return;
+  }
+  if (act === "join-room") {
+    joinLiveRoom();
+    return;
+  }
+  if (act === "leave-room") {
+    leaveRoom();
     return;
   }
   if (act.startsWith("tab:")) { state.tab = act.split(":")[1]; render(); return; }
@@ -3097,7 +3621,7 @@ function handle(act) {
     if (idx && n) idx.textContent = (i + 1) + " / " + n;
     return;
   }
-  if (act === "copy") { navigator.clipboard?.writeText((group() && group().invite) || "KKANBU"); toast("초대 코드 복사됨"); return; }
+  if (act === "copy" || act === "share-invite") { shareInvite(); return; }
   if (act === "rank") { openSheet("rank"); return; }
   if (act === "open-add") {
     state.addTicker = null;
@@ -3277,7 +3801,21 @@ function handle(act) {
   if (act === "reset") return resetDemo();
 }
 
+window.addEventListener("hashchange", () => {
+  const join = parseJoin();
+  if (!join) return;
+  if (state.onboarding) {
+    state.pendingJoin = join;
+    render();
+    return;
+  }
+  if (state.mode === "live" && state.roomId && state.roomId !== join) {
+    toast("다른 그룹 초대입니다. 프로필에서 나간 뒤 들어가세요.");
+  }
+});
+
 render();
+if (state.mode === "live" && state.roomId) connectRoom();
 
   </script>
 </body>
