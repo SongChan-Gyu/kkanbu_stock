@@ -9,10 +9,10 @@ enum RecommendationStatus: String, Codable, Sendable {
 
     var threadLabel: String {
         switch self {
-        case .pending: "아직 대답 없음"
-        case .willBuy: "살게요 · 아직 안 삼"
-        case .accepted: "사서 기록"
-        case .later, .rejected: "마음 바뀜"
+        case .pending: "대기"
+        case .willBuy: "매수 예정"
+        case .accepted: "매수 기록"
+        case .later, .rejected: "거절"
         }
     }
 }
@@ -28,6 +28,7 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
     var status: RecommendationStatus
     var createdAt: Date
     var resolvedAt: Date?
+    var signals: [String]
 
     init(
         id: UUID = UUID(),
@@ -39,7 +40,8 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
         message: String,
         status: RecommendationStatus = .pending,
         createdAt: Date = Date(),
-        resolvedAt: Date? = nil
+        resolvedAt: Date? = nil,
+        signals: [String] = []
     ) {
         self.id = id
         self.groupId = groupId
@@ -51,6 +53,41 @@ struct StockRecommendation: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.createdAt = createdAt
         self.resolvedAt = resolvedAt
+        self.signals = signals
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, groupId, senderId, receiverId, stockId, holdingId, message, status, createdAt, resolvedAt, signals
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        groupId = try c.decode(UUID.self, forKey: .groupId)
+        senderId = try c.decode(UUID.self, forKey: .senderId)
+        receiverId = try c.decode(UUID.self, forKey: .receiverId)
+        stockId = try c.decode(UUID.self, forKey: .stockId)
+        holdingId = try c.decode(UUID.self, forKey: .holdingId)
+        message = try c.decode(String.self, forKey: .message)
+        status = try c.decode(RecommendationStatus.self, forKey: .status)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        resolvedAt = try c.decodeIfPresent(Date.self, forKey: .resolvedAt)
+        signals = try c.decodeIfPresent([String].self, forKey: .signals) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(groupId, forKey: .groupId)
+        try c.encode(senderId, forKey: .senderId)
+        try c.encode(receiverId, forKey: .receiverId)
+        try c.encode(stockId, forKey: .stockId)
+        try c.encode(holdingId, forKey: .holdingId)
+        try c.encode(message, forKey: .message)
+        try c.encode(status, forKey: .status)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encodeIfPresent(resolvedAt, forKey: .resolvedAt)
+        try c.encode(signals, forKey: .signals)
     }
 }
 
@@ -187,6 +224,31 @@ struct GurapingSuspicion: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+struct StockTake: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var groupId: UUID
+    var userId: UUID
+    var stockId: UUID
+    var level: TakeLevel
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        groupId: UUID,
+        userId: UUID,
+        stockId: UUID,
+        level: TakeLevel,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.groupId = groupId
+        self.userId = userId
+        self.stockId = stockId
+        self.level = level
+        self.createdAt = createdAt
+    }
+}
+
 struct StockComment: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var groupId: UUID
@@ -194,6 +256,7 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
     var authorId: UUID
     var parentId: UUID?
     var body: String
+    var imageJPEG: Data?
     var createdAt: Date
 
     init(
@@ -203,6 +266,7 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
         authorId: UUID,
         parentId: UUID? = nil,
         body: String,
+        imageJPEG: Data? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -211,8 +275,11 @@ struct StockComment: Identifiable, Codable, Hashable, Sendable {
         self.authorId = authorId
         self.parentId = parentId
         self.body = body
+        self.imageJPEG = imageJPEG
         self.createdAt = createdAt
     }
+
+    var hasPhoto: Bool { imageJPEG != nil && !(imageJPEG?.isEmpty ?? true) }
 }
 
 struct Badge: Identifiable, Codable, Hashable, Sendable {

@@ -134,22 +134,37 @@ struct ChartPricePickerView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("언제 샀나요?")
                     .font(.largeTitle.bold())
                     .padding(.horizontal)
-                Text("차트를 터치해서 그날의 가격을 고르세요. 정확한 값은 아래에서 고쳐도 돼요.")
+                Text("위는 트레이딩뷰 실세입니다. 거래량과 RSI가 같이 열립니다. 아래 캔들을 눌러 매수 기록용 종가를 고르세요. 두 가격은 다를 수 있습니다.")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
-                Chart(store.history(for: stock)) { point in
-                    LineMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.ink)
-                    AreaMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                        .foregroundStyle(KkanbuTheme.ink.opacity(0.12))
+                TradingViewPane(stock: stock, height: 360)
+                    .padding(.horizontal)
+                Text("매수 기록용")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.muted)
+                    .padding(.horizontal)
+                Chart(store.history(for: stock, days: 40)) { point in
+                    RuleMark(
+                        x: .value("날짜", point.date),
+                        yStart: .value("저", point.low),
+                        yEnd: .value("고", point.high)
+                    )
+                    .foregroundStyle(point.isBull ? Color.kkanbuUp : Color.kkanbuDown)
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    RectangleMark(
+                        x: .value("날짜", point.date),
+                        yStart: .value("시", min(point.open, point.close)),
+                        yEnd: .value("종", max(point.open, point.close))
+                    )
+                    .foregroundStyle(point.isBull ? Color.kkanbuUp : Color.kkanbuDown)
                     if let selected, Calendar.current.isDate(selected.date, inSameDayAs: point.date) {
-                        PointMark(x: .value("날짜", point.date), y: .value("가격", point.price))
-                            .foregroundStyle(KkanbuTheme.ink)
-                            .symbolSize(80)
+                        RuleMark(x: .value("선택", selected.date))
+                            .foregroundStyle(KkanbuTheme.ink.opacity(0.18))
                     }
                 }
                 .chartOverlay { proxy in
@@ -167,10 +182,22 @@ struct ChartPricePickerView: View {
                             )
                     }
                 }
-                .frame(height: 260)
+                .frame(height: 220)
                 .padding()
                 .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 24))
                 .padding(.horizontal)
+                Chart(store.history(for: stock, days: 40)) { point in
+                    BarMark(
+                        x: .value("날짜", point.date),
+                        y: .value("거래량", point.volume)
+                    )
+                    .foregroundStyle((point.isBull ? Color.kkanbuUp : Color.kkanbuDown).opacity(0.45))
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .frame(height: 56)
+                .padding(.horizontal)
+                .accessibilityLabel("거래량")
 
                 if let selected {
                     VStack(alignment: .leading, spacing: 6) {
@@ -178,6 +205,9 @@ struct ChartPricePickerView: View {
                             .font(.headline)
                         Text(MoneyFormat.price(selected.price, market: stock.market))
                             .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        Text("이 날 종가를 매수가로 씁니다. 위 트레이딩뷰 숫자와 다를 수 있습니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.muted)
                     }
                     .padding(.horizontal)
                 }
@@ -194,12 +224,12 @@ struct ChartPricePickerView: View {
                     dismiss()
                 }
                 .padding()
-                Spacer()
+            }
             }
             .background(KkanbuBackground())
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
             .onAppear {
-                selected = store.history(for: stock).last
+                selected = store.history(for: stock, days: 40).last
             }
         }
     }
@@ -209,7 +239,7 @@ struct ChartPricePickerView: View {
     }
 
     private func nearest(to date: Date) -> PricePoint? {
-        store.history(for: stock).min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+        store.history(for: stock, days: 40).min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
     }
 }
 
@@ -389,27 +419,39 @@ struct ScreenshotVerifySheet: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var mismatch: (Double, Double)?
 
+    private var isSell: Bool { holding.status == .sold }
+    private var live: Holding { store.state.holding(holding.id) ?? holding }
+    private var targetPrice: Double { live.verificationPrice }
+
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text("친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다.")
+                Text(isSell
+                     ? "매도 체결 캡처로 매도가를 확인합니다. 친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다."
+                     : "친구에게 원본 캡처는 보여주지 않아요. 인증 배지만 올라갑니다.")
                     .foregroundStyle(.secondary)
+                if let stock = store.state.stock(holding.stockId) {
+                    Text("확인할 가격 \(MoneyFormat.price(targetPrice, market: stock.market))")
+                        .font(.subheadline.weight(.semibold))
+                }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("캡처로 인증하기", systemImage: "camera.viewfinder")
+                    Label(isSell ? "매도가 캡처로 인증" : "캡처로 인증하기", systemImage: "camera.viewfinder")
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8))
                 }
                 Button("샘플로 인증 테스트") {
                     if let stock = store.state.stock(holding.stockId) {
-                        let text = "\(stock.ticker)\n\(stock.name)\n평균매입가 \(MoneyFormat.price(holding.averagePrice, market: stock.market))"
+                        let label = isSell ? "매도가" : "평균매입가"
+                        let text = "\(stock.ticker)\n\(stock.name)\n\(label) \(MoneyFormat.price(targetPrice, market: stock.market))"
                         apply(store.analyzeText(text))
                     }
                 }
                 Button("일부러 다른 가격 샘플") {
                     if let stock = store.state.stock(holding.stockId) {
-                        let fake = holding.averagePrice * 1.2
-                        let text = "\(stock.ticker)\n\(stock.name)\n평균매입가 \(MoneyFormat.price(fake, market: stock.market))"
+                        let fake = targetPrice * 1.2
+                        let label = isSell ? "매도가" : "평균매입가"
+                        let text = "\(stock.ticker)\n\(stock.name)\n\(label) \(MoneyFormat.price(fake, market: stock.market))"
                         apply(store.analyzeText(text))
                     }
                 }
@@ -423,8 +465,8 @@ struct ScreenshotVerifySheet: View {
                             Text("시스템이 사기라고 단정하지 않아요.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            PillButton(title: "수정하기") {
-                                store.updateHoldingPrice(id: holding.id, price: mismatch.1)
+                            PillButton(title: "캡처 가격으로 맞추기") {
+                                store.adoptScreenshotPrice(holdingId: holding.id, price: mismatch.1)
                                 dismiss()
                             }
                             PillButton(title: "인증 취소", kind: .secondary) { dismiss() }
@@ -434,7 +476,7 @@ struct ScreenshotVerifySheet: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("캡처 인증")
+            .navigationTitle(isSell ? "매도가 인증" : "캡처 인증")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
             .onChange(of: pickerItem) { _, item in
                 Task { await load(item) }
@@ -443,7 +485,7 @@ struct ScreenshotVerifySheet: View {
     }
 
     private func apply(_ analysis: ScreenshotAnalysisResult) {
-        let before = holding.averagePrice
+        let before = targetPrice
         store.applyScreenshotVerification(holdingId: holding.id, analysis: analysis)
         if store.state.holding(holding.id)?.verificationState == .mismatch, let ocr = analysis.recognizedPrice {
             mismatch = (before, ocr)

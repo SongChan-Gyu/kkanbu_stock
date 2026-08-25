@@ -128,7 +128,7 @@ final class AppStore {
         verification: VerificationState
     ) {
         if let existing = state.activeHoldings(of: state.currentUserId).first(where: { $0.stockId == stock.id }) {
-            lastError = "이미 \(stock.name)를 보유 중이에요. 매수가를 수정하거나 매도 후 다시 등록해 주세요."
+            lastError = "이미 \(stock.name)를 보유 중이에요. 추매하거나 평단을 고친 다음, 매도 후 다시 등록해 주세요."
             return
         }
         let holding = Holding(
@@ -165,27 +165,87 @@ final class AppStore {
 
     func sellHolding(id: UUID, sellPrice: Double, sellDate: Date) {
         guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        guard sellPrice > 0 else {
+            lastError = "매도가를 확인해 주세요."
+            return
+        }
         let before = state
         state.holdings[index].status = .sold
         state.holdings[index].sellPrice = sellPrice
         state.holdings[index].sellDate = sellDate
         state.holdings[index].updatedAt = Date()
+        markNeedsReview(at: index)
         emit(.holdingSold(holdingId: id), before: before)
-        toast = "매도 처리됨"
+        toast = "매도 처리됨. 매도가 인증을 남겨 주세요."
     }
 
-    func updateHoldingPrice(id: UUID, price: Double) {
+    func updateHoldingPrice(id: UUID, price: Double, quantity: Double? = nil) {
         guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        guard price > 0 else {
+            lastError = "평단을 확인해 주세요."
+            return
+        }
+        let holding = state.holdings[index]
+        let qtyChanged = quantity.map { $0 > 0 && $0 != holding.quantity } ?? false
+        guard abs(holding.averagePrice - price) > 0.0001 || qtyChanged else {
+            toast = "바꿀 값이 없습니다."
+            return
+        }
         let before = state
         state.holdings[index].averagePrice = price
-        state.holdings[index].updatedAt = Date()
-        if state.holdings[index].verificationState == .mismatch {
-            state.holdings[index].verificationState = .unverified
+        if let quantity, quantity > 0 {
+            state.holdings[index].quantity = quantity
         }
+        state.holdings[index].updatedAt = Date()
+        markNeedsReview(at: index)
         emit(.priceEdited(holdingId: id), before: before)
+        toast = "평단을 고쳤습니다. 다시 인증해 주세요."
     }
 
-    func recommend(holding: Holding, to userId: UUID, message: String) {
+    func addToPosition(id: UUID, addPrice: Double, addQuantity: Double, existingQuantity: Double? = nil) {
+        guard let index = state.holdings.firstIndex(where: { $0.id == id }) else { return }
+        let holding = state.holdings[index]
+        guard holding.status == .holding else { return }
+        let oldQty = existingQuantity ?? holding.quantity ?? 0
+        guard let avg = Holding.blendedAverage(
+            oldAverage: holding.averagePrice,
+            oldQuantity: oldQty,
+            addPrice: addPrice,
+            addQuantity: addQuantity
+        ) else {
+            lastError = "추가 매수가와 수량을 확인해 주세요."
+            return
+        }
+        let before = state
+        state.holdings[index].averagePrice = avg
+        state.holdings[index].quantity = oldQty + addQuantity
+        state.holdings[index].updatedAt = Date()
+        markNeedsReview(at: index)
+        emit(.priceEdited(holdingId: id), before: before)
+        if let stock = state.stock(holding.stockId) {
+            toast = "평단 \(MoneyFormat.price(avg, market: stock.market))로 바꿨습니다. 다시 인증해 주세요."
+        } else {
+            toast = "평단을 고쳤습니다. 다시 인증해 주세요."
+        }
+    }
+
+    func adoptScreenshotPrice(holdingId: UUID, price: Double) {
+        guard let index = state.holdings.firstIndex(where: { $0.id == holdingId }) else { return }
+        guard price > 0 else { return }
+        let before = state
+        if state.holdings[index].status == .sold {
+            state.holdings[index].sellPrice = price
+        } else {
+            state.holdings[index].averagePrice = price
+        }
+        state.holdings[index].verificationState = .screenshotVerified
+        state.holdings[index].inputMethod = .screenshot
+        state.holdings[index].updatedAt = Date()
+        emit(.verified(holdingId: holdingId, matched: true), before: before)
+        toast = "캡처 가격으로 맞추고 인증했습니다"
+    }
+
+    func recommend(holding: Holding, to userId: UUID, message: String, signals: [String] = []) {
         guard let groupId = state.selectedGroupId else { return }
         let rec = StockRecommendation(
             groupId: groupId,
@@ -193,7 +253,8 @@ final class AppStore {
             receiverId: userId,
             stockId: holding.stockId,
             holdingId: holding.id,
-            message: message
+            message: message,
+            signals: signals
         )
         let before = state
         state.recommendations.append(rec)
@@ -209,7 +270,7 @@ final class AppStore {
             state.recommendations[index].status = .willBuy
             state.recommendations[index].resolvedAt = nil
             emit(.recommendationResolved(id: rec.id), before: before)
-            toast = "살게요. 사면 매수가를 적으세요."
+            toast = "매수 예정으로 남겼습니다"
             return
         }
         state.recommendations[index].status = accept ? .accepted : .rejected
@@ -231,7 +292,7 @@ final class AppStore {
             }
         }
         emit(triggers, before: before)
-        toast = accept ? "사서 기록했습니다" : "안 사기로 했습니다"
+        toast = accept ? "매수를 기록했습니다" : "거절했습니다"
     }
 
     func propose(stock: Stock, message: String) {
@@ -242,7 +303,7 @@ final class AppStore {
         state.proposals.append(proposal)
         state.coBuys.append(mine)
         emit([.proposalCreated(id: proposal.id), .coBuyPromised(id: mine.id)], before: before)
-        toast = "그룹에 같이 사자고 제안했습니다"
+        toast = "매수를 제안했습니다"
     }
 
     func promiseCoBuy(proposalId: UUID) {
@@ -252,15 +313,28 @@ final class AppStore {
             if existing.status == .promised { return }
             if let index = state.coBuys.firstIndex(where: { $0.id == existing.id }) {
                 state.coBuys[index].status = .promised
+                leaveInterestComment(groupId: proposal.groupId, stockId: proposal.stockId)
                 emit(.coBuyPromised(id: existing.id), before: before)
-                toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+                toast = "관심을 남겼습니다"
             }
             return
         }
         let cobuy = CoBuyRequest(proposalId: proposalId, groupId: proposal.groupId, userId: state.currentUserId, stockId: proposal.stockId)
         state.coBuys.append(cobuy)
+        leaveInterestComment(groupId: proposal.groupId, stockId: proposal.stockId)
         emit(.coBuyPromised(id: cobuy.id), before: before)
-        toast = "관심만 남겼습니다. 그룹 제안이지 매수가 아닙니다."
+        toast = "관심을 남겼습니다"
+    }
+
+    private func leaveInterestComment(groupId: UUID, stockId: UUID) {
+        let alreadySaid = state.comments.contains {
+            $0.groupId == groupId && $0.stockId == stockId
+                && $0.authorId == state.currentUserId && $0.body == "관심 있음"
+        }
+        guard !alreadySaid else { return }
+        state.comments.append(
+            StockComment(groupId: groupId, stockId: stockId, authorId: state.currentUserId, body: "관심 있음")
+        )
     }
 
     func declineProposal(_ proposalId: UUID) {
@@ -289,11 +363,11 @@ final class AppStore {
         let mine = state.coBuys.first(where: { $0.proposalId == proposalId && $0.userId == state.currentUserId })
         let count = (mine?.nagCount ?? 0) + 1
         if let last = mine?.lastNagAt, Date().timeIntervalSince(last) < SocialLimits.nagCooldown {
-            lastError = "조금 뒤에 다시 조를 수 있어요."
+            lastError = "조금 뒤에 다시 제안할 수 있습니다."
             return
         }
         if count > SocialLimits.maxNagsPerProposal {
-            lastError = "조르기는 제안당 3번까지예요."
+            lastError = "재요청은 제안당 3번까지입니다."
             return
         }
         let before = state
@@ -305,7 +379,7 @@ final class AppStore {
         let holdouts = state.members(of: proposal.groupId).map(\.userId).filter { !responded.contains($0) && $0 != state.currentUserId }
         let targets = holdouts.isEmpty ? [nil] : holdouts.map(Optional.some)
         emit(targets.map { .nagged(proposalId: proposalId, actorId: state.currentUserId, targetUserId: $0, count: count) }, before: before)
-        toast = "같이 사자고 한 번 더 찔렀어요"
+        toast = "다시 제안했습니다"
     }
 
     func suspectHolding(_ holdingId: UUID) {
@@ -344,13 +418,15 @@ final class AppStore {
                 state.holdings[index].inputMethod = .screenshot
             }
             emit(.verified(holdingId: holdingId, matched: true), before: before)
-            toast = "캡처 인증 완료"
+            toast = holding.status == .sold ? "매도가 인증 완료" : "캡처 인증 완료"
         } else {
             if let index = state.holdings.firstIndex(where: { $0.id == holdingId }) {
                 state.holdings[index].verificationState = .mismatch
             }
             emit(.verified(holdingId: holdingId, matched: false), before: before)
-            lastError = "입력한 매수가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
+            lastError = holding.status == .sold
+                ? "입력한 매도가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
+                : "입력한 매수가와 캡처 정보가 달라요. 사기라고 단정하지 않고, 확인이 필요하다는 뜻입니다."
         }
     }
 
@@ -395,7 +471,7 @@ final class AppStore {
         parser.analyze(text: text, catalog: state.stocks, now: Date())
     }
 
-    func recommendToGroup(holding: Holding, message: String) {
+    func recommendToGroup(holding: Holding, message: String, signals: [String] = []) {
         guard let groupId = state.selectedGroupId else { return }
         let friends = state.members(of: groupId).map(\.userId).filter { $0 != state.currentUserId }
         let before = state
@@ -407,7 +483,8 @@ final class AppStore {
                 receiverId: friend,
                 stockId: holding.stockId,
                 holdingId: holding.id,
-                message: message
+                message: message,
+                signals: signals
             )
             state.recommendations.append(rec)
             triggers.append(.recommendationSent(id: rec.id))
@@ -416,11 +493,12 @@ final class AppStore {
         toast = "그룹에 추천을 보냈습니다"
     }
 
-    func addComment(stockId: UUID, parentId: UUID? = nil, body: String) {
+    func addComment(stockId: UUID, parentId: UUID? = nil, body: String, imageJPEG: Data? = nil, silent: Bool = false) {
         guard let groupId = state.selectedGroupId else { return }
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            lastError = "내용을 적어 주세요."
+        let photo = imageJPEG.flatMap { $0.isEmpty ? nil : $0 }
+        guard !trimmed.isEmpty || photo != nil else {
+            lastError = "내용이나 사진을 넣어 주세요."
             return
         }
         if let parentId {
@@ -431,12 +509,36 @@ final class AppStore {
             stockId: stockId,
             authorId: state.currentUserId,
             parentId: parentId,
-            body: trimmed
+            body: trimmed,
+            imageJPEG: photo
         )
         let before = state
         state.comments.append(comment)
+        if silent {
+            persist()
+            return
+        }
         emit(.commentPosted(id: comment.id), before: before)
-        toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+        if photo != nil && trimmed.isEmpty {
+            toast = "사진을 남겼습니다"
+        } else {
+            toast = parentId == nil ? "댓글을 남겼습니다" : "대댓글을 남겼습니다"
+        }
+    }
+
+    func talkedStockIds(in groupId: UUID) -> [UUID] {
+        var seen = Set<UUID>()
+        var ids: [UUID] = []
+        func push(_ id: UUID) {
+            guard seen.insert(id).inserted else { return }
+            ids.append(id)
+        }
+        for rec in state.recommendations where rec.groupId == groupId { push(rec.stockId) }
+        for proposal in state.proposals where proposal.groupId == groupId { push(proposal.stockId) }
+        for take in state.takes where take.groupId == groupId { push(take.stockId) }
+        for comment in state.comments where comment.groupId == groupId { push(comment.stockId) }
+        for bond in KkangbuMath.bonds(in: groupId, state: state, prices: currentPrices) { push(bond.stockId) }
+        return ids
     }
 
     func comments(in groupId: UUID, stockId: UUID) -> [StockComment] {
@@ -449,6 +551,52 @@ final class AppStore {
         comments(in: groupId, stockId: stockId).count
     }
 
+    func setTake(stockId: UUID, level: TakeLevel) {
+        guard let groupId = state.selectedGroupId else { return }
+        if let index = state.takes.firstIndex(where: {
+            $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId
+        }) {
+            state.takes[index].level = level
+        } else {
+            state.takes.append(StockTake(groupId: groupId, userId: state.currentUserId, stockId: stockId, level: level))
+        }
+        persist()
+        toast = level.title
+    }
+
+    func takes(in groupId: UUID, stockId: UUID) -> [StockTake] {
+        state.takes.filter { $0.groupId == groupId && $0.stockId == stockId }
+    }
+
+    func myTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        state.takes.first { $0.groupId == groupId && $0.stockId == stockId && $0.userId == state.currentUserId }?.level
+    }
+
+    func groupTake(in groupId: UUID, stockId: UUID) -> TakeLevel? {
+        TakeLevel.consensus(takes(in: groupId, stockId: stockId).map(\.level))
+    }
+
+    func pulseSnapshot(for stock: Stock, in groupId: UUID?) -> StockPulse.Snapshot {
+        let comments = groupId.map { commentCount(in: $0, stockId: stock.id) } ?? 0
+        let pending = state.recommendations.filter {
+            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
+        }.count
+        let shared = groupId.flatMap { gid in
+            KkangbuMath.bonds(in: gid, state: state, prices: currentPrices)
+                .first { $0.stockId == stock.id }?.sharedReturn
+        }
+        let takeCount = groupId.map { takes(in: $0, stockId: stock.id).count } ?? 0
+        return StockPulse.snapshot(
+            ticker: stock.ticker,
+            commentCount: comments,
+            pendingRecommendations: pending,
+            sharedReturn: shared,
+            groupTake: groupId.flatMap { groupTake(in: $0, stockId: stock.id) },
+            takeCount: takeCount,
+            myTake: groupId.flatMap { myTake(in: $0, stockId: stock.id) }
+        )
+    }
+
     func recommendations(in groupId: UUID, stockId: UUID) -> [StockRecommendation] {
         state.recommendations
             .filter { $0.groupId == groupId && $0.stockId == stockId }
@@ -458,8 +606,9 @@ final class AppStore {
     func copyInviteCode(_ code: String) {
         #if canImport(UIKit)
         UIPasteboard.general.string = code
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         #endif
-        toast = "초대 코드 \(code) 복사됨"
+        toast = "초대 코드 복사됨"
     }
 
     func refreshDerived() {
@@ -502,7 +651,14 @@ final class AppStore {
         let suspects = state.holdings.filter { $0.userId == userId && ($0.verificationState == .suspected || $0.verificationState == .mismatch) }.map {
             InboxItem(id: $0.id, kind: .suspect, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
         }
-        return (recs + proposals + Array(nags) + suspects).sorted { $0.date > $1.date }
+        let reviews = state.holdings.filter { $0.userId == userId && $0.verificationState == .needsReview }.map {
+            InboxItem(id: $0.id, kind: .reverify, date: $0.updatedAt, recommendation: nil, proposal: nil, holding: $0)
+        }
+        return (recs + proposals + Array(nags) + suspects + reviews).sorted { $0.date > $1.date }
+    }
+
+    private func markNeedsReview(at index: Int) {
+        state.holdings[index].verificationState = .needsReview
     }
 
     private func completeCoBuysIfNeeded(userId: UUID, stockId: UUID) -> [Trigger] {
@@ -643,7 +799,7 @@ final class AppStore {
 }
 
 struct InboxItem: Identifiable {
-    enum Kind { case recommend, proposal, suspect, nag, cobuyRegister }
+    enum Kind { case recommend, proposal, suspect, nag, cobuyRegister, reverify }
     var id: UUID
     var kind: Kind
     var date: Date

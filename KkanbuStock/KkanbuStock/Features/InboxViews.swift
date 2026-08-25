@@ -2,6 +2,12 @@ import SwiftUI
 #if canImport(UserNotifications)
 import UserNotifications
 #endif
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum LocalPush {
     static func requestPermission() {
@@ -40,29 +46,24 @@ struct InboxActionCard: View {
                 let sender = store.state.nickname(rec.senderId)
                 if rec.status == .willBuy {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("살게요 · 아직 안 삼")
+                        Text("매수 예정")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(KkanbuTheme.faint)
                         HStack(spacing: 10) {
                             StockMark(ticker: stock.ticker, name: stock.name, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(sender)가 추천한 \(stock.name)")
+                                Text("\(sender) · \(stock.name)")
                                     .font(.body.weight(.semibold))
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                Text(StockPulse.headline(ticker: stock.ticker))
-                                    .font(.caption)
-                                    .foregroundStyle(KkanbuTheme.muted)
-                                    .lineLimit(1)
+                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
+                                SignalChips(labels: rec.signals)
                             }
                         }
-                        Text("사겠다고 한 다음 단계입니다. 샀으면 매수가를 적으세요. 버튼을 눌러도 주문이 나가지 않습니다.")
-                            .font(.caption)
-                            .foregroundStyle(KkanbuTheme.faint)
                         VStack(spacing: 8) {
-                            QuietButton(title: "샀어요 · 매수가 적기") { onRegister(stock) }
-                            QuietButton(title: "마음 바뀜", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
+                            QuietButton(title: "매수가 기록") { onRegister(stock) }
+                            QuietButton(title: "취소", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
                             threadButton(stock)
                         }
                     }
@@ -76,20 +77,15 @@ struct InboxActionCard: View {
                         HStack(spacing: 10) {
                             StockMark(ticker: stock.ticker, name: stock.name, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(sender)가 \(stock.name)를 추천함")
+                                Text("\(sender) · \(stock.name)")
                                     .font(.body.weight(.semibold))
                                 Text(stock.ticker)
                                     .font(.caption.monospaced())
                                     .foregroundStyle(KkanbuTheme.faint)
-                                Text(StockPulse.headline(ticker: stock.ticker))
-                                    .font(.caption)
-                                    .foregroundStyle(KkanbuTheme.muted)
-                                    .lineLimit(1)
+                                PulseStrip(snapshot: pulse(for: stock), stock: stock)
+                                SignalChips(labels: rec.signals)
                             }
                         }
-                        Text("살게요는 약속입니다. 산 뒤에 매수가를 적습니다. 버튼을 눌러도 주문이 나가지 않습니다.")
-                            .font(.caption)
-                            .foregroundStyle(KkanbuTheme.faint)
                         VStack(spacing: 8) {
                             QuietButton(title: "살게요") { store.resolveRecommendation(rec.id, accept: true) }
                             QuietButton(title: "안 살게", kind: .secondary) { store.resolveRecommendation(rec.id, accept: false) }
@@ -103,32 +99,43 @@ struct InboxActionCard: View {
         case .proposal, .nag:
             if let proposal = item.proposal, let stock = store.state.stock(proposal.stockId) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(item.kind == .nag ? "그룹이 다시 조름" : "그룹 제안")
+                    Text(item.kind == .nag ? "매수 제안 · 재요청" : "매수 제안")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
-                    Text("\(store.state.nickname(proposal.proposerId))가 그룹에 \(stock.name) 같이 사자고 함")
-                        .font(.body.weight(.semibold))
-                    HStack(spacing: 8) {
-                        StockMark(ticker: stock.ticker, name: stock.name, size: 28)
-                        Text(stock.ticker)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(KkanbuTheme.faint)
+                    HStack(spacing: 10) {
+                        StockMark(ticker: stock.ticker, name: stock.name, size: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(store.state.nickname(proposal.proposerId)) · \(stock.name)")
+                                .font(.body.weight(.semibold))
+                            Text(stock.ticker)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(KkanbuTheme.faint)
+                        }
                     }
-                    Text("친구 한 명 추천이 아닙니다. 그룹 전체에 아직 안 산 종목을 제안한 겁니다.")
-                        .font(.caption)
-                        .foregroundStyle(KkanbuTheme.faint)
                     VStack(spacing: 8) {
                         QuietButton(title: "관심 있음") { store.promiseCoBuy(proposalId: proposal.id) }
                         QuietButton(title: "패스", kind: .secondary) { store.declineProposal(proposal.id) }
+                        threadButton(stock)
                     }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
             }
-        case .suspect:
+        case .suspect, .reverify:
             if let holding = item.holding, let stock = store.state.stock(holding.stockId) {
+                let isSell = holding.status == .sold
+                let title: String
+                if item.kind == .reverify {
+                    title = isSell ? "매도가 인증" : "평단 재인증"
+                } else {
+                    title = "매수가 확인 요청"
+                }
+                let price = MoneyFormat.price(holding.verificationPrice, market: stock.market)
+                let blurb = isSell
+                    ? "\(price)에 판 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다."
+                    : "\(price)에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다."
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("매수가 확인 요청")
+                    Text(title)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(KkanbuTheme.faint)
                     HStack(spacing: 10) {
@@ -141,10 +148,10 @@ struct InboxActionCard: View {
                                 .foregroundStyle(KkanbuTheme.faint)
                         }
                     }
-                    Text("\(MoneyFormat.price(holding.averagePrice, market: stock.market))에 산 기록이 맞는지 캡처로 확인합니다. 사기라고 단정하지 않습니다.")
+                    Text(blurb)
                         .font(.caption)
                         .foregroundStyle(KkanbuTheme.faint)
-                    QuietButton(title: "캡처로 인증") { onVerify(holding) }
+                    QuietButton(title: isSell ? "매도가 인증" : "캡처로 인증") { onVerify(holding) }
                 }
                 .padding(.vertical, 12)
                 .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
@@ -195,6 +202,10 @@ struct InboxActionCard: View {
             .buttonStyle(.plain)
         }
     }
+
+    private func pulse(for stock: Stock) -> StockPulse.Snapshot {
+        store.pulseSnapshot(for: stock, in: store.state.selectedGroupId)
+    }
 }
 
 struct RecommendationThreadView: View {
@@ -203,6 +214,9 @@ struct RecommendationThreadView: View {
     var stock: Stock
     @State private var draft = ""
     @State private var replyTo: StockComment?
+    @State private var pendingJPEG: Data?
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var viewerIndex: Int?
 
     var body: some View {
         NavigationStack {
@@ -210,6 +224,7 @@ struct RecommendationThreadView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     history
+                    photoRail
                     comments
                 }
                 .padding(16)
@@ -220,51 +235,71 @@ struct RecommendationThreadView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
             }
+            .fullScreenCover(item: viewerBinding) { item in
+                CommentPhotoPager(photos: threadPhotos, index: item)
+            }
         }
     }
 
     private var groupId: UUID? { store.state.selectedGroupId }
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            StockMark(ticker: stock.ticker, name: stock.name, size: 52)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(stock.ticker)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(KkanbuTheme.faint)
-                Text(StockPulse.headline(ticker: stock.ticker))
-                    .font(.subheadline)
-                    .foregroundStyle(KkanbuTheme.ink)
-                Text(StockPulse.newsAge)
-                    .font(.caption)
-                    .foregroundStyle(KkanbuTheme.faint)
-                Text(vibeLine)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(KkanbuTheme.muted)
-            }
+    private var threadItems: [StockComment] {
+        groupId.map { store.comments(in: $0, stockId: stock.id) } ?? []
+    }
+
+    private var threadPhotos: [CommentPhotoItem] {
+        threadItems.compactMap { comment in
+            guard let data = comment.imageJPEG, let image = platformImage(data) else { return nil }
+            return CommentPhotoItem(
+                id: comment.id,
+                image: image,
+                caption: comment.body.isEmpty ? store.state.nickname(comment.authorId) : "\(store.state.nickname(comment.authorId)) · \(comment.body)"
+            )
         }
     }
 
-    private var vibeLine: String {
-        let comments = groupId.map { store.commentCount(in: $0, stockId: stock.id) } ?? 0
-        let pending = store.state.recommendations.filter {
-            $0.stockId == stock.id && ($0.status == .pending || $0.status == .willBuy)
-        }.count
-        let shared = groupId.flatMap { gid in
-            KkangbuMath.bonds(in: gid, state: store.state, prices: store.currentPrices)
-                .first { $0.stockId == stock.id }?.sharedReturn
+    private var viewerBinding: Binding<CommentPhotoItem?> {
+        Binding(
+            get: {
+                guard let viewerIndex, threadPhotos.indices.contains(viewerIndex) else { return nil }
+                return threadPhotos[viewerIndex]
+            },
+            set: { viewerIndex = $0 == nil ? nil : viewerIndex }
+        )
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                StockMark(ticker: stock.ticker, name: stock.name, size: 52)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(stock.name)
+                        .font(.title3.weight(.semibold))
+                    Text(stock.ticker)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(KkanbuTheme.faint)
+                }
+            }
+            TradingViewPane(stock: stock, height: 420)
+            PulseStrip(snapshot: pulseSnapshot, compact: false, stock: stock)
         }
-        return StockPulse.vibe(commentCount: comments, pendingRecommendations: pending, sharedReturn: shared)
+    }
+
+    private var pulseSnapshot: StockPulse.Snapshot {
+        store.pulseSnapshot(for: stock, in: groupId)
     }
 
     private var history: some View {
         let recs = groupId.map { store.recommendations(in: $0, stockId: stock.id) } ?? []
+        let proposals = groupId.map { gid in
+            store.state.proposals.filter { $0.groupId == gid && $0.stockId == stock.id }
+        } ?? []
         return VStack(alignment: .leading, spacing: 8) {
-            Text("추천 히스토리")
+            Text("이 종목 이야기")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(KkanbuTheme.muted)
-            if recs.isEmpty {
-                Text("아직 이 종목을 추천한 기록이 없습니다.")
+            if recs.isEmpty && proposals.isEmpty {
+                Text("아직 추천이나 매수 제안이 없습니다.")
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.faint)
             } else {
@@ -275,7 +310,23 @@ struct RecommendationThreadView: View {
                         Text("“\(rec.message)”")
                             .font(.footnote)
                             .foregroundStyle(KkanbuTheme.ink)
+                        SignalChips(labels: rec.signals)
                         Text("\(rec.status.threadLabel) · \(MoneyFormat.relative(rec.createdAt))")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    .padding(.vertical, 10)
+                    .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
+                }
+                ForEach(proposals) { proposal in
+                    let promised = store.state.coBuys.filter { $0.proposalId == proposal.id && $0.status != .declined }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(store.state.nickname(proposal.proposerId)) · 매수 제안")
+                            .font(.subheadline.weight(.semibold))
+                        Text("“\(proposal.message)”")
+                            .font(.footnote)
+                            .foregroundStyle(KkanbuTheme.ink)
+                        Text("관심 \(promised.count)명 · \(MoneyFormat.relative(proposal.createdAt))")
                             .font(.caption)
                             .foregroundStyle(KkanbuTheme.faint)
                     }
@@ -286,15 +337,43 @@ struct RecommendationThreadView: View {
         }
     }
 
+    @ViewBuilder
+    private var photoRail: some View {
+        if !threadPhotos.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("사진 \(threadPhotos.count)")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.muted)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(threadPhotos.enumerated()), id: \.element.id) { index, photo in
+                            Button {
+                                viewerIndex = index
+                            } label: {
+                                Image(uiImage: photo.image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 92, height: 92)
+                                    .clipped()
+                                    .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var comments: some View {
-        let items = groupId.map { store.comments(in: $0, stockId: stock.id) } ?? []
+        let items = threadItems
         let roots = items.filter { $0.parentId == nil }
         return VStack(alignment: .leading, spacing: 8) {
             Text("댓글 \(items.count)")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(KkanbuTheme.muted)
             if items.isEmpty {
-                Text("아직 댓글이 없습니다. 이 추천에 한마디 남겨 보세요.")
+                Text("아직 댓글이 없습니다. 차트 분석 사진이나 한마디를 남겨 보세요.")
                     .font(.footnote)
                     .foregroundStyle(KkanbuTheme.faint)
                     .padding(.vertical, 8)
@@ -313,11 +392,29 @@ struct RecommendationThreadView: View {
         HStack(alignment: .top, spacing: 10) {
             if isReply { Color.clear.frame(width: 18) }
             InitialsAvatar(name: store.state.nickname(comment.authorId), size: 28)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(store.state.nickname(comment.authorId))
                     .font(.caption.weight(.semibold))
-                Text(comment.body)
-                    .font(.subheadline)
+                if !comment.body.isEmpty {
+                    Text(comment.body)
+                        .font(.subheadline)
+                }
+                if let data = comment.imageJPEG, let image = platformImage(data) {
+                    Button {
+                        if let idx = threadPhotos.firstIndex(where: { $0.id == comment.id }) {
+                            viewerIndex = idx
+                        }
+                    } label: {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 180)
+                            .clipped()
+                            .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
                 HStack(spacing: 10) {
                     Text(MoneyFormat.relative(comment.createdAt))
                         .font(.caption)
@@ -345,13 +442,48 @@ struct RecommendationThreadView: View {
                         .font(.caption.weight(.medium))
                 }
             }
-            HStack(spacing: 8) {
-                TextField(replyTo == nil ? "이 추천에 한마디" : "답글 적기", text: $draft, axis: .vertical)
+            if let pendingJPEG, let image = platformImage(pendingJPEG) {
+                HStack(alignment: .top) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipped()
+                        .background(KkanbuTheme.chip, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Spacer()
+                    Button("사진 빼기") { self.pendingJPEG = nil; pickerItem = nil }
+                        .font(.caption.weight(.medium))
+                }
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                #if canImport(PhotosUI)
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .frame(width: 48, height: 48)
+                }
+                .onChange(of: pickerItem) { _, item in
+                    Task { await loadPhoto(item) }
+                }
+                #endif
+                Button {
+                    attachChart()
+                } label: {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.title3)
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .frame(width: 48, height: 48)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("차트 첨부")
+                TextField(replyTo == nil ? "이 종목에 한마디" : "답글 적기", text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .padding(.vertical, 10)
                 Button("보내기") { send() }
                     .font(.subheadline.weight(.semibold))
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .frame(minHeight: 48)
+                    .disabled(!canSend)
             }
             .overlay(alignment: .bottom) { KkanbuTheme.line.frame(height: 1) }
         }
@@ -360,9 +492,97 @@ struct RecommendationThreadView: View {
         .background(KkanbuTheme.bg)
     }
 
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingJPEG != nil
+    }
+
     private func send() {
-        store.addComment(stockId: stock.id, parentId: replyTo?.id, body: draft)
+        store.addComment(stockId: stock.id, parentId: replyTo?.id, body: draft, imageJPEG: pendingJPEG)
         draft = ""
         replyTo = nil
+        pendingJPEG = nil
+        pickerItem = nil
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem?) async {
+        guard let item, let data = try? await item.loadTransferable(type: Data.self) else { return }
+        pendingJPEG = CommentPhoto.jpeg(from: data)
+    }
+
+    private func attachChart() {
+        #if canImport(UIKit)
+        let candles = store.history(for: stock, days: 40)
+        let last = candles.last?.close ?? store.price(for: stock.id)
+        let rsi = ChartMath.snapshot(for: candles).rsi
+        pendingJPEG = CommentPhoto.chartJPEG(
+            candles: candles,
+            title: "\(stock.name) · \(stock.ticker)",
+            price: MoneyFormat.price(last, market: stock.market),
+            rsiLabel: rsi.map { "RSI \(Int($0.rounded()))" }
+        )
+        #endif
+    }
+
+    private func platformImage(_ data: Data) -> UIImage? {
+        #if canImport(UIKit)
+        UIImage(data: data)
+        #else
+        nil
+        #endif
+    }
+}
+
+struct CommentPhotoItem: Identifiable {
+    var id: UUID
+    #if canImport(UIKit)
+    var image: UIImage
+    #else
+    var image: Data
+    #endif
+    var caption: String
+}
+
+struct CommentPhotoPager: View {
+    @Environment(\.dismiss) private var dismiss
+    var photos: [CommentPhotoItem]
+    var index: CommentPhotoItem
+    @State private var current: UUID
+
+    init(photos: [CommentPhotoItem], index: CommentPhotoItem) {
+        self.photos = photos
+        self.index = index
+        _current = State(initialValue: index.id)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            TabView(selection: $current) {
+                ForEach(photos) { photo in
+                    VStack(spacing: 12) {
+                        Spacer()
+                        #if canImport(UIKit)
+                        Image(uiImage: photo.image)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.horizontal, 12)
+                        #endif
+                        Text(photo.caption)
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                        Spacer()
+                    }
+                    .tag(photo.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            Button("닫기") { dismiss() }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(16)
+        }
     }
 }

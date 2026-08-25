@@ -76,8 +76,8 @@ struct StockTextParser: StockScreenshotAnalyzing {
 
     private func extractPrice(from text: String, market: Market?) -> (Double?, Double) {
         let labeled = [
-            "평균매입가", "매입단가", "평단", "평단가", "매수가",
-            "Average Price", "Avg Price", "Avg. Price", "Average Cost", "Avg Cost"
+            "평균매입가", "매입단가", "평단", "평단가", "매수가", "매도가", "매도단가", "체결가",
+            "Average Price", "Avg Price", "Avg. Price", "Average Cost", "Avg Cost", "Sell Price"
         ]
         let ns = text as NSString
         for label in labeled {
@@ -165,20 +165,21 @@ struct VerificationService {
         let stockMatched = analysis.matchedStock?.id == stock.id ||
             analysis.recognizedTicker?.uppercased() == stock.ticker.uppercased() ||
             analysis.recognizedName?.localizedCaseInsensitiveContains(stock.name) == true
+        let target = holding.verificationPrice
         guard let ocrPrice = analysis.recognizedPrice, analysis.priceConfidence >= 0.6, stockMatched else {
             return VerificationOutcome(
                 matched: false,
                 ocrPrice: analysis.recognizedPrice,
-                inputPrice: holding.averagePrice,
+                inputPrice: target,
                 stockMatched: stockMatched,
                 confidence: analysis.confidence
             )
         }
-        let delta = abs(ocrPrice - holding.averagePrice) / max(holding.averagePrice, 0.01)
+        let delta = abs(ocrPrice - target) / max(target, 0.01)
         return VerificationOutcome(
             matched: delta <= relativeTolerance,
             ocrPrice: ocrPrice,
-            inputPrice: holding.averagePrice,
+            inputPrice: target,
             stockMatched: stockMatched,
             confidence: min(analysis.confidence, analysis.priceConfidence)
         )

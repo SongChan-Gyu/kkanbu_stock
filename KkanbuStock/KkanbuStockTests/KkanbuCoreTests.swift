@@ -38,6 +38,17 @@ final class StockTextParserTests: XCTestCase {
         XCTAssertEqual(result.recognizedPrice, 198.20, accuracy: 0.01)
     }
 
+    func testSellPriceLabel() {
+        let result = parser.analyze(
+            text: "NVDA\nNVIDIA\n매도가 $180.00",
+            catalog: catalog,
+            now: Date()
+        )
+        XCTAssertEqual(result.matchedStock?.ticker, "NVDA")
+        XCTAssertEqual(result.recognizedPrice, 180.00, accuracy: 0.01)
+        XCTAssertGreaterThanOrEqual(result.priceConfidence, 0.9)
+    }
+
     func testLowConfidenceWithoutMatch() {
         let result = parser.analyze(text: "hello world 123", catalog: catalog, now: Date())
         XCTAssertNil(result.matchedStock)
@@ -440,6 +451,8 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertTrue(bonds.contains { $0.grade.isGlory })
         XCTAssertTrue(bonds.contains { $0.grade.isRoast })
         XCTAssertFalse(store.state.comments.isEmpty)
+        XCTAssertFalse(store.state.takes.isEmpty)
+        XCTAssertEqual(store.groupTake(in: store.state.groups[0].id, stockId: StockCatalog.stock(ticker: "NVDA")!.id), .strongBuy)
     }
 
     func testRecommendationThreadKeepsCommentsAndReplies() {
@@ -468,6 +481,137 @@ final class AppStoreFlowTests: XCTestCase {
         XCTAssertEqual(store.commentCount(in: store.state.groups[0].id, stockId: nvda.id), 2)
         XCTAssertEqual(store.comments(in: store.state.groups[0].id, stockId: nvda.id).filter { $0.parentId == parent.id }.count, 1)
         XCTAssertEqual(store.recommendations(in: store.state.groups[0].id, stockId: nvda.id).first?.message, "같이 들어가 봐.")
+
+        store.addComment(stockId: nvda.id, body: "", imageJPEG: Data([0xFF, 0xD8, 0xFF]))
+        XCTAssertEqual(store.state.comments.filter(\.hasPhoto).count, 1)
+        XCTAssertTrue(store.state.events.contains { $0.title == "사진" })
+        XCTAssertEqual(store.toast, "사진을 남겼습니다")
+
+        #if canImport(UIKit)
+        let chart = CommentPhoto.chartJPEG(values: [1, 2, 3, 4], title: "NVIDIA · NVDA", price: "$182.40")
+        XCTAssertNotNil(chart)
+        XCTAssertGreaterThan(chart?.count ?? 0, 100)
+        #endif
+    }
+
+    func testPromiseCoBuyWritesThreadComment() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-interest-\(UUID().uuidString).json")
+        )
+        store.refreshDerived()
+        let amd = StockCatalog.stock(ticker: "AMD")!
+        let groupId = store.state.groups[0].id
+        let proposal = store.state.proposals.first { $0.stockId == amd.id }!
+        XCTAssertFalse(store.state.comments.contains { $0.stockId == amd.id && $0.body == "관심 있음" })
+
+        store.promiseCoBuy(proposalId: proposal.id)
+        XCTAssertTrue(store.state.coBuys.contains { $0.userId == me.id && $0.proposalId == proposal.id && $0.status == .promised })
+        XCTAssertEqual(
+            store.state.comments.filter { $0.stockId == amd.id && $0.authorId == me.id && $0.body == "관심 있음" }.count,
+            1
+        )
+        XCTAssertEqual(store.toast, "관심을 남겼습니다")
+        XCTAssertNil(store.myTake(in: groupId, stockId: amd.id))
+        XCTAssertTrue(store.talkedStockIds(in: groupId).contains(amd.id))
+        XCTAssertEqual(Set(store.talkedStockIds(in: groupId)).count, store.talkedStockIds(in: groupId).count)
+
+        store.promiseCoBuy(proposalId: proposal.id)
+        XCTAssertEqual(
+            store.state.comments.filter { $0.stockId == amd.id && $0.authorId == me.id && $0.body == "관심 있음" }.count,
+            1
+        )
+    }
+
+    func testTalkedStocksIncludeRecsProposalsAndBondsOnce() {
+        let me = User(nickname: "나", avatarEmoji: "🐣")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-talked-\(UUID().uuidString).json")
+        )
+        store.refreshDerived()
+        let ids = store.talkedStockIds(in: store.state.groups[0].id)
+        let nvda = StockCatalog.stock(ticker: "NVDA")!.id
+        let amd = StockCatalog.stock(ticker: "AMD")!.id
+        XCTAssertTrue(ids.contains(nvda))
+        XCTAssertTrue(ids.contains(amd))
+        XCTAssertEqual(ids.filter { $0 == nvda }.count, 1)
+    }
+
+    func testAddToPositionRecalculatesAverage() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-addon-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let aapl = StockCatalog.stock(ticker: "AAPL")!
+        store.addHolding(stock: aapl, averagePrice: 200, quantity: 1, purchaseDate: Date(), method: .manual, verification: .unverified)
+        let id = store.state.activeHoldings(of: store.state.currentUserId)[0].id
+        store.addToPosition(id: id, addPrice: 100, addQuantity: 1)
+        let holding = store.state.holding(id)
+        XCTAssertEqual(holding?.averagePrice ?? 0, 150, accuracy: 0.01)
+        XCTAssertEqual(holding?.quantity ?? 0, 2, accuracy: 0.01)
+        XCTAssertTrue(store.state.events.contains { $0.type == .holdingPriceUpdated })
+        store.updateHoldingPrice(id: id, price: 180, quantity: 3)
+        XCTAssertEqual(store.state.holding(id)?.averagePrice ?? 0, 180, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.quantity ?? 0, 3, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertTrue(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify && $0.holding?.id == id })
+    }
+
+    func testPriceEditAndSellRequireVerificationAgain() {
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-reverify-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.addHolding(
+            stock: nvda,
+            averagePrice: 163.4,
+            quantity: 1,
+            purchaseDate: Date(),
+            method: .screenshot,
+            verification: .screenshotVerified
+        )
+        let id = store.state.activeHoldings(of: store.state.currentUserId)[0].id
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+
+        store.addToPosition(id: id, addPrice: 140, addQuantity: 1)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertTrue(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify })
+
+        let match = store.analyzeText("NVDA\nNVIDIA\n평균매입가 $151.70")
+        store.applyScreenshotVerification(holdingId: id, analysis: match)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+        XCTAssertFalse(store.inboxItems(for: store.state.currentUserId).contains { $0.kind == .reverify })
+
+        store.updateHoldingPrice(id: id, price: 155)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+
+        store.sellHolding(id: id, sellPrice: 180, sellDate: Date())
+        XCTAssertEqual(store.state.holding(id)?.status, .sold)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .needsReview)
+        XCTAssertEqual(store.toast, "매도 처리됨. 매도가 인증을 남겨 주세요.")
+
+        let sellMatch = store.analyzeText("NVDA\nNVIDIA\n매도가 $180.00")
+        store.applyScreenshotVerification(holdingId: id, analysis: sellMatch)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
+        XCTAssertTrue(store.state.events.contains { $0.type == .screenshotVerified && $0.message.contains("매도가") })
+
+        store.applyScreenshotVerification(
+            holdingId: id,
+            analysis: store.analyzeText("NVDA\nNVIDIA\n매도가 $210.00")
+        )
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .mismatch)
+        store.adoptScreenshotPrice(holdingId: id, price: 210)
+        XCTAssertEqual(store.state.holding(id)?.sellPrice ?? 0, 210, accuracy: 0.01)
+        XCTAssertEqual(store.state.holding(id)?.verificationState, .screenshotVerified)
     }
 }
 
@@ -478,6 +622,10 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(StockIdentity.mark(ticker: "AAPL").glyph, "A")
         XCTAssertEqual(StockIdentity.mark(ticker: "035720").glyph, "K")
         XCTAssertEqual(StockIdentity.mark(ticker: "005930").glyph, "삼")
+        XCTAssertEqual(StockIdentity.logoURL(ticker: "NVDA")?.host, "cdn.simpleicons.org")
+        XCTAssertTrue(StockIdentity.logoURL(ticker: "NVDA")?.absoluteString.contains("nvidia") == true)
+        XCTAssertEqual(StockIdentity.logoURL(ticker: "000660")?.host, "www.google.com")
+        XCTAssertNil(StockIdentity.logoURL(ticker: "UNKNOWN"))
     }
 
     func testCatalogTickersAllHaveGlyphs() {
@@ -488,10 +636,70 @@ final class StockIdentityPulseTests: XCTestCase {
         }
     }
 
-    func testHeadlineIsOneLineDemoCopy() {
+    func testHeadlinesAreTwoDemoLines() {
+        let nvda = StockPulse.headlines(ticker: "NVDA")
+        XCTAssertEqual(nvda.count, 2)
+        XCTAssertTrue(nvda[0].title.contains("거래량"))
+        XCTAssertEqual(nvda[0].ago, "2시간 전")
+        XCTAssertEqual(nvda[0].source, "한국경제")
+        XCTAssertTrue(nvda[0].url.host?.contains("news.google.com") == true)
+        XCTAssertNotNil(nvda[0].imageURL)
+        XCTAssertTrue(nvda[1].title.contains("데이터센터"))
         XCTAssertTrue(StockPulse.headline(ticker: "NVDA").contains("거래량"))
         XCTAssertTrue(StockPulse.newsLine(ticker: "NVDA").contains("데모"))
+        XCTAssertEqual(StockPulse.headlines(ticker: "UNKNOWN").count, 1)
         XCTAssertEqual(StockPulse.headline(ticker: "UNKNOWN"), "그룹에서 이 종목 이야기 중")
+        let samsung = StockPulse.headlines(ticker: "005930")[0]
+        XCTAssertTrue(samsung.url.host?.contains("search.naver.com") == true)
+    }
+
+    func testTakeStepsAndConsensus() {
+        XCTAssertEqual(TakeLevel.allCases.count, 5)
+        XCTAssertEqual(TakeLevel.strongBuy.title, "강력 추천")
+        XCTAssertEqual(TakeLevel.consensus([.strongBuy, .buy, .strongBuy]), .strongBuy)
+        XCTAssertEqual(TakeLevel.consensus([.strongSell, .sell]), .strongSell)
+        let rated = StockPulse.snapshot(
+            ticker: "NVDA",
+            commentCount: 4,
+            pendingRecommendations: 1,
+            sharedReturn: 0.4,
+            groupTake: .strongBuy,
+            takeCount: 3,
+            myTake: .buy
+        )
+        XCTAssertEqual(rated.rating, "강력 추천")
+        XCTAssertEqual(rated.kick, "glory")
+        XCTAssertTrue(rated.take.contains("3명"))
+    }
+
+    func testSetTakeUpdatesMyVote() {
+        let me = User(nickname: "나")
+        var state = AppState.empty(user: me, stocks: StockCatalog.all)
+        DemoSeeder.seed(into: &state, currentUser: me)
+        let store = AppStore(
+            state: state,
+            persistence: PersistenceStore(filename: "test-take-\(UUID().uuidString).json")
+        )
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        store.setTake(stockId: nvda.id, level: .hold)
+        XCTAssertEqual(store.myTake(in: store.state.groups[0].id, stockId: nvda.id), .hold)
+        XCTAssertEqual(store.toast, "관망")
+    }
+
+    func testSnapshotKeepsLightCopy() {
+        let busy = StockPulse.snapshot(ticker: "NVDA", commentCount: 4, pendingRecommendations: 1, sharedReturn: 0.4)
+        XCTAssertEqual(busy.rating, "들뜸")
+        XCTAssertEqual(busy.take, "지금 말이 많은 종목")
+        XCTAssertEqual(busy.items.count, 2)
+        XCTAssertTrue(busy.blurb.contains("댓글 4"))
+
+        let roasted = StockPulse.snapshot(ticker: "AAPL", commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2)
+        XCTAssertEqual(roasted.rating, "물림")
+        XCTAssertEqual(roasted.take, "같이 물린 분위기")
+
+        let quiet = StockPulse.snapshot(ticker: "AMD", commentCount: 0, pendingRecommendations: 0, sharedReturn: nil)
+        XCTAssertEqual(quiet.rating, "관망")
+        XCTAssertEqual(quiet.take, "아직 평가 없음")
     }
 
     func testVibeStaysLight() {
@@ -500,6 +708,76 @@ final class StockIdentityPulseTests: XCTestCase {
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 1, sharedReturn: nil), "추천이 와 있음")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: -0.2), "같이 물린 분위기")
         XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: 0.2), "같이 웃는 분위기")
-        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 말 없음")
+        XCTAssertEqual(StockPulse.vibe(commentCount: 0, pendingRecommendations: 0, sharedReturn: nil), "아직 평가 없음")
+    }
+
+    func testBlendedAverageFromAddOn() {
+        XCTAssertEqual(
+            Holding.blendedAverage(oldAverage: 100, oldQuantity: 2, addPrice: 50, addQuantity: 2) ?? 0,
+            75,
+            accuracy: 0.0001
+        )
+        XCTAssertNil(Holding.blendedAverage(oldAverage: 100, oldQuantity: 0, addPrice: 50, addQuantity: 2))
+        XCTAssertNil(Holding.blendedAverage(oldAverage: 100, oldQuantity: 1, addPrice: 0, addQuantity: 1))
+    }
+}
+
+final class ChartMathTests: XCTestCase {
+    func testRSIRisingSeriesIsHigh() {
+        let closes = (0..<20).map { 100.0 + Double($0) }
+        let rsi = ChartMath.rsi(closes: closes) ?? 0
+        XCTAssertGreaterThan(rsi, 70)
+    }
+
+    func testRSIFallingSeriesIsLow() {
+        let closes = (0..<20).map { 100.0 - Double($0) }
+        let rsi = ChartMath.rsi(closes: closes) ?? 100
+        XCTAssertLessThan(rsi, 30)
+    }
+
+    func testVolumeSpikeSuggestsTag() {
+        let now = Date()
+        var points: [PricePoint] = []
+        for i in 0..<21 {
+            points.append(PricePoint(date: now.addingTimeInterval(Double(i) * 86400), price: 100, volume: i == 20 ? 2000 : 100))
+        }
+        let snap = ChartMath.snapshot(for: points)
+        XCTAssertTrue(snap.tags.contains { $0.id == "vol" && $0.suggested })
+        XCTAssertGreaterThan(snap.volumeRatio, 1.8)
+    }
+
+    func testHistoryHasCandlesAndRecommendKeepsSignals() {
+        let nvda = StockCatalog.stock(ticker: "NVDA")!
+        let points = MockStockPriceService().historicalPrices(for: nvda, days: 40, now: Date())
+        XCTAssertGreaterThan(points.count, 14)
+        XCTAssertGreaterThan(points.last?.high ?? 0, 0)
+        XCTAssertGreaterThan(points.last?.volume ?? 0, 0)
+
+        let store = AppStore(
+            state: .empty(user: User(nickname: "나"), stocks: StockCatalog.all),
+            persistence: PersistenceStore(filename: "test-signal-\(UUID().uuidString).json")
+        )
+        store.createGroup(name: "팟")
+        let friend = User(nickname: "영희")
+        store.state.users.append(friend)
+        store.state.members.append(GroupMember(groupId: store.state.groups[0].id, userId: friend.id))
+        store.addHolding(stock: nvda, averagePrice: 140, quantity: nil, purchaseDate: Date(), method: .manual, verification: .unverified)
+        store.recommend(
+            holding: store.state.activeHoldings(of: store.state.currentUserId)[0],
+            to: friend.id,
+            message: "거래량 보고 들어가",
+            signals: ["RSI 32 과매도", "거래량 급증 2.1배"]
+        )
+        XCTAssertEqual(store.state.recommendations.first?.signals.count, 2)
+        XCTAssertTrue(store.state.recommendations.first?.signals.contains("거래량 급증 2.1배") == true)
+    }
+
+    func testAnalysisTagsAreChartReads() {
+        XCTAssertEqual(
+            ChartMath.analysisTags.map(\.label),
+            ["거래량 급증", "RSI 과매도", "RSI 과매수", "이평 돌파", "지지선"]
+        )
+        XCTAssertEqual(ChartMath.tvSymbol(for: StockCatalog.stock(ticker: "NVDA")!), "NASDAQ:NVDA")
+        XCTAssertEqual(ChartMath.tvSymbol(for: StockCatalog.stock(ticker: "005930")!), "KRX:005930")
     }
 }

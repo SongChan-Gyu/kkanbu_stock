@@ -164,7 +164,8 @@ struct FeedEvent: Identifiable, Codable, Hashable, Sendable {
 
     var opensRecommendationThread: Bool {
         switch type {
-        case .recommendStock, .recommendAccepted, .recommendWillBuy, .recommendRejected, .commentPosted:
+        case .recommendStock, .recommendAccepted, .recommendWillBuy, .recommendRejected, .commentPosted,
+             .proposalCreated, .coBuyRequest, .coBuyAccepted, .coBuyCompleted, .persistentNagging:
             true
         default:
             false

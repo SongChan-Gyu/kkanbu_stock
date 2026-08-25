@@ -1,5 +1,341 @@
 import SwiftUI
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
+#if canImport(WebKit)
+import WebKit
+#endif
+
+enum KkanbuHaptic {
+    static func tap() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+}
+
+struct MiniChart: View {
+    var candles: [PricePoint] = []
+    var values: [Double] = []
+
+    private var points: [PricePoint] {
+        if !candles.isEmpty { return Array(candles.suffix(32)) }
+        return values.map { PricePoint(date: Date(), price: $0) }
+    }
+
+    var body: some View {
+        let pts = points
+        VStack(spacing: 4) {
+            GeometryReader { geo in
+                candleLayer(pts: pts, size: geo.size)
+            }
+            .frame(height: 72)
+            GeometryReader { geo in
+                volumeLayer(pts: pts, size: geo.size)
+            }
+            .frame(height: 28)
+        }
+        .accessibilityLabel("캔들 차트")
+    }
+
+    private func candleLayer(pts: [PricePoint], size: CGSize) -> some View {
+        let minV = pts.map(\.low).min() ?? 0
+        let maxV = pts.map(\.high).max() ?? 1
+        let span = max(maxV - minV, 0.0001)
+        let slot = size.width / CGFloat(max(pts.count, 1))
+        return ZStack {
+            ForEach(Array(pts.enumerated()), id: \.element.id) { index, point in
+                let cx = slot * (CGFloat(index) + 0.5)
+                let y = { (value: Double) in size.height * (1 - CGFloat((value - minV) / span)) }
+                let color = point.isBull ? Color.kkanbuUp : Color.kkanbuDown
+                Path { path in
+                    path.move(to: CGPoint(x: cx, y: y(point.high)))
+                    path.addLine(to: CGPoint(x: cx, y: y(point.low)))
+                }
+                .stroke(color, lineWidth: 1)
+                Rectangle()
+                    .fill(color)
+                    .frame(width: max(2.5, slot * 0.55), height: max(2, abs(y(point.close) - y(point.open))))
+                    .position(x: cx, y: (y(point.open) + y(point.close)) / 2)
+            }
+        }
+    }
+
+    private func volumeLayer(pts: [PricePoint], size: CGSize) -> some View {
+        let maxVol = max(pts.map(\.volume).max() ?? 1, 1)
+        let slot = size.width / CGFloat(max(pts.count, 1))
+        return ZStack(alignment: .bottom) {
+            ForEach(Array(pts.enumerated()), id: \.element.id) { index, point in
+                let cx = slot * (CGFloat(index) + 0.5)
+                let height = max(2, size.height * CGFloat(point.volume / maxVol))
+                Rectangle()
+                    .fill((point.isBull ? Color.kkanbuUp : Color.kkanbuDown).opacity(0.4))
+                    .frame(width: max(2, slot * 0.55), height: height)
+                    .position(x: cx, y: size.height - height / 2)
+            }
+        }
+    }
+}
+
+struct TradingViewPane: View {
+    var stock: Stock
+    var height: CGFloat = 420
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            #if canImport(WebKit)
+            TradingViewWeb(symbol: ChartMath.tvSymbol(for: stock))
+                .frame(height: height)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(KkanbuTheme.line, lineWidth: 1)
+                }
+            #else
+            MiniChart(candles: [])
+            #endif
+            Text("트레이딩뷰 일봉 · 거래량·RSI. 주문이 나가지 않습니다.")
+                .font(.caption)
+                .foregroundStyle(KkanbuTheme.faint)
+            if let url = ChartMath.tradingViewURL(for: stock) {
+                Link("새 탭에서 크게 보기", destination: url)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
+        }
+    }
+}
+
+#if canImport(WebKit)
+struct TradingViewWeb: UIViewRepresentable {
+    var symbol: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(symbol: symbol)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let web = WKWebView(frame: .zero)
+        web.scrollView.isScrollEnabled = false
+        web.scrollView.bounces = false
+        web.isOpaque = false
+        web.backgroundColor = .clear
+        DispatchQueue.main.async {
+            web.loadHTMLString(Self.html(symbol: symbol), baseURL: URL(string: "https://www.tradingview.com"))
+        }
+        return web
+    }
+
+    func updateUIView(_ web: WKWebView, context: Context) {
+        guard context.coordinator.symbol != symbol else { return }
+        context.coordinator.symbol = symbol
+        web.loadHTMLString(Self.html(symbol: symbol), baseURL: URL(string: "https://www.tradingview.com"))
+    }
+
+    final class Coordinator {
+        var symbol: String
+        init(symbol: String) { self.symbol = symbol }
+    }
+
+    private static func html(symbol: String) -> String {
+        let safe = symbol.replacingOccurrences(of: "\"", with: "")
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <style>html,body,#tv{margin:0;height:100%;background:transparent}</style>
+        </head>
+        <body>
+        <div id="tv"></div>
+        <script src="https://s3.tradingview.com/tv.js"></script>
+        <script>
+        function boot() {
+          if (!window.TradingView) { setTimeout(boot, 200); return; }
+          new TradingView.widget({
+            autosize: true,
+            symbol: "\(safe)",
+            interval: "D",
+            timezone: "Asia/Seoul",
+            theme: "light",
+            style: "1",
+            locale: "kr",
+            hide_side_toolbar: true,
+            allow_symbol_change: false,
+            save_image: true,
+            hide_volume: false,
+            enable_publishing: false,
+            studies: ["STD;RSI", "Volume@tv-basicstudies"],
+            container_id: "tv"
+          });
+        }
+        boot();
+        </script>
+        </body>
+        </html>
+        """
+    }
+}
+#endif
+
+struct SignalChips: View {
+    var labels: [String]
+
+    var body: some View {
+        if !labels.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(labels, id: \.self) { label in
+                    Text(label)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(KkanbuTheme.chip, in: Capsule())
+                }
+            }
+        }
+    }
+}
+
+enum CommentPhoto {
+    static func jpeg(from data: Data, maxPixel: CGFloat = 1200, quality: CGFloat = 0.72) -> Data? {
+        #if canImport(UIKit)
+        guard let image = UIImage(data: data) else { return data }
+        return jpeg(from: image, maxPixel: maxPixel, quality: quality)
+        #else
+        return data
+        #endif
+    }
+
+    #if canImport(UIKit)
+    static func jpeg(from image: UIImage, maxPixel: CGFloat = 1200, quality: CGFloat = 0.72) -> Data? {
+        let size = image.size
+        let longest = max(size.width, size.height)
+        let scale = longest > maxPixel ? maxPixel / longest : 1
+        let target = CGSize(width: max(1, size.width * scale), height: max(1, size.height * scale))
+        let renderer = UIGraphicsImageRenderer(size: target)
+        let scaled = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return scaled.jpegData(compressionQuality: quality)
+    }
+
+    static func chartJPEG(values: [Double], title: String, price: String) -> Data? {
+        let size = CGSize(width: 720, height: 280)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1).setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+            guard values.count >= 2 else { return }
+            let minV = values.min() ?? 0
+            let maxV = values.max() ?? 1
+            let span = max(maxV - minV, 0.0001)
+            let path = UIBezierPath()
+            let left: CGFloat = 28
+            let usableWidth = size.width - 56
+            let top: CGFloat = 48
+            let usableHeight = size.height - 80
+            for (index, value) in values.enumerated() {
+                let x = left + CGFloat(index) / CGFloat(values.count - 1) * usableWidth
+                let y = top + (1 - CGFloat((value - minV) / span)) * usableHeight
+                if index == 0 {
+                    path.move(to: CGPoint(x: x, y: y))
+                } else {
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+            UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1).setStroke()
+            path.lineWidth = 3
+            path.lineJoinStyle = .round
+            path.lineCapStyle = .round
+            path.stroke()
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+            ]
+            (title as NSString).draw(at: CGPoint(x: 28, y: 10), withAttributes: titleAttrs)
+            let priceAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .bold),
+                .foregroundColor: UIColor(red: 0.882, green: 0.114, blue: 0.282, alpha: 1)
+            ]
+            let priceText = price as NSString
+            let priceSize = priceText.size(withAttributes: priceAttrs)
+            priceText.draw(at: CGPoint(x: size.width - 28 - priceSize.width, y: 14), withAttributes: priceAttrs)
+            let capAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 14),
+                .foregroundColor: UIColor(white: 0.45, alpha: 1)
+            ]
+            ("데모 시세 · 분석용 차트" as NSString).draw(at: CGPoint(x: 28, y: size.height - 28), withAttributes: capAttrs)
+        }
+        return image.jpegData(compressionQuality: 0.72)
+    }
+
+    static func chartJPEG(candles: [PricePoint], title: String, price: String, rsiLabel: String? = nil) -> Data? {
+        let pts = Array(candles.suffix(40))
+        guard pts.count >= 2 else {
+            return chartJPEG(values: pts.map(\.close), title: title, price: price)
+        }
+        let size = CGSize(width: 720, height: 340)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1).setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+            let left: CGFloat = 28
+            let usableWidth = size.width - 56
+            let candleTop: CGFloat = 48
+            let candleH: CGFloat = 180
+            let volTop: CGFloat = 236
+            let volH: CGFloat = 44
+            let minV = pts.map(\.low).min() ?? 0
+            let maxV = pts.map(\.high).max() ?? 1
+            let span = max(maxV - minV, 0.0001)
+            let maxVol = max(pts.map(\.volume).max() ?? 1, 1)
+            let slot = usableWidth / CGFloat(pts.count)
+            let y: (Double) -> CGFloat = { value in
+                candleTop + (1 - CGFloat((value - minV) / span)) * candleH
+            }
+            let up = UIColor(red: 0.882, green: 0.114, blue: 0.282, alpha: 1)
+            let down = UIColor(red: 0.145, green: 0.388, blue: 0.922, alpha: 1)
+            for (index, point) in pts.enumerated() {
+                let cx = left + slot * (CGFloat(index) + 0.5)
+                let color = point.isBull ? up : down
+                color.setStroke()
+                color.setFill()
+                let wick = UIBezierPath()
+                wick.move(to: CGPoint(x: cx, y: y(point.high)))
+                wick.addLine(to: CGPoint(x: cx, y: y(point.low)))
+                wick.lineWidth = 1.2
+                wick.stroke()
+                let bodyH = max(2, abs(y(point.close) - y(point.open)))
+                let bodyY = min(y(point.open), y(point.close))
+                UIBezierPath(rect: CGRect(x: cx - max(1.4, slot * 0.28), y: bodyY, width: max(2.8, slot * 0.56), height: bodyH)).fill()
+                let vh = max(2, volH * CGFloat(point.volume / maxVol))
+                color.withAlphaComponent(0.4).setFill()
+                UIBezierPath(rect: CGRect(x: cx - max(1.4, slot * 0.28), y: volTop + volH - vh, width: max(2.8, slot * 0.56), height: vh)).fill()
+            }
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .foregroundColor: UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1)
+            ]
+            (title as NSString).draw(at: CGPoint(x: 28, y: 10), withAttributes: titleAttrs)
+            let priceAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .bold),
+                .foregroundColor: up
+            ]
+            let priceText = price as NSString
+            let priceSize = priceText.size(withAttributes: priceAttrs)
+            priceText.draw(at: CGPoint(x: size.width - 28 - priceSize.width, y: 14), withAttributes: priceAttrs)
+            let cap = ["데모 캔들 · RSI·거래량", rsiLabel].compactMap { $0 }.joined(separator: " · ")
+            let capAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 13),
+                .foregroundColor: UIColor(white: 0.45, alpha: 1)
+            ]
+            (cap as NSString).draw(at: CGPoint(x: 28, y: size.height - 28), withAttributes: capAttrs)
+        }
+        return image.jpegData(compressionQuality: 0.72)
+    }
+    #endif
+}
 
 enum KkanbuTheme {
     static let radius: CGFloat = 10
@@ -32,6 +368,26 @@ extension Color {
 struct KkanbuBackground: View {
     var body: some View {
         KkanbuTheme.bg.ignoresSafeArea()
+    }
+}
+
+struct BrandMark: View {
+    var size: CGFloat = 56
+
+    var body: some View {
+        let diameter = size * 0.62
+        ZStack {
+            Circle()
+                .fill(KkanbuTheme.ink)
+                .frame(width: diameter, height: diameter)
+                .offset(x: -diameter * 0.28)
+            Circle()
+                .fill(Color.kkanbuUp)
+                .frame(width: diameter, height: diameter)
+                .offset(x: diameter * 0.28)
+        }
+        .frame(width: size, height: size * 0.72)
+        .accessibilityHidden(true)
     }
 }
 
@@ -82,12 +438,32 @@ struct StockMark: View {
 
     var body: some View {
         let mark = StockIdentity.mark(ticker: ticker, name: name)
+        ZStack {
+            Circle().fill(Color(hex: mark.backgroundHex))
+            if let url = StockIdentity.logoURL(ticker: ticker) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(size * 0.22)
+                    default:
+                        glyph(mark)
+                    }
+                }
+            } else {
+                glyph(mark)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel(name.isEmpty ? ticker : name)
+    }
+
+    private func glyph(_ mark: StockIdentity.Mark) -> some View {
         Text(mark.glyph)
             .font(.system(size: size * (mark.glyph.count > 1 ? 0.32 : 0.42), weight: .bold, design: .rounded))
             .foregroundStyle(Color(hex: mark.foregroundHex))
-            .frame(width: size, height: size)
-            .background(Color(hex: mark.backgroundHex), in: Circle())
-            .accessibilityLabel(name.isEmpty ? ticker : name)
     }
 }
 
@@ -107,6 +483,194 @@ struct CommentCountLabel: View {
     }
 }
 
+struct PulseChip: View {
+    var snapshot: StockPulse.Snapshot
+
+    var body: some View {
+        Text(snapshot.rating)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(color)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+
+    private var color: Color {
+        switch snapshot.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.muted
+        }
+    }
+}
+
+struct TakeStepper: View {
+    var selected: TakeLevel?
+    var action: (TakeLevel) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(TakeLevel.allCases, id: \.self) { level in
+                Button {
+                    KkanbuHaptic.tap()
+                    action(level)
+                } label: {
+                    Text(level.shortTitle)
+                        .font(.caption2.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(selected == level ? color(level) : KkanbuTheme.muted)
+                        .background(
+                            (selected == level ? color(level).opacity(0.12) : KkanbuTheme.chip),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func color(_ level: TakeLevel) -> Color {
+        switch level.kick {
+        case "glory": Color.kkanbuUp
+        case "roast": Color.kkanbuDown
+        default: KkanbuTheme.ink
+        }
+    }
+}
+
+struct NewsCard: View {
+    var item: StockPulse.NewsItem
+
+    var body: some View {
+        Link(destination: item.url) {
+            HStack(alignment: .top, spacing: 10) {
+                AsyncImage(url: item.imageURL) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image.resizable().scaledToFill()
+                    default:
+                        KkanbuTheme.chip
+                    }
+                }
+                .frame(width: 72, height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.title)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KkanbuTheme.ink)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text("\(item.source) · \(item.ago)")
+                        .font(.caption2)
+                        .foregroundStyle(KkanbuTheme.faint)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PulseStrip: View {
+    @Environment(AppStore.self) private var store
+    var snapshot: StockPulse.Snapshot
+    var compact: Bool = true
+    var stock: Stock? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                PulseChip(snapshot: snapshot)
+                Text(snapshot.take)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KkanbuTheme.muted)
+                    .lineLimit(1)
+            }
+            if !compact {
+                if let stock {
+                    TakeStepper(selected: snapshot.myTake ?? snapshot.groupTake) { level in
+                        store.setTake(stockId: stock.id, level: level)
+                    }
+                }
+                Text(snapshot.blurb)
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.faint)
+                Text("주요 뉴스")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(KkanbuTheme.faint)
+                    .padding(.top, 2)
+                ForEach(snapshot.items.prefix(2)) { item in
+                    NewsCard(item: item)
+                }
+            } else if let first = snapshot.items.first {
+                NewsCard(item: first)
+            }
+        }
+    }
+}
+
+struct FoldSection<Content: View>: View {
+    var title: String
+    var count: Int
+    var preview: String?
+    @Binding var isOpen: Bool
+    var content: Content
+
+    init(
+        title: String,
+        count: Int = 0,
+        preview: String? = nil,
+        isOpen: Binding<Bool>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.count = count
+        self.preview = preview
+        self._isOpen = isOpen
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                KkanbuHaptic.tap()
+                withAnimation(.easeInOut(duration: 0.2)) { isOpen.toggle() }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.muted)
+                    Spacer(minLength: 8)
+                    if !isOpen, let preview, !preview.isEmpty {
+                        Text(preview)
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                            .lineLimit(1)
+                    } else if count > 0 {
+                        Text("\(count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(KkanbuTheme.faint)
+                    }
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(KkanbuTheme.faint)
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                }
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if isOpen {
+                content
+                    .padding(.bottom, 10)
+            }
+            KkanbuTheme.line.frame(height: 1)
+        }
+    }
+}
+
 struct QuietButton: View {
     var title: String
     var kind: Kind = .primary
@@ -115,13 +679,15 @@ struct QuietButton: View {
     enum Kind { case primary, secondary, ghost }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            KkanbuHaptic.tap()
+            action()
+        } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .foregroundStyle(foreground)
-                .background(background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -189,17 +755,48 @@ struct EmptyStateView: View {
     var emoji: String = ""
     var title: String
     var message: String
+    var centered: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: centered ? .center : .leading, spacing: 8) {
+            if centered {
+                BrandMark(size: 64)
+                    .padding(.bottom, 8)
+            }
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(centered ? .center : .leading)
             Text(message)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(KkanbuTheme.muted)
+                .multilineTextAlignment(centered ? .center : .leading)
+                .lineSpacing(2)
         }
-        .padding(.vertical, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, centered ? 28 : 20)
+        .frame(maxWidth: .infinity, alignment: centered ? .center : .leading)
+    }
+}
+
+struct InviteChip: View {
+    var code: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("초대")
+                    .foregroundStyle(KkanbuTheme.muted)
+                Text(code)
+                    .font(.caption.weight(.semibold).monospaced())
+                    .foregroundStyle(KkanbuTheme.ink)
+            }
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(KkanbuTheme.chip, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("초대 코드 \(code) 복사")
     }
 }
 
@@ -293,6 +890,7 @@ struct GradeTitle: View {
 }
 
 struct HoldingCardView: View {
+    @Environment(AppStore.self) private var store
     var stock: Stock
     var holding: Holding
     var currentPrice: Double
@@ -302,8 +900,10 @@ struct HoldingCardView: View {
     var isMine: Bool
     var ownerName: String? = nil
     var onRecommend: (() -> Void)?
+    var onAddOn: (() -> Void)?
     var onSell: (() -> Void)?
     var onVerify: (() -> Void)?
+    var showsPulse: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -330,10 +930,9 @@ struct HoldingCardView: View {
             Text("평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market)) · 현재가 \(MoneyFormat.price(currentPrice, market: stock.market))")
                 .font(.footnote)
                 .foregroundStyle(KkanbuTheme.muted)
-            Text(StockPulse.newsLine(ticker: stock.ticker))
-                .font(.caption)
-                .foregroundStyle(KkanbuTheme.muted)
-                .lineLimit(1)
+            if showsPulse {
+                PulseStrip(snapshot: rowPulse, stock: stock)
+            }
             if showsQuantity, let qty = holding.quantity {
                 Text("수량 \(String(format: "%g", qty))")
                     .font(.caption)
@@ -356,13 +955,19 @@ struct HoldingCardView: View {
                     .font(.caption)
                     .foregroundStyle(KkanbuTheme.faint)
             }
+            if holding.verificationState == .needsReview {
+                Text(holding.status == .sold ? "매도가 인증이 필요합니다" : "평단을 고쳐서 다시 인증이 필요합니다")
+                    .font(.caption)
+                    .foregroundStyle(KkanbuTheme.muted)
+            }
             HStack(spacing: 8) {
                 if isMine, holding.status == .holding {
                     small("친구에게 추천", action: onRecommend)
+                    small("추매", action: onAddOn)
                     small("매도", action: onSell)
                 }
                 if isMine, holding.verificationState != .screenshotVerified {
-                    small("캡처 인증", action: onVerify)
+                    small(holding.status == .sold ? "매도가 인증" : "캡처 인증", action: onVerify)
                 }
             }
         }
@@ -370,6 +975,10 @@ struct HoldingCardView: View {
         .overlay(alignment: .bottom) {
             KkanbuTheme.line.frame(height: 1)
         }
+    }
+
+    private var rowPulse: StockPulse.Snapshot {
+        store.pulseSnapshot(for: stock, in: store.state.selectedGroupId)
     }
 
     @ViewBuilder

@@ -19,6 +19,14 @@ struct PersistenceStore {
         if let state = try? decoder.decode(AppState.self, from: data) { return state }
         guard var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         if object["comments"] == nil { object["comments"] = [] }
+        if object["takes"] == nil { object["takes"] = [] }
+        if let recs = object["recommendations"] as? [[String: Any]] {
+            object["recommendations"] = recs.map { rec -> [String: Any] in
+                var rec = rec
+                if rec["signals"] == nil { rec["signals"] = [] }
+                return rec
+            }
+        }
         guard let patched = try? JSONSerialization.data(withJSONObject: object) else { return nil }
         return try? decoder.decode(AppState.self, from: patched)
     }

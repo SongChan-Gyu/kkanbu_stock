@@ -5,6 +5,7 @@ struct HoldingsView: View {
     @State private var showAdd = false
     @State private var recommendHolding: Holding?
     @State private var sellHolding: Holding?
+    @State private var addOnHolding: Holding?
     @State private var verifyHolding: Holding?
     @State private var showPropose = false
 
@@ -14,15 +15,18 @@ struct HoldingsView: View {
                 KkanbuBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        DisclaimerBanner()
                         summary
                         let mine = store.state.holdings.filter { $0.userId == store.state.currentUserId }
                         let active = mine.filter { $0.status == .holding }
                         let sold = mine.filter { $0.status == .sold }
                         if mine.isEmpty {
-                            EmptyStateView(title: "아직 주식이 없습니다", message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.")
-                            QuietButton(title: "내 주식 등록") { showAdd = true }
-                            QuietButton(title: "그룹에 같이 사자", kind: .secondary) { showPropose = true }
+                            EmptyStateView(
+                                title: "아직 주식이 없습니다",
+                                message: "종목을 넣으면 친구가 같은 걸 샀을 때 깐부가 됩니다.",
+                                centered: true
+                            )
+                            QuietButton(title: "주식 추가") { showAdd = true }
+                            QuietButton(title: "매수 제안", kind: .secondary) { showPropose = true }
                         }
                         if !active.isEmpty {
                             Text("보유 중")
@@ -38,11 +42,13 @@ struct HoldingsView: View {
                                 holdingBlock(holding)
                             }
                         }
+                        DisclaimerBanner()
                     }
                     .padding(16)
                 }
             }
             .navigationTitle("내 주식")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("그룹에 제안") { showPropose = true }
@@ -60,6 +66,7 @@ struct HoldingsView: View {
             .sheet(isPresented: $showAdd) { AddStockView() }
             .sheet(item: $recommendHolding) { RecommendSheet(holding: $0) }
             .sheet(item: $sellHolding) { SellSheet(holding: $0) }
+            .sheet(item: $addOnHolding) { AverageEditSheet(holding: $0) }
             .sheet(item: $verifyHolding) { ScreenshotVerifySheet(holding: $0) }
             .sheet(isPresented: $showPropose) { ProposalSheet() }
         }
@@ -74,9 +81,10 @@ struct HoldingsView: View {
                 currentPrice: store.price(for: stock.id),
                 partners: partners(for: holding),
                 grade: grade(for: holding),
-                showsQuantity: store.state.currentUser.shareQuantity,
+                showsQuantity: true,
                 isMine: true,
                 onRecommend: { recommendHolding = holding },
+                onAddOn: holding.status == .holding ? { addOnHolding = holding } : nil,
                 onSell: holding.status == .holding ? { sellHolding = holding } : nil,
                 onVerify: { verifyHolding = holding }
             )
@@ -114,6 +122,131 @@ struct HoldingsView: View {
     }
 }
 
+struct AverageEditSheet: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    var holding: Holding
+    @State private var addPriceText = ""
+    @State private var addQtyText = ""
+    @State private var existingQtyText = ""
+    @State private var directPriceText = ""
+    @State private var qtyText = ""
+    @State private var date = Date()
+    @State private var showChart = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let stock = store.state.stock(holding.stockId) {
+                    Section("종목") {
+                        HStack(spacing: 10) {
+                            StockMark(ticker: stock.ticker, name: stock.name, size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(stock.name)
+                                Text("지금 평단 \(MoneyFormat.price(holding.averagePrice, market: stock.market))")
+                                    .font(.footnote)
+                                    .foregroundStyle(KkanbuTheme.muted)
+                                if let qty = holding.quantity {
+                                    Text("수량 \(formatQty(qty))")
+                                        .font(.caption)
+                                        .foregroundStyle(KkanbuTheme.faint)
+                                }
+                            }
+                        }
+                    }
+                    Section("추매") {
+                        Text("더 산 가격과 수량을 적으면 평단이 다시 계산됩니다. 현재가로 채우지 않습니다. 반영하면 인증이 풀리고, 캡처로 다시 인증합니다.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        TextField(stock.market == .krx ? "추가 매수가 예: 72300" : "추가 매수가 예: 163.40", text: $addPriceText)
+                            .keyboardType(.decimalPad)
+                        Button("차트에서 고르기") { showChart = true }
+                        if holding.quantity == nil {
+                            TextField("기존 수량", text: $existingQtyText)
+                                .keyboardType(.decimalPad)
+                        }
+                        TextField("추가 수량", text: $addQtyText)
+                            .keyboardType(.decimalPad)
+                        if let preview {
+                            Text("새 평단 \(MoneyFormat.price(preview, market: stock.market))")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    Section("직접") {
+                        TextField("새 평단", text: $directPriceText)
+                            .keyboardType(.decimalPad)
+                        TextField("수량 (선택)", text: $qtyText)
+                            .keyboardType(.decimalPad)
+                    }
+                }
+            }
+            .navigationTitle("추매 · 평단")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("반영") { save() }
+                        .disabled(!canSave)
+                }
+            }
+            .sheet(isPresented: $showChart) {
+                if let stock = store.state.stock(holding.stockId) {
+                    ChartPricePickerView(stock: stock, date: $date, priceText: $addPriceText)
+                }
+            }
+            .onAppear {
+                let stock = store.state.stock(holding.stockId)
+                let krx = stock?.market == .krx
+                directPriceText = String(format: krx ? "%.0f" : "%.2f", holding.averagePrice)
+                if let qty = holding.quantity {
+                    qtyText = formatQty(qty)
+                    existingQtyText = formatQty(qty)
+                }
+            }
+        }
+    }
+
+    private var parsedAddPrice: Double? { number(addPriceText) }
+    private var parsedAddQty: Double? { number(addQtyText) }
+    private var parsedExistingQty: Double? { holding.quantity ?? number(existingQtyText) }
+    private var parsedDirect: Double? { number(directPriceText) }
+    private var parsedQty: Double? { number(qtyText) }
+
+    private var preview: Double? {
+        guard let addPrice = parsedAddPrice, let addQty = parsedAddQty, let oldQty = parsedExistingQty else { return nil }
+        return Holding.blendedAverage(
+            oldAverage: holding.averagePrice,
+            oldQuantity: oldQty,
+            addPrice: addPrice,
+            addQuantity: addQty
+        )
+    }
+
+    private var canSave: Bool {
+        preview != nil || ((parsedDirect ?? 0) > 0)
+    }
+
+    private func save() {
+        if let addPrice = parsedAddPrice, let addQty = parsedAddQty, let oldQty = parsedExistingQty, addQty > 0, oldQty > 0 {
+            store.addToPosition(id: holding.id, addPrice: addPrice, addQuantity: addQty, existingQuantity: oldQty)
+            dismiss()
+            return
+        }
+        if let direct = parsedDirect, direct > 0 {
+            store.updateHoldingPrice(id: holding.id, price: direct, quantity: parsedQty)
+            dismiss()
+        }
+    }
+
+    private func number(_ text: String) -> Double? {
+        Double(text.replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "$", with: ""))
+    }
+
+    private func formatQty(_ value: Double) -> String {
+        String(format: value.rounded() == value ? "%.0f" : "%g", value)
+    }
+}
+
 struct SellSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -133,7 +266,7 @@ struct SellSheet: View {
                     TextField("매도가", text: $priceText)
                         .keyboardType(.decimalPad)
                     DatePicker("매도일", selection: $date, displayedComponents: .date)
-                    Text("매도해도 기록은 남아요. 혼자 튐, 선견지명, 너무 일찍 튐 같은 사건이 여기서 시작됩니다.")
+                    Text("매도해도 기록은 남아요. 혼자 튐, 선견지명, 너무 일찍 튐 같은 사건이 여기서 시작됩니다. 매도가도 캡처로 인증해 주세요. 현재가로 채우지 않습니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -143,14 +276,15 @@ struct SellSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("매도 처리") {
-                        let value = Double(priceText.replacingOccurrences(of: ",", with: "")) ?? store.price(for: holding.stockId)
+                        guard let value = Double(priceText.replacingOccurrences(of: ",", with: "")), value > 0 else { return }
                         store.sellHolding(id: holding.id, sellPrice: value, sellDate: date)
                         dismiss()
                     }
+                    .disabled((Double(priceText.replacingOccurrences(of: ",", with: "")) ?? 0) <= 0)
                 }
             }
             .onAppear {
-                priceText = String(format: "%.2f", store.price(for: holding.stockId))
+                priceText = ""
             }
         }
     }
@@ -162,6 +296,7 @@ struct RecommendSheet: View {
     var holding: Holding
     @State private var message = "같이 들어가 봐."
     @State private var selected: UUID?
+    @State private var selectedTags: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -172,11 +307,35 @@ struct RecommendSheet: View {
                             StockMark(ticker: stock.ticker, name: stock.name, size: 32)
                             Text("\(stock.name) · \(MoneyFormat.percent(holding.returnRate(currentPrice: store.price(for: stock.id))))")
                         }
+                        TradingViewPane(stock: stock, height: 380)
+                    }
+                    Section("차트에서 본 것") {
+                        Text("트레이딩뷰에서 본 거래량·RSI를 태그로 남깁니다.")
+                            .font(.caption)
+                            .foregroundStyle(KkanbuTheme.faint)
+                        ForEach(ChartMath.analysisTags) { tag in
+                            Button {
+                                if selectedTags.contains(tag.label) {
+                                    selectedTags.remove(tag.label)
+                                } else {
+                                    selectedTags.insert(tag.label)
+                                }
+                            } label: {
+                                HStack {
+                                    Text(tag.label)
+                                        .foregroundStyle(KkanbuTheme.ink)
+                                    Spacer()
+                                    if selectedTags.contains(tag.label) {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 Section("누구한테") {
                     Button("그룹 전체에게") {
-                        store.recommendToGroup(holding: holding, message: message)
+                        store.recommendToGroup(holding: holding, message: message, signals: Array(selectedTags))
                         dismiss()
                     }
                     ForEach(friends, id: \.id) { user in
@@ -202,12 +361,15 @@ struct RecommendSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("보내기") {
                         if let selected {
-                            store.recommend(holding: holding, to: selected, message: message)
+                            store.recommend(holding: holding, to: selected, message: message, signals: Array(selectedTags))
                             dismiss()
                         }
                     }
                     .disabled(selected == nil)
                 }
+            }
+            .onAppear {
+                selectedTags = []
             }
         }
     }
@@ -252,12 +414,12 @@ struct ProposalSheet: View {
                 }
                 Section("메시지") {
                     TextField("제안", text: $message, axis: .vertical)
-                    Text("추천은 내가 산 종목을 친구에게, 같이 사기는 아직 안 산 종목을 그룹 전체에 제안합니다.")
+                    Text("추천은 보유 종목, 매수 제안은 아직 안 산 종목입니다.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("그룹에 같이 사자")
+            .navigationTitle("매수 제안")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
